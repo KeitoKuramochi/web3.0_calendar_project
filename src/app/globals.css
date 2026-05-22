@@ -1,51 +1,46 @@
-/* グローバルCSS設計システム - グラスモーフィズム＆ダークプレミアム */
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* カラーシステム */
-  --bg-primary: #09090b;
-  --bg-secondary: #121218;
-  --bg-card: rgba(20, 20, 28, 0.6);
-  --bg-card-hover: rgba(28, 28, 38, 0.8);
-  
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-color-hover: rgba(255, 255, 255, 0.15);
-  --border-focus: rgba(99, 102, 241, 0.5);
+  --bg-primary: #f8f9fa;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f9fafb;
 
-  --text-primary: #f4f4f5;
-  --text-secondary: #a1a1aa;
-  --text-muted: #71717a;
-  
-  /* ブランドカラー */
-  --color-primary: #6366f1; /* Indigo */
-  --color-primary-light: #818cf8;
-  --color-primary-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  --color-secondary: #06b6d4; /* Cyan */
-  --color-secondary-gradient: linear-gradient(135deg, #0891b2 0%, #0d9488 100%);
-  
-  /* スコア・ステータスカラー */
-  --color-excellent: #10b981; /* ◎: Emerald */
-  --color-good: #3b82f6;      /* ○: Blue */
-  --color-fair: #f59e0b;      /* △: Amber */
-  --color-danger: #ef4444;    /* NG: Red */
+  --border-color: #e5e7eb;
+  --border-color-hover: #d1d5db;
+  --border-focus: rgba(79, 70, 229, 0.25);
 
-  /* シャドウ・エフェクト */
-  --glow-primary: rgba(99, 102, 241, 0.15);
-  --glow-secondary: rgba(6, 182, 212, 0.15);
-  --box-shadow-card: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  --backdrop-blur: blur(16px);
-  
-  /* トランジション */
-  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+
+  --color-primary: #4f46e5;
+  --color-primary-light: #6366f1;
+  --color-primary-bg: #eef2ff;
+  --color-secondary: #0891b2;
+  --color-secondary-bg: #e0f7fa;
+
+  --color-excellent: #059669;
+  --color-excellent-bg: #d1fae5;
+  --color-good: #2563eb;
+  --color-good-bg: #dbeafe;
+  --color-fair: #d97706;
+  --color-fair-bg: #fef3c7;
+  --color-danger: #dc2626;
+  --color-danger-bg: #fee2e2;
+
+  --box-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --box-shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s ease;
 }
 
-/* 基本リセット */
 * {
   box-sizing: border-box;
   padding: 0;
   margin: 0;
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Segoe UI", sans-serif;
 }
 
 html, body {
@@ -57,62 +52,45 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* 動的なオーロラ背景エフェクト */
-body {
-  position: relative;
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.1) 0px, transparent 50%),
-    radial-gradient(at 50% 50%, rgba(124, 58, 237, 0.05) 0px, transparent 50%);
-  background-attachment: fixed;
-}
-
-/* 共通スクロールバー */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--bg-primary);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
+  background: var(--border-color-hover);
+  border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--text-muted);
 }
 
-/* アニメーション */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 15px rgba(99, 102, 241, 0.2); }
-  50% { box-shadow: 0 0 25px rgba(99, 102, 241, 0.4); }
+@keyframes slideIn {
+  from { transform: translateY(80px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
-/* ユーティリティ */
 .fade-in {
   animation: fadeIn var(--transition-normal) forwards;
 }
 
-/* グラスモーフィズムカード */
 .glass-card {
   background: var(--bg-card);
-  backdrop-filter: var(--backdrop-blur);
-  -webkit-backdrop-filter: var(--backdrop-blur);
   border: 1px solid var(--border-color);
-  border-radius: 16px;
+  border-radius: 12px;
   padding: 24px;
   box-shadow: var(--box-shadow-card);
-  transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+  transition: box-shadow var(--transition-fast), border-color var(--transition-fast);
 }
 
 .glass-card:hover {
   border-color: var(--border-color-hover);
-  background: var(--bg-card-hover);
-  transform: translateY(-2px);
+  box-shadow: var(--box-shadow-card-hover);
 }

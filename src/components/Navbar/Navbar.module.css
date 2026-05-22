@@ -3,11 +3,9 @@
   justify-content: space-between;
   align-items: center;
   padding: 0 40px;
-  height: 70px;
-  background: rgba(9, 9, 11, 0.4);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  height: 60px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--border-color);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -16,23 +14,21 @@
 .logo {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   font-weight: 700;
-  font-size: 1.2rem;
-  background: var(--color-primary-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  font-size: 1.1rem;
+  color: var(--color-primary);
   cursor: pointer;
   transition: opacity var(--transition-fast);
 }
 
 .logo:hover {
-  opacity: 0.9;
+  opacity: 0.8;
 }
 
 .navLinks {
   display: flex;
-  gap: 24px;
+  gap: 4px;
   list-style: none;
 }
 
@@ -41,36 +37,35 @@
   align-items: center;
   gap: 6px;
   color: var(--text-secondary);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 500;
-  transition: color var(--transition-fast), transform var(--transition-fast);
+  transition: color var(--transition-fast), background-color var(--transition-fast);
   cursor: pointer;
   padding: 6px 12px;
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 .navLink:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.03);
-  transform: translateY(-1px);
+  background: var(--bg-primary);
 }
 
 .activeLink {
-  color: var(--color-primary-light);
-  background: rgba(99, 102, 241, 0.08);
-  border: 1px solid rgba(99, 102, 241, 0.15);
+  color: var(--color-primary);
+  background: var(--color-primary-bg);
+  font-weight: 600;
 }
 
 @media (max-width: 768px) {
   .navbar {
-    padding: 0 20px;
+    padding: 0 16px;
   }
-  
+
   .navLinks {
-    gap: 10px;
+    gap: 2px;
   }
-  
+
   .navLink span {
-    display: none; /* スマホ画面ではアイコンのみ表示 */
+    display: none;
   }
 }

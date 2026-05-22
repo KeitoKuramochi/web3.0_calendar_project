@@ -1,33 +1,31 @@
 .container {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 20px 0;
+  padding: 24px 0;
   animation: fadeIn var(--transition-normal) forwards;
 }
 
 .header {
-  margin-bottom: 30px;
+  margin-bottom: 24px;
 }
 
 .header h1 {
-  font-size: 2rem;
+  font-size: 1.6rem;
   font-weight: 700;
-  background: var(--color-primary-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 8px;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
 }
 
 .header p {
   color: var(--text-secondary);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
-/* メインレイアウト */
 .layout {
   display: grid;
   grid-template-columns: 1.2fr 1.8fr;
-  gap: 24px;
+  gap: 20px;
 }
 
 @media (max-width: 900px) {
@@ -37,66 +35,64 @@
 }
 
 .sectionTitle {
-  font-size: 1.1rem;
+  font-size: 0.875rem;
   font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 16px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 14px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
-/* 相談先候補リスト */
 .candidateList {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
 }
 
 .candidateCard {
-  background: var(--bg-card);
-  backdrop-filter: var(--backdrop-blur);
-  -webkit-backdrop-filter: var(--backdrop-blur);
+  background: #ffffff;
   border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 20px;
+  border-radius: 10px;
+  padding: 16px;
   cursor: pointer;
   transition: all var(--transition-fast);
   position: relative;
-  overflow: hidden;
 }
 
 .candidateCard:hover {
   border-color: var(--border-color-hover);
-  background: var(--bg-card-hover);
-  transform: translateY(-2px);
+  box-shadow: var(--box-shadow-card-hover);
 }
 
 .candidateCardActive {
   border-color: var(--color-primary);
-  background: rgba(99, 102, 241, 0.08);
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
+  background: var(--color-primary-bg);
 }
 
 .candidateHeader {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
 .avatar {
-  font-size: 2rem;
-  width: 44px;
-  height: 44px;
-  background: rgba(255, 255, 255, 0.05);
+  font-size: 1.5rem;
+  width: 40px;
+  height: 40px;
+  background: var(--bg-primary);
   border-radius: 50%;
   display: grid;
   place-content: center;
+  border: 1px solid var(--border-color);
+  flex-shrink: 0;
 }
 
 .candidateInfo h3 {
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -108,38 +104,37 @@
 
 .matchBadge {
   position: absolute;
-  top: 15px;
-  right: 15px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 0.75rem;
+  top: 12px;
+  right: 12px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 0.72rem;
   font-weight: 700;
-  background: rgba(6, 182, 212, 0.1);
-  border: 1px solid var(--color-secondary);
+  background: var(--color-secondary-bg);
   color: var(--color-secondary);
 }
 
 .recommendReason {
-  font-size: 0.85rem;
+  font-size: 0.825rem;
   color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.02);
-  padding: 8px 12px;
-  border-radius: 8px;
-  border-left: 3px solid var(--color-primary-light);
+  background: var(--bg-primary);
+  padding: 8px 10px;
+  border-radius: 6px;
+  border-left: 3px solid var(--color-primary);
+  line-height: 1.5;
 }
 
-/* スコアリング詳細セクション */
 .detailSection {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
 }
 
 .profileSummary {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 10px;
+  gap: 10px;
+  margin-bottom: 8px;
 }
 
 .timeTagGroup {
@@ -149,49 +144,50 @@
 }
 
 .timeTagPrefer {
-  padding: 4px 10px;
-  background: rgba(16, 185, 129, 0.08);
-  border: 1px solid rgba(16, 185, 129, 0.2);
+  padding: 3px 10px;
+  background: var(--color-excellent-bg);
+  border: 1px solid rgba(5, 150, 105, 0.2);
   border-radius: 20px;
   color: var(--color-excellent);
-  font-size: 0.8rem;
+  font-size: 0.775rem;
+  font-weight: 500;
 }
 
 .timeTagAvoid {
-  padding: 4px 10px;
-  background: rgba(245, 158, 11, 0.08);
-  border: 1px solid rgba(245, 158, 11, 0.2);
+  padding: 3px 10px;
+  background: var(--color-fair-bg);
+  border: 1px solid rgba(217, 119, 6, 0.2);
   border-radius: 20px;
   color: var(--color-fair);
-  font-size: 0.8rem;
+  font-size: 0.775rem;
+  font-weight: 500;
 }
 
-/* スロットスコアリスト */
 .slotList {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .slotItem {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 14px 20px;
-  background: rgba(255, 255, 255, 0.02);
+  gap: 14px;
+  padding: 12px 16px;
+  background: #ffffff;
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
   transition: all var(--transition-fast);
 }
 
 .slotItem:hover {
-  background: rgba(255, 255, 255, 0.05);
   border-color: var(--border-color-hover);
+  box-shadow: var(--box-shadow-card);
 }
 
 .slotItemActive {
-  background: rgba(6, 182, 212, 0.05);
+  background: var(--color-secondary-bg);
   border-color: var(--color-secondary);
 }
 
@@ -201,31 +197,28 @@
   border-radius: 50%;
   display: grid;
   place-content: center;
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 700;
+  flex-shrink: 0;
 }
 
 .scoreExcellent {
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid var(--color-excellent);
+  background: var(--color-excellent-bg);
   color: var(--color-excellent);
 }
 
 .scoreGood {
-  background: rgba(59, 130, 246, 0.15);
-  border: 1px solid var(--color-good);
+  background: var(--color-good-bg);
   color: var(--color-good);
 }
 
 .scoreFair {
-  background: rgba(245, 158, 11, 0.15);
-  border: 1px solid var(--color-fair);
+  background: var(--color-fair-bg);
   color: var(--color-fair);
 }
 
 .scorePoor {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid var(--color-danger);
+  background: var(--color-danger-bg);
   color: var(--color-danger);
   cursor: not-allowed;
 }
@@ -235,7 +228,7 @@
 }
 
 .slotTime {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 2px;
@@ -249,32 +242,32 @@
 .footer {
   display: flex;
   justify-content: flex-end;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .btnNext {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 28px;
-  background: var(--color-secondary-gradient);
+  padding: 10px 24px;
+  background: var(--color-secondary);
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   color: white;
   font-weight: 600;
+  font-size: 0.9rem;
   cursor: pointer;
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
 }
 
 .btnNext:hover {
+  background: #0e7490;
   transform: translateY(-1px);
-  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
 }
 
 .btnNext:disabled {
-  background: var(--text-muted);
+  background: var(--border-color-hover);
+  color: var(--text-muted);
   cursor: not-allowed;
-  opacity: 0.5;
-  box-shadow: none;
   transform: none;
 }
