@@ -5,10 +5,10 @@
 ## 📋 カラム
 
 ### 1. Todo (未着手)
-- [ ] **Issue #8**: 全体統合・ダッシュボード・README整備 (`docs/readme`)
+*(空)*
 
 ### 2. In Progress (作業中)
-- [ ] **Issue #7**: メール生成・チェック画面の実装 (`feature/mail-generation`)
+*(空)*
 
 ### 3. Review (確認・PR作成中)
 *(空)*
@@ -20,3 +20,5 @@
 - [x] **Issue #4**: 相談リクエスト入力画面の実装 (`feature/request-form`)
 - [x] **Issue #5**: 相談先候補マッチング機能の実装 (`feature/matching`)
 - [x] **Issue #6**: 日程スコアリング・プライバシー表示の実装 (`feature/schedule-scoring`)
+- [x] **Issue #7**: メール生成・チェック画面の実装 (`feature/mail-generation`)
+- [x] **Issue #8**: 全体統合・ダッシュボード・README整備 (`docs/readme`)

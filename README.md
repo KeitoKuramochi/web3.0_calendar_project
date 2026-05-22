@@ -1,36 +1,111 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SyncMatch AI - 相談マッチング・日程調整AIアプリ (プロトタイプ)
 
-## Getting Started
+大学内や組織内での「面談・相談の日程調整」をAIでスマートに支援するプロトタイプ（体験可能MVP）です。
+「金曜午前は比較的空いている」「水曜日はできれば避けたい」といった**曖昧な予定感**や**自然文によるリクエスト**から、調整可能性の高い日時を算出し、相手のプライバシーを守った形でマッチングを行います。
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 🚀 起動方法
+
+以下の手順でローカルでアプリを起動してください。
+
+1. **依存関係のインストール**:
+   ```bash
+   npm install
+   ```
+
+2. **開発サーバーの起動**:
+   ```bash
+   npm run dev
+   ```
+
+3. **ブラウザで確認**:
+   ブラウザで [http://localhost:3000](http://localhost:3000) を開きます。
+
+---
+
+## 🛠️ 技術構成
+
+- **フレームワーク**: Next.js (App Router) + TypeScript
+- **スタイリング**: Vanilla CSS (CSS Modules)
+- **アイコン**: Lucide React
+- **状態管理**: React Hooks (`useState`, `useEffect`) & `localStorage` (画面間でのデータ連携用)
+
+---
+
+## 📂 フォルダ構成
+
+将来的なAI APIへの切り替え、データベース接続、Googleカレンダー連携が容易に行えるように、処理を機能ごとに細かくモジュール化しています。
+
+```
+├── .github/
+│   └── project_board.md      # タスク管理ボード (シミュレーション)
+├── docs/
+│   └── issues/               # 各タスクIssueの要件定義書
+├── src/
+│   ├── app/                  # Next.js App Router (画面・デザイン)
+│   │   ├── layout.tsx        # 共通レイアウト
+│   │   ├── page.tsx          # ダッシュボード (トップ)
+│   │   ├── profile/          # プロフィール登録画面
+│   │   ├── request/          # 相談リクエスト作成画面
+│   │   ├── match/            # マッチング＆スコアリング画面
+│   │   ├── mail/             # メール生成＆検証画面
+│   │   └── globals.css       # グローバルスタイル (テーマ変数)
+│   ├── components/           # 共通UIコンポーネント (Navbar等)
+│   ├── lib/
+│   │   ├── ai/               # 7つに分割されたAI処理モジュール (モック)
+│   │   │   ├── parser.ts     # 1. 入力汲み取りAI
+│   │   │   ├── selector.ts   # 2. 相談先選定AI
+│   │   │   ├── analyzer.ts   # 3. 相手プロフィール解析AI
+│   │   │   ├── scorer.ts     # 4. 日程スコアリングAI
+│   │   │   ├── privacy.ts    # 5. プライバシー調整AI
+│   │   │   ├── mailGen.ts    # 6. メール生成AI
+│   │   │   └── mailCheck.ts  # 7. メールチェックAI
+│   │   │   └── index.ts      # AIモジュールのエントリポイント
+│   │   └── dummyData.ts      # 初期教員・組織のダミーデータ
+│   └── types/
+│       └── index.ts          # データモデル・型定義
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🤖 7つのAIモック機能について
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+プロトタイプでは、本物のAIを使わずに以下のルールベース処理を行うことで、本物のAIが動作しているかのようなUXを再現しています。
 
-## Learn More
+1. **入力汲み取りAI (`parser.ts`)**
+   自由文から「面談件名」「所要時間」「形式」「急ぎ度」を読み取り、ポチポチ入力欄を自動補完します。
+2. **相談先選定AI (`selector.ts`)**
+   相談相手を未指定にした場合、相談キーワードから教員や組織の対応トピックとのマッチ度を算出し、適合順に推奨表示します。
+3. **相手プロフィール解析AI (`analyzer.ts`)**
+   教員がプロフィールに登録した「曖昧な予定感の自由文」から、「会いやすい時間帯」「避けてほしい時間帯」を構造化して抽出します。
+4. **日程スコアリングAI (`scorer.ts`)**
+   自分の空き時間と相手の予定ルールを突合し、各時間枠の適合度を4段階（◎, ○, △, ×）でスコアリングします。
+5. **プライバシー調整AI (`privacy.ts`)**
+   予定が合わない具体的な理由（会議や私用など）を隠し、「調整が難しい時間帯」などのぼかした表現に自動変換してプライバシーを保護します。
+6. **メール生成AI (`mailGen.ts`)**
+   決定した日時、相談内容、面談形式、相手のメールポリシー（入れてほしい情報など）を反映した、丁寧な日程調整依頼メールを自動生成します。
+7. **メールチェックAI (`mailCheck.ts`)**
+   生成・編集されたメール内に、学籍番号などの指定情報の抜け漏れがないか、または「失礼な言葉遣い」が含まれていないかをリアルタイムで検証します。
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 📊 GitHubプロジェクト管理
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+このプロジェクトはGitHubでの管理をシミュレートして開発されています。
 
-## Deploy on Vercel
+### 1. タスクボード (`.github/project_board.md`)
+「Todo (未着手) / In Progress (作業中) / Review / Done (完了)」の4つのカラムで各Issueの進捗状況を追跡しています。
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 2. Issue定義 (`docs/issues/`)
+Issue番号（`issue-1` 〜 `issue-8`）ごとに詳細な要件、ゴール、作業手順が記載されています。
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 3. Gitブランチ運用
+機能追加ごとに `feature/*`（ドキュメント整備は `docs/*`）ブランチを作成し、完了後に `main` ブランチに統合（マージ）する手順を踏んでいます。
+- `feature/setup` (環境構築)
+- `feature/dummy-data` (ダミーデータ・AIモック)
+- `feature/profile-page` (プロフィール画面)
+- `feature/request-form` (リクエスト画面)
+- `feature/matching` (マッチング・日程スコアリング画面)
+- `feature/mail-generation` (メール生成画面)
+- `docs/readme` (README整備)
