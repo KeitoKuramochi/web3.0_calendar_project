@@ -1,0 +1,280 @@
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px 0;
+  animation: fadeIn var(--transition-normal) forwards;
+}
+
+.header {
+  margin-bottom: 30px;
+}
+
+.header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  background: var(--color-primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 8px;
+}
+
+.header p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+/* メインレイアウト */
+.layout {
+  display: grid;
+  grid-template-columns: 1.2fr 1.8fr;
+  gap: 24px;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sectionTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 相談先候補リスト */
+.candidateList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.candidateCard {
+  background: var(--bg-card);
+  backdrop-filter: var(--backdrop-blur);
+  -webkit-backdrop-filter: var(--backdrop-blur);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+}
+
+.candidateCard:hover {
+  border-color: var(--border-color-hover);
+  background: var(--bg-card-hover);
+  transform: translateY(-2px);
+}
+
+.candidateCardActive {
+  border-color: var(--color-primary);
+  background: rgba(99, 102, 241, 0.08);
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
+}
+
+.candidateHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.avatar {
+  font-size: 2rem;
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 50%;
+  display: grid;
+  place-content: center;
+}
+
+.candidateInfo h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.candidateInfo p {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.matchBadge {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: rgba(6, 182, 212, 0.1);
+  border: 1px solid var(--color-secondary);
+  color: var(--color-secondary);
+}
+
+.recommendReason {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.02);
+  padding: 8px 12px;
+  border-radius: 8px;
+  border-left: 3px solid var(--color-primary-light);
+}
+
+/* スコアリング詳細セクション */
+.detailSection {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.profileSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.timeTagGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.timeTagPrefer {
+  padding: 4px 10px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 20px;
+  color: var(--color-excellent);
+  font-size: 0.8rem;
+}
+
+.timeTagAvoid {
+  padding: 4px 10px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 20px;
+  color: var(--color-fair);
+  font-size: 0.8rem;
+}
+
+/* スロットスコアリスト */
+.slotList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.slotItem {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.slotItem:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border-color-hover);
+}
+
+.slotItemActive {
+  background: rgba(6, 182, 212, 0.05);
+  border-color: var(--color-secondary);
+}
+
+.scoreBadge {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-content: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.scoreExcellent {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid var(--color-excellent);
+  color: var(--color-excellent);
+}
+
+.scoreGood {
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid var(--color-good);
+  color: var(--color-good);
+}
+
+.scoreFair {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid var(--color-fair);
+  color: var(--color-fair);
+}
+
+.scorePoor {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid var(--color-danger);
+  color: var(--color-danger);
+  cursor: not-allowed;
+}
+
+.slotInfo {
+  flex: 1;
+}
+
+.slotTime {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.slotReason {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.btnNext {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 28px;
+  background: var(--color-secondary-gradient);
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.btnNext:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
+}
+
+.btnNext:disabled {
+  background: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.5;
+  box-shadow: none;
+  transform: none;
+}
