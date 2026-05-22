@@ -1,0 +1,235 @@
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px 0;
+  animation: fadeIn var(--transition-normal) forwards;
+}
+
+.header {
+  margin-bottom: 30px;
+}
+
+.header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  background: var(--color-primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 8px;
+}
+
+.header p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.sectionTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-primary-light);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 600px) {
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.formGroupFull {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.input,
+.select,
+.textarea {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 0 3px var(--border-focus);
+}
+
+.textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.aiNotice {
+  background: rgba(99, 102, 241, 0.06);
+  border: 1px dashed rgba(99, 102, 241, 0.3);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.aiNotice span {
+  color: var(--color-primary-light);
+  font-weight: 600;
+}
+
+/* 空き時間追加用のUI */
+.timeSlotList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.timeSlotItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.btnRemoveSlot {
+  background: none;
+  border: none;
+  color: var(--color-danger);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--transition-fast);
+}
+
+.btnRemoveSlot:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.timeSlotInputGroup {
+  display: flex;
+  gap: 10px;
+}
+
+.btnAddSlot {
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.btnAddSlot:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ラジオボタン / トグルボタングループ */
+.toggleGroup {
+  display: flex;
+  gap: 8px;
+}
+
+.toggleButton {
+  flex: 1;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: center;
+}
+
+.toggleButton:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+.toggleButtonActive {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: var(--color-primary);
+  color: var(--color-primary-light);
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.1);
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 30px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 20px;
+}
+
+.btnSubmit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 32px;
+  background: var(--color-primary-gradient);
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.btnSubmit:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+}
+
+.btnSubmit:active {
+  transform: translateY(1px);
+}
