@@ -23,11 +23,11 @@
 }
 
 .sectionTitle {
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   margin-bottom: 14px;
   display: flex;
   align-items: center;
@@ -42,9 +42,7 @@
 }
 
 @media (max-width: 600px) {
-  .formGrid {
-    grid-template-columns: 1fr;
-  }
+  .formGrid { grid-template-columns: 1fr; }
 }
 
 .formGroup {
@@ -96,7 +94,7 @@
 }
 
 .textarea {
-  min-height: 120px;
+  min-height: 110px;
   resize: vertical;
 }
 
@@ -106,18 +104,43 @@
   border-radius: 8px;
   padding: 10px 14px;
   font-size: 0.825rem;
-  color: var(--text-secondary);
+  color: var(--color-primary);
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  margin-top: 6px;
 }
 
-.aiNotice span {
+/* タグ */
+.tagGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tagChip {
+  padding: 5px 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  color: var(--text-secondary);
+  font-size: 0.825rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.tagChip:hover {
+  border-color: var(--border-color-hover);
+  color: var(--text-primary);
+}
+
+.tagChipActive {
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary);
   color: var(--color-primary);
-  font-weight: 600;
+  font-weight: 500;
 }
 
+/* 時間枠 */
 .timeSlotList {
   display: flex;
   flex-direction: column;
@@ -146,7 +169,6 @@
   border-radius: 4px;
   display: flex;
   align-items: center;
-  justify-content: center;
   transition: color var(--transition-fast), background-color var(--transition-fast);
 }
 
@@ -158,10 +180,11 @@
 .timeSlotInputGroup {
   display: flex;
   gap: 8px;
+  align-items: center;
 }
 
 .btnAddSlot {
-  padding: 8px 14px;
+  padding: 9px 14px;
   background: #ffffff;
   border: 1px solid var(--border-color);
   border-radius: 8px;
@@ -171,6 +194,9 @@
   cursor: pointer;
   transition: background-color var(--transition-fast), border-color var(--transition-fast);
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .btnAddSlot:hover {
@@ -178,6 +204,7 @@
   border-color: var(--border-color-hover);
 }
 
+/* トグル */
 .toggleGroup {
   display: flex;
   gap: 6px;
@@ -185,12 +212,12 @@
 
 .toggleButton {
   flex: 1;
-  padding: 9px 14px;
+  padding: 9px 10px;
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   color: var(--text-secondary);
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   font-weight: 500;
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -235,8 +262,4 @@
 .btnSubmit:hover {
   background: #4338ca;
   transform: translateY(-1px);
-}
-
-.btnSubmit:active {
-  transform: translateY(0);
 }

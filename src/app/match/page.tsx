@@ -1,146 +1,124 @@
-"use client";
+"use client"
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Users, CalendarDays, CheckCircle, AlertTriangle, ArrowRight, ShieldCheck, Mail } from "lucide-react";
-import styles from "./match.module.css";
-import { selectCandidates, scoreTimeSlots, analyzeProfile } from "@/lib/ai";
-import { DUMMY_USERS } from "@/lib/dummyData";
-import { ConsultRequest, UserProfile, TimeSlotScore } from "@/types";
+import React, { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { Users, CalendarDays, ShieldCheck, Mail } from "lucide-react"
+import styles from "./match.module.css"
+import { selectCandidates, scoreTimeSlots, analyzeProfile } from "@/lib/ai"
+import { DUMMY_USERS } from "@/lib/dummyData"
+import { ConsultRequest, TimeSlotScore } from "@/types"
 
 export default function MatchPage() {
-  const router = useRouter();
+  const router = useRouter()
 
-  // ステート
-  const [request, setRequest] = useState<ConsultRequest | null>(null);
-  const [candidates, setCandidates] = useState<any[]>([]);
-  const [selectedCandidateId, setSelectedCandidateId] = useState<string>("");
-  const [analyzedProfile, setAnalyzedProfile] = useState<any>(null);
-  const [scoredSlots, setScoredSlots] = useState<TimeSlotScore[]>([]);
-  const [selectedSlot, setSelectedSlot] = useState<string>("");
+  const [request, setRequest] = useState<ConsultRequest | null>(null)
+  const [candidates, setCandidates] = useState<any[]>([])
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string>("")
+  const [analyzedProfile, setAnalyzedProfile] = useState<any>(null)
+  const [scoredSlots, setScoredSlots] = useState<TimeSlotScore[]>([])
+  const [selectedSlots, setSelectedSlots] = useState<string[]>([]) // 複数選択
 
-  // 1. リクエスト情報のロードと相談先マッチング
   useEffect(() => {
-    let reqData: ConsultRequest;
-    const savedReq = localStorage.getItem("consult_request");
-
-    if (savedReq) {
-      try {
-        reqData = JSON.parse(savedReq) as ConsultRequest;
-      } catch (e) {
-        reqData = getDefaultRequest();
-      }
+    let reqData: ConsultRequest
+    const saved = localStorage.getItem("consult_request")
+    if (saved) {
+      try { reqData = JSON.parse(saved) } catch { reqData = getDefault() }
     } else {
-      reqData = getDefaultRequest();
-      localStorage.setItem("consult_request", JSON.stringify(reqData));
+      reqData = getDefault()
+      localStorage.setItem("consult_request", JSON.stringify(reqData))
     }
-    setRequest(reqData);
+    setRequest(reqData)
 
-    // キーワード抽出から相談先マッチング候補を算出
-    const keywords = reqData.title ? [reqData.title] : ["研究室選び"];
-    const textToMatch = reqData.freeTextInput || "";
-    const matchedCandidates = selectCandidates(keywords, textToMatch);
-    setCandidates(matchedCandidates);
+    const keywords = reqData.consultTopics?.length
+      ? reqData.consultTopics
+      : reqData.title
+      ? [reqData.title]
+      : ["研究室選び"]
+    const matched = selectCandidates(keywords, reqData.freeTextInput || "")
+    setCandidates(matched)
 
-    // 初期値として最もマッチ度の高い相手を選択
-    if (matchedCandidates.length > 0) {
-      handleSelectCandidate(matchedCandidates[0].user.id, reqData);
+    if (matched.length > 0) {
+      handleSelectCandidate(matched[0].user.id, reqData)
     }
-  }, []);
+  }, [])
 
-  const getDefaultRequest = (): ConsultRequest => {
-    return {
-      id: "req_default",
-      requesterId: "student_1",
-      title: "研究室選びに関する相談",
-      duration: 30,
-      format: "offline",
-      myAvailableTimes: [
-        "2026-05-29T10:00", // 金曜午前 (鈴木教授◎)
-        "2026-05-29T11:00", // 金曜午前 (鈴木教授◎)
-        "2026-05-27T10:00", // 水曜午前 (鈴木教授NG)
-        "2026-05-28T14:00"  // 木曜午後 (高橋准教授◎)
-      ],
-      freeTextInput: "来週鈴木先生の研究室についてお聞きしたいです。金曜午前が空いています。対面希望です。",
-      urgency: "normal"
-    };
-  };
+  const getDefault = (): ConsultRequest => ({
+    id: "req_default",
+    requesterId: "user",
+    title: "研究室選びに関する相談",
+    duration: 30,
+    format: "offline",
+    myAvailableTimes: [
+      "2026-05-29T10:00",
+      "2026-05-29T11:00",
+      "2026-05-27T10:00",
+      "2026-05-28T14:00",
+    ],
+    freeTextInput: "",
+    urgency: "normal",
+  })
 
-  // 相談先選択時の処理
   const handleSelectCandidate = (userId: string, currentReq = request) => {
-    setSelectedCandidateId(userId);
-    setSelectedSlot(""); // スロット選択をクリア
+    setSelectedCandidateId(userId)
+    setSelectedSlots([])
+    const user = DUMMY_USERS.find((u) => u.id === userId)
+    if (!user || !currentReq) return
+    setAnalyzedProfile(analyzeProfile(user))
+    setScoredSlots(scoreTimeSlots(currentReq.myAvailableTimes, user))
+  }
 
-    const user = DUMMY_USERS.find(u => u.id === userId);
-    if (!user || !currentReq) return;
+  const toggleSlot = (timeSlot: string) => {
+    setSelectedSlots((prev) =>
+      prev.includes(timeSlot)
+        ? prev.filter((s) => s !== timeSlot)
+        : [...prev, timeSlot]
+    )
+  }
 
-    // A. 相手プロフィールのAI解析
-    const parsedProfile = analyzeProfile(user);
-    setAnalyzedProfile(parsedProfile);
+  const formatJa = (s: string) => {
+    const d = new Date(s)
+    const days = ["日", "月", "火", "水", "木", "金", "土"]
+    return `${d.getMonth() + 1}月${d.getDate()}日(${days[d.getDay()]}) ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+  }
 
-    // B. 日程スコアリングAI
-    const scores = scoreTimeSlots(currentReq.myAvailableTimes, user);
-    setScoredSlots(scores);
-  };
+  const getScoreEmoji = (s: string) =>
+    s === "excellent" ? "◎" : s === "good" ? "○" : s === "fair" ? "△" : "×"
 
-  // 日時の読みやすい日本語変換
-  const formatTimeSlotJa = (slotStr: string) => {
-    const d = new Date(slotStr);
-    const days = ["日", "月", "火", "水", "木", "金", "土"];
-    return `${d.getMonth() + 1}月${d.getDate()}日(${days[d.getDay()]}) ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  };
+  const getScoreClass = (s: string) => {
+    const base = styles.scoreBadge
+    if (s === "excellent") return `${base} ${styles.scoreExcellent}`
+    if (s === "good") return `${base} ${styles.scoreGood}`
+    if (s === "fair") return `${base} ${styles.scoreFair}`
+    return `${base} ${styles.scorePoor}`
+  }
 
-  // スコア絵文字の取得
-  const getScoreEmoji = (score: string) => {
-    switch (score) {
-      case "excellent": return "◎";
-      case "good": return "○";
-      case "fair": return "△";
-      case "poor": return "×";
-      default: return "-";
-    }
-  };
-
-  // スコアバッジクラスの取得
-  const getScoreBadgeClass = (score: string) => {
-    switch (score) {
-      case "excellent": return `${styles.scoreBadge} ${styles.scoreExcellent}`;
-      case "good": return `${styles.scoreBadge} ${styles.scoreGood}`;
-      case "fair": return `${styles.scoreBadge} ${styles.scoreFair}`;
-      case "poor": return `${styles.scoreBadge} ${styles.scorePoor}`;
-      default: return styles.scoreBadge;
-    }
-  };
-
-  // 次へ進む (メール生成へ)
   const handleNext = () => {
-    if (!selectedCandidateId || !selectedSlot) return;
-
+    if (!selectedCandidateId || selectedSlots.length === 0) return
     const matchData = {
       targetUserId: selectedCandidateId,
-      selectedTimeSlot: formatTimeSlotJa(selectedSlot),
-      selectedTimeSlotRaw: selectedSlot
-    };
+      selectedTimeSlots: selectedSlots.map(formatJa),
+      selectedTimeSlotsRaw: selectedSlots,
+      selectedTimeSlot: formatJa(selectedSlots[0]), // 後方互換
+    }
+    localStorage.setItem("consult_match", JSON.stringify(matchData))
+    router.push("/mail")
+  }
 
-    localStorage.setItem("consult_match", JSON.stringify(matchData));
-    router.push("/mail");
-  };
-
-  const selectedUser = DUMMY_USERS.find(u => u.id === selectedCandidateId);
+  const selectedUser = DUMMY_USERS.find((u) => u.id === selectedCandidateId)
 
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <h1>相談先マッチング・日程調整</h1>
-        <p>AIがリクエスト内容に適した相談先を提案しました。相談相手を選択し、調整可能性の高い日時を決めてください。</p>
+        <p>AIがリクエストに合った相談先を提案しました。候補日時は複数選択できます（相手に複数の選択肢を提示します）。</p>
       </div>
 
       <div className={styles.layout}>
-        {/* 左カラム：相談先候補 */}
+        {/* 左: 相談先候補 */}
         <div>
           <div className={styles.sectionTitle}>
-            <Users size={18} />
-            <span>相談先候補 (AI推奨順)</span>
+            <Users size={16} />
+            <span>相談先候補（AI推奨順）</span>
           </div>
 
           <div className={styles.candidateList}>
@@ -158,101 +136,108 @@ export default function MatchPage() {
                     <p>{cand.user.department}</p>
                   </div>
                 </div>
-                <div className={styles.recommendReason}>
-                  {cand.reason}
-                </div>
+                <div className={styles.recommendReason}>{cand.reason}</div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* 右カラム：予定スコアリング＆プライバシーぼかし */}
+        {/* 右: スコアリング */}
         <div>
           {selectedUser && (
             <div className={styles.detailSection}>
-              {/* プロフィール・ポリシーのAI分析 */}
-              <div className="glass-card fade-in" style={{ padding: "20px" }}>
-                <div className={styles.sectionTitle} style={{ marginBottom: "12px" }}>
-                  <ShieldCheck size={18} style={{ color: "var(--color-secondary)" }} />
-                  <span>相手の予定調整ルール (AI分析結果)</span>
+              {/* 相手の予定ルール */}
+              <div className="glass-card fade-in" style={{ padding: "18px" }}>
+                <div className={styles.sectionTitle} style={{ marginBottom: "10px" }}>
+                  <ShieldCheck size={16} style={{ color: "var(--color-secondary)" }} />
+                  <span>相手の予定調整ルール（AI分析・ぼかし表現）</span>
                 </div>
 
                 <div className={styles.profileSummary}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                    <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600" }}>対応面談枠:</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                    <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: "600" }}>対応しやすい時間:</div>
                     <div className={styles.timeTagGroup}>
-                      {analyzedProfile?.preferredTimeHints.map((hint: string) => (
-                        <span key={hint} className={styles.timeTagPrefer}>{hint}</span>
-                      ))}
-                      {analyzedProfile?.preferredTimeHints.length === 0 && (
-                        <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>特に指定なし</span>
-                      )}
+                      {analyzedProfile?.preferredTimeHints.length === 0
+                        ? <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>特に指定なし</span>
+                        : analyzedProfile?.preferredTimeHints.map((h: string) => (
+                          <span key={h} className={styles.timeTagPrefer}>{h}</span>
+                        ))}
                     </div>
                   </div>
-
-                  <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "6px" }}>
-                    <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600" }}>できれば避けたい時間:</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "5px", marginTop: "6px" }}>
+                    <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: "600" }}>調整が難しい時間:</div>
                     <div className={styles.timeTagGroup}>
-                      {analyzedProfile?.avoidedTimeHints.map((hint: string) => (
-                        <span key={hint} className={styles.timeTagAvoid}>{hint}</span>
-                      ))}
-                      {analyzedProfile?.avoidedTimeHints.length === 0 && (
-                        <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>特に指定なし</span>
-                      )}
+                      {analyzedProfile?.avoidedTimeHints.length === 0
+                        ? <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>特に指定なし</span>
+                        : analyzedProfile?.avoidedTimeHints.map((h: string) => (
+                          <span key={h} className={styles.timeTagAvoid}>{h}</span>
+                        ))}
                     </div>
                   </div>
-
-                  <div style={{ marginTop: "10px", fontSize: "0.85rem", background: "rgba(255, 255, 255, 0.02)", padding: "10px", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
-                    <span style={{ fontWeight: "600", color: "var(--color-primary-light)" }}>メールに関する基本方針: </span>
+                  <div style={{ marginTop: "8px", fontSize: "0.82rem", background: "var(--bg-primary)", padding: "8px 10px", borderRadius: "6px", border: "1px solid var(--border-color)", lineHeight: "1.5" }}>
+                    <span style={{ fontWeight: "600", color: "var(--text-primary)" }}>連絡方針: </span>
                     <span style={{ color: "var(--text-secondary)" }}>{selectedUser.mailPolicy}</span>
                   </div>
                 </div>
               </div>
 
-              {/* 日程スコアリング */}
-              <div className="glass-card fade-in" style={{ padding: "20px" }}>
-                <div className={styles.sectionTitle} style={{ marginBottom: "8px" }}>
-                  <CalendarDays size={18} />
-                  <span>調整可能性の高い日時</span>
+              {/* 日程スコアリング（複数選択） */}
+              <div className="glass-card fade-in" style={{ padding: "18px" }}>
+                <div className={styles.sectionTitle} style={{ marginBottom: "6px" }}>
+                  <CalendarDays size={16} />
+                  <span>調整可能性の高い日時（複数選択可）</span>
                 </div>
-                <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginBottom: "16px" }}>
-                  相手の具体的なカレンダー予定は公開されません。調整可能性が「◎」「○」のスロットを選択してください。
+                <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginBottom: "14px" }}>
+                  ◎・○の日時を複数選択すると、相手に複数の候補を提示するメッセージを作成します。
                 </p>
 
                 <div className={styles.slotList}>
                   {scoredSlots.map((slot) => {
-                    const isPoor = slot.score === "poor";
-                    const isActive = selectedSlot === slot.timeSlot;
+                    const isPoor = slot.score === "poor"
+                    const isChecked = selectedSlots.includes(slot.timeSlot)
 
                     return (
                       <div
                         key={slot.timeSlot}
-                        className={`${styles.slotItem} ${isActive ? styles.slotItemActive : ""}`}
-                        style={{ cursor: isPoor ? "not-allowed" : "pointer", opacity: isPoor ? 0.6 : 1 }}
-                        onClick={() => {
-                          if (!isPoor) setSelectedSlot(slot.timeSlot);
-                        }}
+                        className={`${styles.slotItem} ${isChecked ? styles.slotItemActive : ""}`}
+                        style={{ cursor: isPoor ? "not-allowed" : "pointer", opacity: isPoor ? 0.5 : 1 }}
+                        onClick={() => { if (!isPoor) toggleSlot(slot.timeSlot) }}
                       >
-                        <div className={getScoreBadgeClass(slot.score)}>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          readOnly
+                          disabled={isPoor}
+                          className={styles.slotCheckbox}
+                          style={{ pointerEvents: "none" }}
+                        />
+                        <div className={getScoreClass(slot.score)}>
                           {getScoreEmoji(slot.score)}
                         </div>
                         <div className={styles.slotInfo}>
-                          <div className={styles.slotTime}>{formatTimeSlotJa(slot.timeSlot)}</div>
+                          <div className={styles.slotTime}>{formatJa(slot.timeSlot)}</div>
                           <div className={styles.slotReason}>{slot.privacyReason}</div>
                         </div>
                       </div>
-                    );
+                    )
                   })}
                 </div>
+
+                {selectedSlots.length > 0 && (
+                  <div className={styles.selectedSummary}>
+                    <span className={styles.selectedCount}>{selectedSlots.length}件選択中</span>
+                    <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>→ 選択した日時がメッセージの候補として使用されます</span>
+                  </div>
+                )}
 
                 <div className={styles.footer}>
                   <button
                     onClick={handleNext}
                     className={styles.btnNext}
-                    disabled={!selectedSlot}
+                    disabled={selectedSlots.length === 0}
                   >
-                    選択した日時でメール作成へ進む
-                    <Mail size={16} />
+                    選択した日時でメッセージ作成へ
+                    <Mail size={15} />
                   </button>
                 </div>
               </div>
@@ -261,5 +246,5 @@ export default function MatchPage() {
         </div>
       </div>
     </div>
-  );
+  )
 }

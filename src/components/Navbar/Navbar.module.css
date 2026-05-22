@@ -2,7 +2,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 40px;
+  padding: 0 32px;
   height: 60px;
   background: #ffffff;
   border-bottom: 1px solid var(--border-color);
@@ -16,10 +16,11 @@
   align-items: center;
   gap: 8px;
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   color: var(--color-primary);
   cursor: pointer;
   transition: opacity var(--transition-fast);
+  flex-shrink: 0;
 }
 
 .logo:hover {
@@ -37,12 +38,13 @@
   align-items: center;
   gap: 6px;
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   font-weight: 500;
   transition: color var(--transition-fast), background-color var(--transition-fast);
   cursor: pointer;
   padding: 6px 12px;
   border-radius: 6px;
+  text-decoration: none;
 }
 
 .navLink:hover {
@@ -56,6 +58,50 @@
   font-weight: 600;
 }
 
+.userArea {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid var(--border-color);
+}
+
+.userName {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btnLogout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.btnLogout:hover {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+  background: var(--color-danger-bg);
+}
+
 @media (max-width: 768px) {
   .navbar {
     padding: 0 16px;
@@ -66,6 +112,10 @@
   }
 
   .navLink span {
+    display: none;
+  }
+
+  .userName {
     display: none;
   }
 }

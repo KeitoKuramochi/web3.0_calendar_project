@@ -1,12 +1,13 @@
-import { UserProfile } from "@/types";
+import { UserProfile } from "@/types"
 
 export const DUMMY_USERS: UserProfile[] = [
   {
     id: "student_1",
     name: "佐藤 拓海",
     email: "sato.takumi@univ.ac.jp",
-    role: "student",
-    department: "情報工学科3年",
+    role: "学部生",
+    department: "情報工学科 3年",
+    bio: "情報工学科3年生。研究室配属に向けて準備中。",
     avatar: "👨‍🎓",
     topics: ["履修登録", "研究室選び"],
     availableTimesFreeText: "木曜と金曜の午前中が空いています。",
@@ -19,8 +20,9 @@ export const DUMMY_USERS: UserProfile[] = [
     id: "prof_suzuki",
     name: "鈴木 茂 教授",
     email: "suzuki.shigeru@univ.ac.jp",
-    role: "professor",
+    role: "研究室教員",
     department: "情報工学科 (計算機アーキテクチャ研究室)",
+    bio: "教授。専門は計算機アーキテクチャ・並列処理。",
     avatar: "👨‍🏫",
     topics: ["研究室選び", "卒論指導", "計算機システム", "進路相談"],
     availableTimesFreeText: "金曜日の午前中（9:00〜12:00）は比較的空いています。",
@@ -34,38 +36,40 @@ export const DUMMY_USERS: UserProfile[] = [
     id: "prof_takahashi",
     name: "高橋 美咲 准教授",
     email: "takahashi.misaki@univ.ac.jp",
-    role: "professor",
+    role: "研究室教員",
     department: "情報工学科 (知能情報システム研究室)",
+    bio: "准教授。AI・データサイエンスが専門。",
     avatar: "👩‍🏫",
     topics: ["研究室選び", "履修登録", "AI・データサイエンス", "女子学生サポート"],
     availableTimesFreeText: "木曜日の午後（13:00〜17:00）が面談枠として確保しやすいです。",
-    avoidTimesFreeText: "月曜日の午前中は週次ミーティングがあるため避けてほしいです。また、メールで解決する用件（申請書の承認など）であれば、面談ではなくメール添付で送ってください。",
+    avoidTimesFreeText: "月曜日の午前中は週次ミーティングがあるため避けてほしいです。メールで解決する用件はメール添付で。",
     absoluteNGTimes: ["Monday-Morning", "Saturday-All", "Sunday-All"],
-    mailPolicy: "メールで済む内容ならメールで完結させたいです。面談希望の場合は、その理由を書いてください。",
+    mailPolicy: "メールで済む内容ならメールで完結させたいです。面談希望の場合は理由を書いてください。",
     mailRequiredInfo: ["学籍番号", "面談が必要な理由"],
-    generalNotes: "1回の面談は原則30分以内とさせてください。メールで書類やり取りができる場合は、そちらを最優先してください。",
+    generalNotes: "1回の面談は原則30分以内。メールで書類やり取りができる場合はそちらを最優先。",
   },
   {
     id: "office_career",
     name: "キャリアセンター (進路支援課)",
     email: "career-support@univ.ac.jp",
-    role: "staff",
+    role: "職員",
     department: "学生支援本部",
     avatar: "🏢",
     topics: ["進路相談", "就職活動", "履歴書添削", "模擬面接", "インターンシップ"],
     availableTimesFreeText: "平日の窓口時間（9:00〜17:00）であれば柔軟に対応可能です。",
     avoidTimesFreeText: "12:00〜13:00の昼休み時間帯は窓口が混雑するため避けてください。",
     absoluteNGTimes: ["Saturday-All", "Sunday-All", "Weekday-Night"],
-    mailPolicy: "予約内容の確認、またはオンライン面談のURL送付のために連絡します。事前相談シートの提出が必要です。",
-    mailRequiredInfo: ["学籍番号", "氏名", "相談希望分野（就職 / 進学 / インターン等）", "添削希望の有無"],
-    generalNotes: "対面相談はA棟1階のキャリアセンターで実施します。履歴書添削を希望する場合は、Wordファイルをメールに添付するか印刷して持参してください。",
+    mailPolicy: "予約内容の確認のために連絡します。事前相談シートの提出が必要です。",
+    mailRequiredInfo: ["学籍番号", "氏名", "相談希望分野（就職 / 進学 / インターン等）"],
+    generalNotes: "対面相談はA棟1階のキャリアセンターで実施します。",
   },
   {
     id: "ta_tanaka",
-    name: "田中 健太 (大学院TA)",
+    name: "田中 健太 (TA)",
     email: "tanaka.kenta@stud.univ.ac.jp",
-    role: "ta",
+    role: "大学院生（TA）",
     department: "情報工学専攻 博士前期課程2年",
+    bio: "プログラミング演習（C言語, Python）担当TA。",
     avatar: "🧑‍💻",
     topics: ["プログラミング質問", "講義の課題", "研究室の日常", "院試対策"],
     availableTimesFreeText: "月曜・火曜の放課後（16:30以降）や、土日のオンラインでも対応可能です。",
@@ -73,12 +77,11 @@ export const DUMMY_USERS: UserProfile[] = [
     absoluteNGTimes: ["Wednesday-Morning", "Thursday-Morning"],
     mailPolicy: "Slackやメールで気軽に質問して構いません。件名に【TA質問】と入れてください。",
     mailRequiredInfo: ["氏名", "講義名", "エラーコードや質問のスクリーンショット（ある場合）"],
-    generalNotes: "主にプログラミング演習（C言語, Python）のサポートをします。対面は水曜以外の平日夕方に演習室にいます。",
-  }
-];
+  },
+]
 
-// 初期選択用などのダミー相談カテゴリ
-export const DUMMY_TOPICS = [
+// 人気の相談トピック（タグとして表示）
+export const POPULAR_TOPICS = [
   "研究室選び",
   "履修登録",
   "進路相談",
@@ -87,5 +90,32 @@ export const DUMMY_TOPICS = [
   "卒論指導",
   "プログラミング質問",
   "講義の課題",
-  "その他"
-];
+  "院試対策",
+  "インターンシップ",
+  "その他",
+]
+
+// メールに入れてほしい情報（デフォルト選択肢）
+export const MAIL_REQUIRED_INFO_OPTIONS = [
+  "学籍番号",
+  "氏名",
+  "相談したい具体的なテーマ",
+  "現在の研究内容",
+  "面談が必要な理由",
+  "エラーコード・スクリーンショット",
+  "授業名",
+  "添削希望の有無",
+]
+
+// ロールの人気候補（クリックして入力補助）
+export const POPULAR_ROLES = [
+  "学部生",
+  "大学院生（修士）",
+  "大学院生（博士）",
+  "TA",
+  "研究室教員",
+  "准教授",
+  "進路相談員",
+  "サークル代表",
+  "職員",
+]

@@ -1,68 +1,77 @@
 // データモデル・型定義
 
-export type UserRole = "student" | "professor" | "staff" | "ta";
+// ロールは自由文字列（例: "学部生", "研究室教員", "TA", "サークル代表"）
+export type UserRole = string
 
-// ユーザープロフィール (教員・学生・職員)
+// 出力形式
+export type OutputFormat = "email" | "slack" | "discord" | "line" | "short"
+
+// ユーザープロフィール
 export interface UserProfile {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  department: string;          // 学科・部署 (例: "情報工学科", "進路支援課")
-  avatar?: string;             // アバター絵文字など
-  topics: string[];            // 対応可能な相談内容 (例: "進路相談", "研究室選び", "履修登録")
-  availableTimesFreeText: string; // 自由文での予定感 (例: "金曜午前は比較的空いています")
-  avoidTimesFreeText: string;    // 避けてほしい時間 (例: "水曜は会議が多いため避けたい")
-  absoluteNGTimes: string[];      // 絶対NG時間帯 (例: ["Wednesday-All", "Weekday-Night"])
-  mailPolicy: string;           // メール方針 (例: "メールで済むならメールで")
-  mailRequiredInfo: string[];   // メールに入れてほしい情報 (例: "学籍番号", "具体的な質問内容")
-  generalNotes?: string;        // 自由記述（その他）
+  id: string
+  name: string
+  email: string
+  role: UserRole               // 自由文字列のロール
+  department: string           // 所属（学科・部署・研究室など、自由記述）
+  bio?: string                 // 自由記述（学年・肩書き・その他何でも）
+  avatar?: string
+  topics: string[]             // 相談・対応可能な内容（タグ）
+  customTopics?: string        // 追加の自由入力トピック
+  availableTimesFreeText: string
+  avoidTimesFreeText: string
+  absoluteNGTimes: string[]
+  mailPolicy: string
+  mailRequiredInfo: string[]
+  customMailRequiredInfo?: string // 追加の自由入力
+  generalNotes?: string
 }
 
 // 相談リクエスト
 export interface ConsultRequest {
-  id: string;
-  requesterId: string;         // 申請者ID (学生)
-  targetUserId?: string;       // 指定相手のユーザーID (未指定時はAI選定)
-  title: string;               // 相談件名
-  duration: number;            // 所要時間 (30, 60分など)
-  format: "offline" | "online" | "hybrid"; // 対面かオンラインか
-  myAvailableTimes: string[];   // 自分の空き時間 (例: ["2026-05-29T10:00:00Z"])
-  freeTextInput: string;       // 自由文入力
-  urgency: "high" | "normal" | "low";
+  id: string
+  requesterId: string
+  targetUserId?: string
+  title: string
+  duration: number
+  format: "offline" | "online" | "hybrid"
+  myAvailableTimes: string[]
+  freeTextInput: string
+  urgency: "high" | "normal" | "low"
+  consultTopics?: string[]     // 相談トピックタグ
+  customConsultTopic?: string  // 自由入力トピック
 }
 
 // 日程調整候補
 export interface TimeSlotScore {
-  timeSlot: string;            // 日時 (ISO形式または表示用文字列 "2026-05-29T10:00:00Z")
-  score: "excellent" | "good" | "fair" | "poor"; // ◎, ○, △, ×
-  privacyReason: string;       // ぼかした表現 (例: 「相手の方針（午前中推奨）に合致しています」)
+  timeSlot: string
+  score: "excellent" | "good" | "fair" | "poor"
+  privacyReason: string
 }
 
-// メール生成結果
+// メール/出力生成結果
 export interface MailOutput {
-  subject: string;             // 件名
-  body: string;                // 本文
+  subject: string
+  body: string
 }
 
 // メールチェック指摘事項
 export interface MailIssue {
-  type: "warning" | "error";   // 警告レベル
-  message: string;             // 指摘内容
-  suggestion?: string;         // 修正提案
+  type: "warning" | "error"
+  message: string
+  suggestion?: string
 }
 
 // メールチェック結果
 export interface MailCheckResult {
-  passed: boolean;
-  issues: MailIssue[];
+  passed: boolean
+  issues: MailIssue[]
 }
 
 // 入力汲み取りAIのパース結果
 export interface ParsedRequest {
-  extractedTitle: string;
-  extractedDuration: number;
-  extractedFormat: "offline" | "online" | "hybrid";
-  extractedUrgency: "high" | "normal" | "low";
-  extractedKeywords: string[];
+  extractedTitle: string
+  extractedDuration: number
+  extractedFormat: "offline" | "online" | "hybrid"
+  extractedUrgency: "high" | "normal" | "low"
+  extractedKeywords: string[]
 }

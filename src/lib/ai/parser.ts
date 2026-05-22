@@ -1,5 +1,5 @@
 import { ParsedRequest } from "@/types";
-import { DUMMY_TOPICS } from "../dummyData";
+import { POPULAR_TOPICS as DUMMY_TOPICS } from "../dummyData";
 
 /**
  * 1. 入力汲み取りAI (モック版)
