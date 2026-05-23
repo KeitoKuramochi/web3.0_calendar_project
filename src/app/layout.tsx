@@ -18,10 +18,14 @@ export default async function RootLayout({
 
   return (
     <html lang="ja">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      </head>
       <body>
         <Providers session={session}>
           {session && <Navbar />}
-          <main style={{ flex: 1, padding: "40px 20px", maxWidth: "1200px", margin: "0 auto", width: "100%" }}>
+          <main style={{ flex: 1, padding: "36px 20px", maxWidth: "1200px", margin: "0 auto", width: "100%" }}>
             {children}
           </main>
         </Providers>

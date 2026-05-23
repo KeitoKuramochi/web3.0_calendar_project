@@ -1,0 +1,83 @@
+.wrapper {
+  display: flex;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.stepGroup {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.stepGroup:last-child {
+  flex: none;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.step.active {
+  color: var(--color-primary);
+}
+
+.step.done {
+  color: var(--color-excellent);
+}
+
+.circle {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  display: grid;
+  place-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  background: transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.step.active .circle {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.step.done .circle {
+  background: var(--color-excellent);
+  border-color: var(--color-excellent);
+  color: #fff;
+}
+
+.label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.connector {
+  flex: 1;
+  height: 2px;
+  background: var(--border-color);
+  margin: 0 10px;
+  transition: background 0.15s;
+}
+
+.connector.connectorDone {
+  background: var(--color-excellent);
+}
+
+@media (max-width: 480px) {
+  .label {
+    display: none;
+  }
+  .connector {
+    margin: 0 6px;
+  }
+}
