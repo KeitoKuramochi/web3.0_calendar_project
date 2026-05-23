@@ -193,6 +193,18 @@ export default function ProfilePage() {
         <p>あなたの予定感や連絡方針を登録すると、AIが日程調整とメール作成を最適化します。自由に書けます。</p>
       </div>
 
+      {!profile.name && saveStatus === "idle" && (
+        <div style={{
+          padding: "11px 16px", background: "var(--color-secondary-bg)",
+          border: "2px solid rgba(245, 200, 74, 0.3)", borderRadius: 14,
+          fontSize: "0.85rem", fontWeight: 600, color: "var(--text-secondary)",
+          display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <span>🌱</span>
+          まだプロフィールが設定されていません。名前とメールアドレスだけでも入力すると、メッセージ生成の精度が上がります。
+        </div>
+      )}
+
       <form onSubmit={handleSave} className="glass-card fade-in">
         <div className={styles.formGrid}>
 

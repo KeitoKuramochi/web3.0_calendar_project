@@ -92,6 +92,11 @@ export default function Home() {
 
   const formatDate = (iso: string) => {
     const d = new Date(iso)
+    const now = new Date()
+    const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000)
+    if (diffDays === 0) return "今日"
+    if (diffDays === 1) return "昨日"
+    if (diffDays < 7) return `${diffDays}日前`
     return `${d.getMonth() + 1}月${d.getDate()}日`
   }
 

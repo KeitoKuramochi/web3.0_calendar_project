@@ -5,8 +5,8 @@ import Providers from "@/components/Providers"
 import { auth } from "@/auth"
 
 export const metadata: Metadata = {
-  title: "SyncMatch AI - 相談マッチング・日程調整AI",
-  description: "大学内・組織内での面談・相談の日程調整をAIでスマートに支援するアプリ。プライバシーに配慮した日程スコアリングと丁寧なメール生成をサポート。",
+  title: "SyncMatch - 相談・面談の日程調整",
+  description: "相手のプライバシーに配慮した日程調整と丁寧なメッセージ作成を手伝います。大学・組織内での相談・面談をスムーズに。",
 }
 
 export default async function RootLayout({

@@ -1,13 +1,14 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Calendar, Clock, MessageSquare, Plus, Trash2, ArrowRight } from "lucide-react"
+import Link from "next/link"
+import { Calendar, Clock, MessageSquare, Plus, Trash2, ArrowRight, ArrowLeft } from "lucide-react"
 import styles from "./request.module.css"
 import { parseFreeText } from "@/lib/ai"
 import { ConsultRequest } from "@/types"
 import { POPULAR_TOPICS } from "@/lib/dummyData"
-import { upsertConsultation, setActiveId } from "@/lib/storage"
+import { upsertConsultation, setActiveId, getConsultations } from "@/lib/storage"
 import StepIndicator from "@/components/StepIndicator/StepIndicator"
 
 // 15分単位の時刻オプション生成 (8:00〜21:00)
@@ -51,7 +52,13 @@ export default function RequestPage() {
   })
 
   const [aiNotice, setAiNotice] = useState<string | null>(null)
-  const [errors, setErrors] = useState<{ title?: string; slots?: string }>( {})
+  const [errors, setErrors] = useState<{ title?: string; slots?: string }>({})
+  const [activeCount, setActiveCount] = useState(0)
+
+  useEffect(() => {
+    const n = getConsultations().filter((r) => r.status !== "sent").length
+    setActiveCount(n)
+  }, [])
 
   const handleFreeTextBlur = () => {
     if (!freeText.trim()) return
@@ -147,13 +154,32 @@ export default function RequestPage() {
     <div className={styles.container}>
       <StepIndicator current={1} />
       <div className={styles.header}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+          <Link href="/" style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "0.82rem", fontWeight: 600, color: "var(--text-secondary)", textDecoration: "none" }}>
+            <ArrowLeft size={14} />ダッシュボード
+          </Link>
+        </div>
         <h1>相談リクエスト作成</h1>
         <p>相談内容や希望形式、空き時間を入力してください。ざっくりした文章でもAIが読み取ります。</p>
       </div>
 
-      <div style={{ marginBottom: "20px" }}>
+      {activeCount > 0 && (
+        <div style={{
+          padding: "10px 16px", background: "var(--color-secondary-bg)",
+          border: "2px solid rgba(245, 200, 74, 0.35)", borderRadius: 14,
+          fontSize: "0.84rem", fontWeight: 600, color: "var(--text-secondary)",
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+        }}>
+          <span>進行中の相談が {activeCount} 件あります</span>
+          <Link href="/" style={{ color: "var(--color-fair)", textDecoration: "underline", whiteSpace: "nowrap" }}>
+            ダッシュボードで確認 →
+          </Link>
+        </div>
+      )}
+
+      <div style={{ textAlign: "right" }}>
         <button type="button" onClick={loadPreset} className={styles.btnDemoText}>
-          デモ用サンプルを入力する
+          サンプルを入力してみる
         </button>
       </div>
 
