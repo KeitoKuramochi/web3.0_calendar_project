@@ -63,29 +63,30 @@ const STATUS_META: Record<ConsultationStatus, { label: string; nextPath: string;
 
 export default function Home() {
   const { data: session } = useSession()
+  const userId = session?.user?.id ?? "guest"
   const router = useRouter()
   const [records, setRecords] = useState<ConsultationRecord[]>([])
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [deletedTitle, setDeletedTitle] = useState<string | null>(null)
 
   useEffect(() => {
-    setRecords(getConsultations())
-  }, [])
+    setRecords(getConsultations(userId))
+  }, [userId])
 
   const handleResume = (record: ConsultationRecord) => {
-    setActiveId(record.id)
+    setActiveId(record.id, userId)
     router.push(STATUS_META[record.status].nextPath)
   }
 
   const handleNewRequest = () => {
-    clearActiveId()
+    clearActiveId(userId)
     router.push("/request")
   }
 
   const handleDelete = (id: string) => {
     const title = records.find((r) => r.id === id)?.request?.title ?? "相談"
-    deleteConsultation(id)
-    setRecords(getConsultations())
+    deleteConsultation(id, userId)
+    setRecords(getConsultations(userId))
     setDeleteConfirm(null)
     setDeletedTitle(title)
     setTimeout(() => setDeletedTitle(null), 2500)

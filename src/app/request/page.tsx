@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { Calendar, Clock, MessageSquare, Plus, Trash2, ArrowRight, ArrowLeft } from "lucide-react"
 import styles from "./request.module.css"
@@ -26,6 +27,8 @@ const TIME_OPTIONS = genTimeOptions()
 
 export default function RequestPage() {
   const router = useRouter()
+  const { data: session } = useSession()
+  const userId = session?.user?.id ?? "guest"
 
   const [freeText, setFreeText] = useState("")
   const [title, setTitle] = useState("")
@@ -56,9 +59,9 @@ export default function RequestPage() {
   const [activeCount, setActiveCount] = useState(0)
 
   useEffect(() => {
-    const n = getConsultations().filter((r) => r.status !== "sent").length
+    const n = getConsultations(userId).filter((r) => r.status !== "sent").length
     setActiveCount(n)
-  }, [])
+  }, [userId])
 
   const handleFreeTextBlur = () => {
     if (!freeText.trim()) return
@@ -145,8 +148,8 @@ export default function RequestPage() {
       consultTopics: [...selectedTopics],
     }
     const now = new Date().toISOString()
-    upsertConsultation({ id, status: "draft", createdAt: now, updatedAt: now, request: requestData })
-    setActiveId(id)
+    upsertConsultation({ id, status: "draft", createdAt: now, updatedAt: now, request: requestData }, userId)
+    setActiveId(id, userId)
     router.push("/match")
   }
 

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 import { Users, CalendarDays, ShieldCheck, Mail } from "lucide-react"
 import styles from "./match.module.css"
 import { selectCandidates, scoreTimeSlots, analyzeProfile } from "@/lib/ai"
@@ -13,6 +14,8 @@ import { getActiveConsultation, upsertConsultation } from "@/lib/storage"
 
 export default function MatchPage() {
   const router = useRouter()
+  const { data: session } = useSession()
+  const userId = session?.user?.id ?? "guest"
 
   const [request, setRequest] = useState<ConsultRequest | null>(null)
   const [candidates, setCandidates] = useState<any[]>([])
@@ -22,7 +25,7 @@ export default function MatchPage() {
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]) // 複数選択
 
   useEffect(() => {
-    const active = getActiveConsultation()
+    const active = getActiveConsultation(userId)
     if (!active?.request) { router.replace("/request"); return }
     const reqData = active.request
     setRequest(reqData)
@@ -87,7 +90,7 @@ export default function MatchPage() {
 
   const handleNext = () => {
     if (!selectedCandidateId || selectedSlots.length === 0) return
-    const active = getActiveConsultation()
+    const active = getActiveConsultation(userId)
     if (!active) return
     const duration = request?.duration ?? 30
     const matchData = {
@@ -96,7 +99,7 @@ export default function MatchPage() {
       selectedTimeSlotsRaw: selectedSlots,
       selectedTimeSlot: formatJaWithEnd(selectedSlots[0], duration),
     }
-    upsertConsultation({ ...active, status: "matched", match: matchData })
+    upsertConsultation({ ...active, status: "matched", match: matchData }, userId)
     router.push("/mail")
   }
 

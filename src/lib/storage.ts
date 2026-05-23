@@ -1,19 +1,19 @@
 import type { ConsultationRecord } from "@/types"
 
-const CONSULTATIONS_KEY = "consultations_v2"
-const ACTIVE_ID_KEY = "active_consultation_id"
+const consultationsKey = (userId = "guest") => `consultations_v2_${userId}`
+const activeIdKey = (userId = "guest") => `active_consultation_id_${userId}`
 
-export function getConsultations(): ConsultationRecord[] {
+export function getConsultations(userId?: string): ConsultationRecord[] {
   if (typeof window === "undefined") return []
   try {
-    return JSON.parse(localStorage.getItem(CONSULTATIONS_KEY) ?? "[]")
+    return JSON.parse(localStorage.getItem(consultationsKey(userId)) ?? "[]")
   } catch {
     return []
   }
 }
 
-export function upsertConsultation(record: ConsultationRecord): void {
-  const all = getConsultations()
+export function upsertConsultation(record: ConsultationRecord, userId?: string): void {
+  const all = getConsultations(userId)
   const idx = all.findIndex((r) => r.id === record.id)
   const updated = { ...record, updatedAt: new Date().toISOString() }
   if (idx >= 0) {
@@ -21,30 +21,30 @@ export function upsertConsultation(record: ConsultationRecord): void {
   } else {
     all.unshift(updated)
   }
-  localStorage.setItem(CONSULTATIONS_KEY, JSON.stringify(all))
+  localStorage.setItem(consultationsKey(userId), JSON.stringify(all))
 }
 
-export function deleteConsultation(id: string): void {
-  const filtered = getConsultations().filter((r) => r.id !== id)
-  localStorage.setItem(CONSULTATIONS_KEY, JSON.stringify(filtered))
-  if (getActiveId() === id) clearActiveId()
+export function deleteConsultation(id: string, userId?: string): void {
+  const filtered = getConsultations(userId).filter((r) => r.id !== id)
+  localStorage.setItem(consultationsKey(userId), JSON.stringify(filtered))
+  if (getActiveId(userId) === id) clearActiveId(userId)
 }
 
-export function getActiveId(): string | null {
+export function getActiveId(userId?: string): string | null {
   if (typeof window === "undefined") return null
-  return localStorage.getItem(ACTIVE_ID_KEY)
+  return localStorage.getItem(activeIdKey(userId))
 }
 
-export function setActiveId(id: string): void {
-  localStorage.setItem(ACTIVE_ID_KEY, id)
+export function setActiveId(id: string, userId?: string): void {
+  localStorage.setItem(activeIdKey(userId), id)
 }
 
-export function clearActiveId(): void {
-  localStorage.removeItem(ACTIVE_ID_KEY)
+export function clearActiveId(userId?: string): void {
+  localStorage.removeItem(activeIdKey(userId))
 }
 
-export function getActiveConsultation(): ConsultationRecord | null {
-  const id = getActiveId()
+export function getActiveConsultation(userId?: string): ConsultationRecord | null {
+  const id = getActiveId(userId)
   if (!id) return null
-  return getConsultations().find((r) => r.id === id) ?? null
+  return getConsultations(userId).find((r) => r.id === id) ?? null
 }

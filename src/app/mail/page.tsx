@@ -6,6 +6,7 @@ import { Mail, MessageSquare, ShieldCheck, AlertCircle, CheckCircle2, Copy, Part
 import styles from "./mail.module.css"
 import { generateEmail, checkEmail } from "@/lib/ai"
 import { DUMMY_USERS } from "@/lib/dummyData"
+import { useSession } from "next-auth/react"
 import { ConsultRequest, UserProfile, MailCheckResult, MailIssue, OutputFormat } from "@/types"
 import StepIndicator from "@/components/StepIndicator/StepIndicator"
 import { getActiveConsultation, upsertConsultation, clearActiveId } from "@/lib/storage"
@@ -20,6 +21,8 @@ const FORMAT_OPTIONS: { value: OutputFormat; label: string; icon: React.ReactNod
 
 export default function MailPage() {
   const router = useRouter()
+  const { data: session } = useSession()
+  const userId = session?.user?.id ?? "guest"
 
   const [requester, setRequester] = useState<UserProfile | null>(null)
   const [targetUser, setTargetUser] = useState<UserProfile | null>(null)
@@ -39,7 +42,7 @@ export default function MailPage() {
 
   // データロードと初期メール生成
   useEffect(() => {
-    const active = getActiveConsultation()
+    const active = getActiveConsultation(userId)
     if (!active?.request || !active?.match) {
       router.replace("/request")
       return
@@ -57,7 +60,7 @@ export default function MailPage() {
     const target = DUMMY_USERS.find((u) => u.id === match.targetUserId) || DUMMY_USERS[1]
     setTargetUser(target)
 
-    upsertConsultation({ ...active, status: "composed" })
+    upsertConsultation({ ...active, status: "composed" }, userId)
     regenerate(sender, target, req, match, "email")
   }, [])
 
@@ -130,15 +133,15 @@ export default function MailPage() {
   }
 
   const handleGoDashboard = () => {
-    const active = getActiveConsultation()
+    const active = getActiveConsultation(userId)
     if (active) {
       upsertConsultation({
         ...active,
         status: "sent",
         mail: { subject, body, format: outputFormat },
-      })
+      }, userId)
     }
-    clearActiveId()
+    clearActiveId(userId)
     router.push("/")
   }
 
