@@ -1,12 +1,12 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Mail, MessageSquare, ShieldCheck, AlertCircle, CheckCircle2, Copy, PartyPopper, Check, HelpCircle, ArrowLeft, UserX } from "lucide-react"
 import styles from "./mail.module.css"
 import { generateEmail, checkEmail } from "@/lib/ai"
 import { DUMMY_USERS } from "@/lib/dummyData"
-import { ConsultRequest, UserProfile, MailCheckResult, OutputFormat } from "@/types"
+import { ConsultRequest, UserProfile, MailCheckResult, MailIssue, OutputFormat } from "@/types"
 import StepIndicator from "@/components/StepIndicator/StepIndicator"
 import { getActiveConsultation, upsertConsultation, clearActiveId } from "@/lib/storage"
 
@@ -33,6 +33,9 @@ export default function MailPage() {
 
   const [showToast, setShowToast] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [activeIssueIdx, setActiveIssueIdx] = useState<number | null>(null)
+  const [flashTextarea, setFlashTextarea] = useState(false)
+  const bodyRef = useRef<HTMLTextAreaElement>(null)
 
   // データロードと初期メール生成
   useEffect(() => {
@@ -92,7 +95,30 @@ export default function MailPage() {
     }
   }
 
+  const jumpToIssue = (issue: MailIssue, idx: number) => {
+    setActiveIssueIdx(idx)
+    const textarea = bodyRef.current
+    if (!textarea || !issue.searchText) return
+    const pos = body.indexOf(issue.searchText)
+    if (pos === -1) return
+    textarea.focus()
+    textarea.setSelectionRange(pos, pos + issue.searchText.length)
+    const linesBefore = body.substring(0, pos).split("\n").length - 1
+    const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight) || 26
+    textarea.scrollTop = Math.max(0, linesBefore * lineHeight - 80)
+    setFlashTextarea(true)
+    setTimeout(() => setFlashTextarea(false), 700)
+  }
+
   const handleCopy = () => {
+    if (outputFormat === "email") {
+      const firstError = checkResult.issues.find((i) => i.type === "error")
+      if (firstError) {
+        const idx = checkResult.issues.indexOf(firstError)
+        jumpToIssue(firstError, idx)
+        return
+      }
+    }
     const text = subject ? `件名: ${subject}\n\n${body}` : body
     navigator.clipboard.writeText(text).then(() => {
       setShowToast(true)
@@ -243,9 +269,10 @@ export default function MailPage() {
               />
             )}
             <textarea
+              ref={bodyRef}
               value={body}
               onChange={handleBodyChange}
-              className={styles.bodyTextarea}
+              className={`${styles.bodyTextarea} ${flashTextarea ? styles.bodyTextareaFlash : ""}`}
               placeholder="メッセージ本文"
             />
 
@@ -255,12 +282,19 @@ export default function MailPage() {
               </span>
               <button
                 onClick={handleCopy}
-                className={styles.btnCopy}
-                disabled={isEmailFormat && errors.length > 0}
-                style={{ opacity: isEmailFormat && errors.length > 0 ? 0.6 : 1, cursor: isEmailFormat && errors.length > 0 ? "not-allowed" : "pointer" }}
+                className={`${styles.btnCopy} ${isEmailFormat && errors.length > 0 ? styles.btnCopyError : ""}`}
               >
-                <Copy size={15} />
-                コピーして完了
+                {isEmailFormat && errors.length > 0 ? (
+                  <>
+                    <AlertCircle size={15} />
+                    エラー箇所を修正する
+                  </>
+                ) : (
+                  <>
+                    <Copy size={15} />
+                    コピーして完了
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -295,15 +329,27 @@ export default function MailPage() {
 
               {isEmailFormat && (
                 <p style={{ fontSize: "0.78rem", color: "var(--text-secondary)", margin: "8px 0 14px" }}>
-                  {errors.length > 0 ? "赤色のエラーを修正するまでコピーできません。" : "警告は任意ですが修正すると印象が良くなります。"}
+                  {errors.length > 0 ? "指摘をタップすると該当箇所にカーソルが移動します。" : "警告は任意ですが修正すると印象が良くなります。"}
                 </p>
               )}
 
               <div className={styles.issueList}>
                 {checkResult.issues.map((issue, idx) => {
                   const isErr = issue.type === "error"
+                  const isClickable = !!issue.searchText
+                  const isActive = activeIssueIdx === idx
                   return (
-                    <div key={idx} className={`${styles.issueItem} ${isErr ? styles.issueError : styles.issueWarning}`}>
+                    <div
+                      key={idx}
+                      className={[
+                        styles.issueItem,
+                        isErr ? styles.issueError : styles.issueWarning,
+                        isClickable ? styles.issueItemClickable : "",
+                        isActive ? styles.issueItemActive : "",
+                      ].join(" ")}
+                      onClick={() => isClickable && jumpToIssue(issue, idx)}
+                      title={isClickable ? "クリックで本文の該当箇所にジャンプ" : undefined}
+                    >
                       <div className={`${styles.issueTitle} ${isErr ? styles.issueTitleError : styles.issueTitleWarning}`}>
                         <AlertCircle size={13} />
                         <span>{isErr ? "必須エラー" : "警告"}</span>
@@ -313,6 +359,11 @@ export default function MailPage() {
                         <div className={styles.issueSuggestion}>
                           <span style={{ color: "var(--color-primary)", marginRight: "4px" }}>【修正案】</span>
                           {issue.suggestion}
+                        </div>
+                      )}
+                      {isClickable && (
+                        <div className={styles.jumpHint}>
+                          ↗ クリックで本文の該当箇所を確認
                         </div>
                       )}
                     </div>

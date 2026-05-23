@@ -71,6 +71,7 @@ export interface MailIssue {
   type: "warning" | "error"
   message: string
   suggestion?: string
+  searchText?: string  // 本文中でハイライトすべき文字列
 }
 
 // メールチェック結果

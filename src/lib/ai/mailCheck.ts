@@ -12,18 +12,25 @@ export function checkEmail(
   const issues: MailIssue[] = [];
 
   // 1. テンプレートプレースホルダーの残存チェック
-  if (body.includes("(ご自身の学籍番号を入力してください)") || body.includes("（ご自身の学籍番号を入力してください）")) {
+  const placeholder1 = body.includes("（ご自身の学籍番号を入力してください）")
+    ? "（ご自身の学籍番号を入力してください）"
+    : body.includes("(ご自身の学籍番号を入力してください)")
+    ? "(ご自身の学籍番号を入力してください)"
+    : null
+  if (placeholder1) {
     issues.push({
       type: "error",
       message: "「学籍番号」がプレースホルダーのままになっています。",
-      suggestion: "ご自身の学籍番号（例: 22JK101）に書き換えてください。"
+      suggestion: "ご自身の学籍番号（例: 22JK101）に書き換えてください。",
+      searchText: placeholder1,
     });
   }
   if (body.includes("＿＿＿＿＿＿")) {
     issues.push({
       type: "error",
       message: "未記入の必要項目（＿＿＿＿＿＿）が存在します。",
-      suggestion: "指定された内容を入力してください。"
+      suggestion: "指定された内容を入力してください。",
+      searchText: "＿＿＿＿＿＿",
     });
   }
 
@@ -71,11 +78,13 @@ export function checkEmail(
   ];
 
   impoliteChecks.forEach(check => {
-    if (check.pattern.test(body)) {
+    const m = check.pattern.exec(body)
+    if (m) {
       issues.push({
         type: "warning",
         message: check.message,
-        suggestion: check.suggestion
+        suggestion: check.suggestion,
+        searchText: m[0],
       });
     }
   });
