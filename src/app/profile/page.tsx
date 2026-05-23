@@ -208,6 +208,11 @@ export default function ProfilePage() {
       <form onSubmit={handleSave} className="glass-card fade-in">
         <div className={styles.formGrid}>
 
+          {/* ── 基本情報 ── */}
+          <div className={styles.formSectionHeader}>
+            <User size={15} /><span>基本情報</span>
+          </div>
+
           {/* 名前 */}
           <div className={styles.formGroup}>
             <label className={styles.label}><User size={15} />名前</label>
@@ -301,6 +306,11 @@ export default function ProfilePage() {
             />
           </div>
 
+          {/* ── 役割・所属 ── */}
+          <div className={styles.formSectionHeader}>
+            <BookOpen size={15} /><span>役割・所属</span>
+          </div>
+
           {/* ロール（自由入力 + 人気候補） */}
           <div className={styles.formGroupFull}>
             <label className={styles.label}>ロール・役割</label>
@@ -348,6 +358,11 @@ export default function ProfilePage() {
             />
           </div>
 
+          {/* ── 相談できること ── */}
+          <div className={styles.formSectionHeader}>
+            <BookOpen size={15} /><span>相談できること</span>
+          </div>
+
           {/* 相談トピック（タグ + カスタム） */}
           <div className={styles.formGroupFull}>
             <label className={styles.label}><BookOpen size={15} />相談・対応できる内容（複数選択可）</label>
@@ -387,6 +402,11 @@ export default function ProfilePage() {
             </div>
           </div>
 
+          {/* ── 空き時間・スケジュール ── */}
+          <div className={styles.formSectionHeader}>
+            <Clock size={15} /><span>空き時間・スケジュール</span>
+          </div>
+
           {/* 会いやすい時間 */}
           <div className={styles.formGroupFull}>
             <label className={styles.label}><Clock size={15} />会いやすい時間帯（自由記述）</label>
@@ -409,6 +429,11 @@ export default function ProfilePage() {
               className={styles.textarea}
               placeholder="例: 水曜日は会議が多いためできるだけ避けてください。"
             />
+          </div>
+
+          {/* ── 連絡・メール方針 ── */}
+          <div className={styles.formSectionHeader}>
+            <Mail size={15} /><span>連絡・メール方針</span>
           </div>
 
           {/* メール方針 */}

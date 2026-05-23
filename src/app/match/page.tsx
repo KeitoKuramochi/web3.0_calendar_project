@@ -106,8 +106,28 @@ export default function MatchPage() {
     <div className={styles.container}>
       <StepIndicator current={2} />
       <div className={styles.header}>
+        <div style={{ marginBottom: 10 }}>
+          <button
+            onClick={() => router.push("/request")}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              background: "none", border: "none", padding: 0,
+              fontSize: "0.82rem", fontWeight: 600, color: "var(--text-secondary)",
+              cursor: "pointer", fontFamily: "inherit",
+            }}
+          >
+            ← リクエストをやり直す
+          </button>
+        </div>
         <h1>相談先マッチング・日程調整</h1>
-        <p>AIがリクエストに合った相談先を提案しました。候補日時は複数選択できます（相手に複数の選択肢を提示します）。</p>
+        <p>リクエストに合った相談先を提案しました。候補日時は複数選択できます（相手に複数の選択肢を提示します）。</p>
+      </div>
+      <div style={{
+        padding: "8px 14px", background: "var(--bg-primary)",
+        border: "1.5px solid var(--border-color)", borderRadius: 12,
+        fontSize: "0.78rem", color: "var(--text-muted)", fontWeight: 500, marginBottom: 4,
+      }}>
+        ※ 現在はデモ用のサンプルユーザーが相談先として表示されています
       </div>
 
       <div className={styles.layout}>

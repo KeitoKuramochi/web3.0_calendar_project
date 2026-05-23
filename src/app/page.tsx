@@ -66,6 +66,7 @@ export default function Home() {
   const router = useRouter()
   const [records, setRecords] = useState<ConsultationRecord[]>([])
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [deletedTitle, setDeletedTitle] = useState<string | null>(null)
 
   useEffect(() => {
     setRecords(getConsultations())
@@ -82,9 +83,12 @@ export default function Home() {
   }
 
   const handleDelete = (id: string) => {
+    const title = records.find((r) => r.id === id)?.request?.title ?? "相談"
     deleteConsultation(id)
     setRecords(getConsultations())
     setDeleteConfirm(null)
+    setDeletedTitle(title)
+    setTimeout(() => setDeletedTitle(null), 2500)
   }
 
   const getTargetUser = (record: ConsultationRecord) =>
@@ -262,6 +266,21 @@ export default function Home() {
             })}
           </div>
         </section>
+      )}
+
+      {/* 削除トースト */}
+      {deletedTitle && (
+        <div style={{
+          position: "fixed", bottom: 24, right: 24,
+          background: "var(--text-primary)", color: "white",
+          padding: "12px 20px", borderRadius: 16,
+          fontWeight: 700, fontSize: "0.875rem",
+          boxShadow: "0 4px 20px rgba(74, 55, 40, 0.25)",
+          display: "flex", alignItems: "center", gap: 8,
+          zIndex: 1000, animation: "slideIn 0.25s ease forwards",
+        }}>
+          🗑️ 「{deletedTitle}」を削除しました
+        </div>
       )}
 
       {/* 削除確認ダイアログ */}
