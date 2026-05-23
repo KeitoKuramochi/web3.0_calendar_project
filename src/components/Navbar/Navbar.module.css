@@ -104,20 +104,99 @@
   background: var(--color-danger-bg);
 }
 
+.hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1.5px solid var(--border-color);
+  border-radius: 10px;
+  padding: 6px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+
+.hamburger:hover {
+  border-color: var(--border-color-hover);
+}
+
+.mobileMenu {
+  position: absolute;
+  top: 64px;
+  left: 0;
+  right: 0;
+  background: var(--bg-card);
+  border-bottom: 2px solid var(--border-color);
+  padding: 12px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 99;
+  animation: fadeIn var(--transition-fast) forwards;
+}
+
+.mobileNavLink {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  border-radius: 14px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all var(--transition-fast);
+}
+
+.mobileNavLink:hover {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.mobileNavLinkActive {
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+}
+
+.mobileDivider {
+  height: 1.5px;
+  background: var(--border-color);
+  margin: 8px 0;
+}
+
+.mobileUserRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+}
+
+.mobileUserName {
+  flex: 1;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-width: 768px) {
   .navbar {
     padding: 0 16px;
+    position: relative;
   }
 
   .navLinks {
-    gap: 2px;
-  }
-
-  .navLink span {
     display: none;
   }
 
-  .userName {
+  .userArea {
     display: none;
+  }
+
+  .hamburger {
+    display: flex;
   }
 }

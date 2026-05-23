@@ -9,6 +9,7 @@ import { DUMMY_USERS } from "@/lib/dummyData"
 import { ConsultRequest, TimeSlotScore } from "@/types"
 import { formatJaWithEnd } from "@/lib/formatDate"
 import StepIndicator from "@/components/StepIndicator/StepIndicator"
+import { getActiveConsultation, upsertConsultation } from "@/lib/storage"
 
 export default function MatchPage() {
   const router = useRouter()
@@ -21,14 +22,9 @@ export default function MatchPage() {
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]) // 複数選択
 
   useEffect(() => {
-    let reqData: ConsultRequest
-    const saved = localStorage.getItem("consult_request")
-    if (saved) {
-      try { reqData = JSON.parse(saved) } catch { router.replace("/request"); return }
-    } else {
-      router.replace("/request")
-      return
-    }
+    const active = getActiveConsultation()
+    if (!active?.request) { router.replace("/request"); return }
+    const reqData = active.request
     setRequest(reqData)
 
     const keywords = reqData.consultTopics?.length
@@ -91,6 +87,8 @@ export default function MatchPage() {
 
   const handleNext = () => {
     if (!selectedCandidateId || selectedSlots.length === 0) return
+    const active = getActiveConsultation()
+    if (!active) return
     const duration = request?.duration ?? 30
     const matchData = {
       targetUserId: selectedCandidateId,
@@ -98,7 +96,7 @@ export default function MatchPage() {
       selectedTimeSlotsRaw: selectedSlots,
       selectedTimeSlot: formatJaWithEnd(selectedSlots[0], duration),
     }
-    localStorage.setItem("consult_match", JSON.stringify(matchData))
+    upsertConsultation({ ...active, status: "matched", match: matchData })
     router.push("/mail")
   }
 

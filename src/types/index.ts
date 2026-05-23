@@ -87,3 +87,32 @@ export interface ParsedRequest {
   extractedUrgency: "high" | "normal" | "low"
   extractedKeywords: string[]
 }
+
+// 相談の進捗ステータス
+export type ConsultationStatus = "draft" | "matched" | "composed" | "sent"
+
+// マッチング結果
+export interface ConsultationMatch {
+  targetUserId: string
+  selectedTimeSlots: string[]
+  selectedTimeSlotsRaw: string[]
+  selectedTimeSlot: string
+}
+
+// メール/メッセージ生成結果
+export interface ConsultationMail {
+  subject: string
+  body: string
+  format: OutputFormat
+}
+
+// 相談記録（ダッシュボードで管理する単位）
+export interface ConsultationRecord {
+  id: string
+  status: ConsultationStatus
+  createdAt: string
+  updatedAt: string
+  request?: ConsultRequest
+  match?: ConsultationMatch
+  mail?: ConsultationMail
+}

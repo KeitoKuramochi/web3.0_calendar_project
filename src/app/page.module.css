@@ -1,10 +1,327 @@
 .container {
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 36px;
   animation: fadeIn var(--transition-normal) forwards;
 }
 
+/* ヘッダー */
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.greeting {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  margin-bottom: 5px;
+}
+
+.greetingSub {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.btnNewRequest {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 11px 22px;
+  background: var(--color-primary);
+  border: none;
+  border-radius: 20px;
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  font-family: inherit;
+  box-shadow: 0 4px 12px rgba(112, 185, 126, 0.3);
+  flex-shrink: 0;
+}
+
+.btnNewRequest:hover {
+  background: #5da36b;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(112, 185, 126, 0.4);
+}
+
+/* セクション共通 */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sectionTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* 相談カードリスト */
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.consultCard {
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
+  border-radius: 20px;
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+
+.consultCard:hover {
+  box-shadow: var(--box-shadow-card-hover);
+  border-color: var(--border-color-hover);
+}
+
+.sentCard {
+  opacity: 0.72;
+}
+
+.consultCardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ステータスバッジ */
+.statusBadge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.draft {
+  background: var(--color-fair-bg);
+  color: var(--color-fair);
+}
+
+.matched {
+  background: var(--color-good-bg);
+  color: var(--color-good);
+}
+
+.composed {
+  background: var(--color-excellent-bg);
+  color: var(--color-excellent);
+}
+
+.sent {
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+}
+
+.btnDelete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 5px;
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+  font-family: inherit;
+}
+
+.btnDelete:hover {
+  color: var(--color-danger);
+  background: var(--color-danger-bg);
+}
+
+.consultCardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.consultTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.consultMeta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.consultMetaItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.slotPreview {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border-color);
+  font-weight: 500;
+  width: fit-content;
+}
+
+.consultCardFooter {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btnResume {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 20px;
+  background: var(--color-secondary);
+  border: none;
+  border-radius: 20px;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: inherit;
+  box-shadow: 0 3px 10px rgba(245, 200, 74, 0.3);
+}
+
+.btnResume:hover {
+  background: #dbb030;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(245, 200, 74, 0.4);
+}
+
+/* 空状態 */
+.emptyState {
+  padding: 60px 20px;
+  text-align: center;
+  background: var(--bg-card);
+  border: 2px dashed var(--border-color);
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.emptyIcon {
+  font-size: 2.5rem;
+  margin-bottom: 4px;
+}
+
+.emptyTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.emptyHint {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.btnStart {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 11px 24px;
+  background: var(--color-primary);
+  border: none;
+  border-radius: 20px;
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: inherit;
+  box-shadow: 0 4px 12px rgba(112, 185, 126, 0.3);
+}
+
+.btnStart:hover {
+  background: #5da36b;
+  transform: translateY(-2px);
+}
+
+/* クイックアクションカード */
+.quickCard {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 22px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.quickCard:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--box-shadow-card-hover);
+  transform: translateY(-2px);
+}
+
+.quickCardIcon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: grid;
+  place-content: center;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+  border: 1.5px solid rgba(112, 185, 126, 0.25);
+  flex-shrink: 0;
+}
+
+.quickCardBody {
+  flex: 1;
+}
+
+.quickCardTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+}
+
+.quickCardDesc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  line-height: 1.55;
+}
+
+.quickCardArrow {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* ウェルカムバナー（初回のみ） */
 .welcomeBanner {
   display: flex;
   align-items: center;
@@ -27,204 +344,86 @@
   font-weight: 700;
 }
 
-.grid {
+/* 削除確認ダイアログ */
+.dialogOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(74, 55, 40, 0.25);
+  backdrop-filter: blur(2px);
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 18px;
+  place-content: center;
+  z-index: 300;
+  padding: 20px;
 }
 
-.card {
-  padding: 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  cursor: pointer;
+.dialog {
   background: var(--bg-card);
   border: 2px solid var(--border-color);
   border-radius: 22px;
-  box-shadow: var(--box-shadow-card);
-  text-decoration: none;
-  transition: box-shadow var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+  padding: 28px 32px;
+  max-width: 360px;
+  width: 100%;
+  box-shadow: 0 8px 32px rgba(74, 55, 40, 0.15);
+  animation: fadeIn var(--transition-fast) forwards;
 }
 
-.card:hover {
-  box-shadow: var(--box-shadow-card-hover);
-  border-color: var(--border-color-hover);
-  transform: translateY(-3px);
-}
-
-.iconWrapper {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  display: grid;
-  place-content: center;
-  background: var(--color-primary-bg);
-  color: var(--color-primary);
-  border: 1.5px solid rgba(107, 170, 115, 0.25);
-}
-
-.iconWrapperSecondary {
-  background: var(--color-secondary-bg);
-  color: var(--color-secondary);
-  border-color: rgba(232, 168, 124, 0.3);
-}
-
-.card h2 {
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.card p {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-  line-height: 1.6;
-  flex: 1;
-  font-weight: 500;
-}
-
-.cardLink {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: var(--color-primary);
-  transition: gap var(--transition-fast);
-}
-
-.card:hover .cardLink {
-  gap: 8px;
-}
-
-.timelineSection {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.sectionTitle {
+.dialogText {
   font-size: 1rem;
   font-weight: 700;
   color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.emptyState {
-  padding: 52px 20px;
+  margin-bottom: 20px;
   text-align: center;
-  background: var(--bg-card);
-  border: 2px dashed var(--border-color);
-  border-radius: 20px;
-  color: var(--text-muted);
 }
 
-.emptyIcon {
-  margin-bottom: 14px;
-  opacity: 0.35;
-}
-
-.emptyState p {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  font-weight: 600;
-}
-
-.emptyHint {
-  font-size: 0.82rem !important;
-  color: var(--text-muted) !important;
-  margin-top: 6px;
-  font-weight: 500 !important;
-}
-
-.timeline {
+.dialogActions {
   display: flex;
-  flex-direction: column;
   gap: 10px;
 }
 
-.timelineItem {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 22px;
-  background: var(--bg-card);
-  border: 2px solid var(--border-color);
-  border-radius: 18px;
-}
-
-.timelineLeft {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.timelineAvatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+.btnCancel {
+  flex: 1;
+  padding: 10px;
   background: var(--bg-primary);
-  font-size: 1.3rem;
-  display: grid;
-  place-content: center;
   border: 2px solid var(--border-color);
-}
-
-.timelineInfo h4 {
-  font-size: 0.9rem;
+  border-radius: 14px;
+  font-size: 0.875rem;
   font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 2px;
-}
-
-.timelineInfo p {
-  font-size: 0.8rem;
   color: var(--text-secondary);
-  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition-fast);
 }
 
-.statusBadge {
-  padding: 5px 13px;
-  border-radius: 20px;
-  font-size: 0.76rem;
+.btnCancel:hover {
+  border-color: var(--border-color-hover);
+  color: var(--text-primary);
+}
+
+.btnConfirmDelete {
+  flex: 1;
+  padding: 10px;
+  background: var(--color-danger);
+  border: none;
+  border-radius: 14px;
+  font-size: 0.875rem;
   font-weight: 700;
-  letter-spacing: 0.01em;
+  color: white;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color var(--transition-fast);
 }
 
-.statusDone {
-  background: var(--color-excellent-bg);
-  color: var(--color-excellent);
-}
-
-.statusWait {
-  background: var(--color-good-bg);
-  color: var(--color-good);
-}
-
-.statusCancel {
-  background: var(--color-danger-bg);
-  color: var(--color-danger);
+.btnConfirmDelete:hover {
+  background: #c55e5d;
 }
 
 @media (max-width: 600px) {
-  .hero {
-    padding: 28px 22px;
-  }
-
-  .hero h1 {
-    font-size: 1.5rem;
-  }
-
-  .timelineItem {
+  .pageHeader {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
   }
 
-  .statusBadge {
-    align-self: flex-end;
+  .btnNewRequest {
+    width: 100%;
+    justify-content: center;
   }
 }

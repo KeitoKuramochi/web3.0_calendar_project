@@ -7,6 +7,7 @@ import styles from "./request.module.css"
 import { parseFreeText } from "@/lib/ai"
 import { ConsultRequest } from "@/types"
 import { POPULAR_TOPICS } from "@/lib/dummyData"
+import { upsertConsultation, setActiveId } from "@/lib/storage"
 import StepIndicator from "@/components/StepIndicator/StepIndicator"
 
 // 15分単位の時刻オプション生成 (8:00〜21:00)
@@ -50,6 +51,7 @@ export default function RequestPage() {
   })
 
   const [aiNotice, setAiNotice] = useState<string | null>(null)
+  const [errors, setErrors] = useState<{ title?: string; slots?: string }>( {})
 
   const handleFreeTextBlur = () => {
     if (!freeText.trim()) return
@@ -116,25 +118,28 @@ export default function RequestPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (availableTimes.length === 0) {
-      alert("空き時間を1つ以上追加してください。")
-      return
-    }
+    const errs: { title?: string; slots?: string } = {}
+    const resolvedTitle = title.trim() || selectedTopics[0] || ""
+    if (!resolvedTitle) errs.title = "件名またはトピックを入力してください"
+    if (availableTimes.length === 0) errs.slots = "空き時間を1つ以上追加してください"
+    if (Object.keys(errs).length > 0) { setErrors(errs); return }
+    setErrors({})
 
-    const allTopics = [...selectedTopics]
-    const requestData: Partial<ConsultRequest> = {
-      id: `req_${Date.now()}`,
+    const id = `req_${Date.now()}`
+    const requestData: ConsultRequest = {
+      id,
       requesterId: "user",
-      title: title || allTopics[0] || "相談面談",
+      title: resolvedTitle,
       duration,
       format,
       myAvailableTimes: availableTimes,
       freeTextInput: freeText,
       urgency,
-      consultTopics: allTopics,
+      consultTopics: [...selectedTopics],
     }
-
-    localStorage.setItem("consult_request", JSON.stringify(requestData))
+    const now = new Date().toISOString()
+    upsertConsultation({ id, status: "draft", createdAt: now, updatedAt: now, request: requestData })
+    setActiveId(id)
     router.push("/match")
   }
 
@@ -239,11 +244,14 @@ export default function RequestPage() {
             <input
               type="text"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => { setTitle(e.target.value); setErrors((p) => ({ ...p, title: undefined })) }}
               placeholder="例: 進路相談、研究室のことを聞きたい"
               className={styles.input}
-              required
+              style={errors.title ? { borderColor: "var(--color-danger)" } : {}}
             />
+            {errors.title && (
+              <span style={{ fontSize: "0.8rem", color: "var(--color-danger)", fontWeight: 600 }}>{errors.title}</span>
+            )}
           </div>
 
           {/* 所要時間 */}
@@ -314,6 +322,9 @@ export default function RequestPage() {
               </button>
             </div>
 
+            {errors.slots && (
+              <span style={{ fontSize: "0.8rem", color: "var(--color-danger)", fontWeight: 600 }}>{errors.slots}</span>
+            )}
             <div className={styles.timeSlotList}>
               {availableTimes.length === 0 ? (
                 <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", padding: "8px 0" }}>

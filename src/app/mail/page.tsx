@@ -8,6 +8,7 @@ import { generateEmail, checkEmail } from "@/lib/ai"
 import { DUMMY_USERS } from "@/lib/dummyData"
 import { ConsultRequest, UserProfile, MailCheckResult, OutputFormat } from "@/types"
 import StepIndicator from "@/components/StepIndicator/StepIndicator"
+import { getActiveConsultation, upsertConsultation, clearActiveId } from "@/lib/storage"
 
 const FORMAT_OPTIONS: { value: OutputFormat; label: string; icon: React.ReactNode; desc: string }[] = [
   { value: "email", label: "メール", icon: <Mail size={14} />, desc: "件名あり・丁寧な文体" },
@@ -35,9 +36,8 @@ export default function MailPage() {
 
   // データロードと初期メール生成
   useEffect(() => {
-    const savedMatch = localStorage.getItem("consult_match")
-    const savedReq = localStorage.getItem("consult_request")
-    if (!savedMatch || !savedReq) {
+    const active = getActiveConsultation()
+    if (!active?.request || !active?.match) {
       router.replace("/request")
       return
     }
@@ -45,15 +45,16 @@ export default function MailPage() {
     const sender = loadProfile()
     setRequester(sender)
 
-    const req = loadRequest()
+    const req = active.request
     setRequest(req)
 
-    const match = loadMatch()
+    const match = active.match
     setMatchData(match)
 
     const target = DUMMY_USERS.find((u) => u.id === match.targetUserId) || DUMMY_USERS[1]
     setTargetUser(target)
 
+    upsertConsultation({ ...active, status: "composed" })
     regenerate(sender, target, req, match, "email")
   }, [])
 
@@ -103,8 +104,15 @@ export default function MailPage() {
   }
 
   const handleGoDashboard = () => {
-    localStorage.removeItem("consult_request")
-    localStorage.removeItem("consult_match")
+    const active = getActiveConsultation()
+    if (active) {
+      upsertConsultation({
+        ...active,
+        status: "sent",
+        mail: { subject, body, format: outputFormat },
+      })
+    }
+    clearActiveId()
     router.push("/")
   }
 
