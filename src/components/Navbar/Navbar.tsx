@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
-import { LayoutDashboard, User, CalendarPlus, CheckSquare, LogOut } from "lucide-react"
+import { LayoutDashboard, User, CalendarPlus, CalendarCheck, LogOut } from "lucide-react"
 import styles from "./Navbar.module.css"
 
 export default function Navbar() {
@@ -19,7 +19,7 @@ export default function Navbar() {
   return (
     <nav className={styles.navbar}>
       <Link href="/" className={styles.logo}>
-        <CheckSquare size={22} />
+        <CalendarCheck size={22} />
         <span>SyncMatch AI</span>
       </Link>
 

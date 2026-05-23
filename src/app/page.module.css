@@ -5,51 +5,26 @@
   animation: fadeIn var(--transition-normal) forwards;
 }
 
-.hero {
-  padding: 40px 36px;
-  background: linear-gradient(135deg, #edf6ee 0%, #fdf0e6 100%);
-  border: 2px solid var(--border-color);
-  border-radius: 24px;
-  box-shadow: var(--box-shadow-card);
-  position: relative;
-  overflow: hidden;
+.welcomeBanner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: var(--color-primary-bg);
+  border: 2px solid rgba(112, 185, 126, 0.3);
+  border-radius: 20px;
+  width: 100%;
 }
 
-.hero::before {
-  content: "🍃";
-  position: absolute;
-  right: 32px;
-  top: 20px;
-  font-size: 3rem;
-  opacity: 0.25;
-  transform: rotate(12deg);
+.welcomeLeaf {
+  font-size: 1.1rem;
+  flex-shrink: 0;
 }
 
-.hero::after {
-  content: "🌿";
-  position: absolute;
-  right: 80px;
-  bottom: 16px;
-  font-size: 2rem;
-  opacity: 0.2;
-  transform: rotate(-8deg);
-}
-
-.hero h1 {
-  font-size: 1.85rem;
-  font-weight: 800;
-  color: var(--text-primary);
-  margin-bottom: 10px;
-  letter-spacing: -0.01em;
-  line-height: 1.3;
-}
-
-.hero p {
-  color: var(--text-secondary);
-  font-size: 0.95rem;
-  max-width: 520px;
-  line-height: 1.7;
-  font-weight: 500;
+.welcomeBanner p {
+  color: var(--color-primary);
+  font-size: 0.9rem;
+  font-weight: 700;
 }
 
 .grid {

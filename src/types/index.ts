@@ -6,6 +6,16 @@ export type UserRole = string
 // 出力形式
 export type OutputFormat = "email" | "slack" | "discord" | "line" | "short"
 
+// 追加連絡先の種別
+export type ContactType = "discord" | "slack" | "line" | "twitter" | "github" | "custom"
+
+// 追加連絡先
+export interface ContactMethod {
+  type: ContactType
+  label: string   // 表示名（例: "Discord", "研究室Slack"）
+  value: string   // ID / ハンドル / URL（例: "@suzuki#1234", "suzuki_lab"）
+}
+
 // ユーザープロフィール
 export interface UserProfile {
   id: string
@@ -14,9 +24,11 @@ export interface UserProfile {
   role: UserRole               // 自由文字列のロール
   department: string           // 所属（学科・部署・研究室など、自由記述）
   bio?: string                 // 自由記述（学年・肩書き・その他何でも）
+  publicIntro?: string         // 公開プロフィール用の自己紹介文
   avatar?: string
   topics: string[]             // 相談・対応可能な内容（タグ）
   customTopics?: string        // 追加の自由入力トピック
+  contactMethods?: ContactMethod[]  // メール以外の連絡先
   availableTimesFreeText: string
   avoidTimesFreeText: string
   absoluteNGTimes: string[]

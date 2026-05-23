@@ -1,7 +1,7 @@
 "use client"
 
 import { signIn } from "next-auth/react"
-import { CheckSquare } from "lucide-react"
+import { CalendarCheck } from "lucide-react"
 import styles from "./login.module.css"
 
 export default function LoginPage() {
@@ -9,7 +9,7 @@ export default function LoginPage() {
     <div className={styles.wrapper}>
       <div className={styles.card}>
         <div className={styles.logo}>
-          <CheckSquare size={28} />
+          <CalendarCheck size={28} />
           <span>SyncMatch AI</span>
         </div>
         <h1 className={styles.title}>ログイン</h1>

@@ -7,6 +7,8 @@ import styles from "./match.module.css"
 import { selectCandidates, scoreTimeSlots, analyzeProfile } from "@/lib/ai"
 import { DUMMY_USERS } from "@/lib/dummyData"
 import { ConsultRequest, TimeSlotScore } from "@/types"
+import { formatJaWithEnd } from "@/lib/formatDate"
+import StepIndicator from "@/components/StepIndicator/StepIndicator"
 
 export default function MatchPage() {
   const router = useRouter()
@@ -22,10 +24,10 @@ export default function MatchPage() {
     let reqData: ConsultRequest
     const saved = localStorage.getItem("consult_request")
     if (saved) {
-      try { reqData = JSON.parse(saved) } catch { reqData = getDefault() }
+      try { reqData = JSON.parse(saved) } catch { router.replace("/request"); return }
     } else {
-      reqData = getDefault()
-      localStorage.setItem("consult_request", JSON.stringify(reqData))
+      router.replace("/request")
+      return
     }
     setRequest(reqData)
 
@@ -75,11 +77,6 @@ export default function MatchPage() {
     )
   }
 
-  const formatJa = (s: string) => {
-    const d = new Date(s)
-    const days = ["日", "月", "火", "水", "木", "金", "土"]
-    return `${d.getMonth() + 1}月${d.getDate()}日(${days[d.getDay()]}) ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
-  }
 
   const getScoreEmoji = (s: string) =>
     s === "excellent" ? "◎" : s === "good" ? "○" : s === "fair" ? "△" : "×"
@@ -94,11 +91,12 @@ export default function MatchPage() {
 
   const handleNext = () => {
     if (!selectedCandidateId || selectedSlots.length === 0) return
+    const duration = request?.duration ?? 30
     const matchData = {
       targetUserId: selectedCandidateId,
-      selectedTimeSlots: selectedSlots.map(formatJa),
+      selectedTimeSlots: selectedSlots.map((s) => formatJaWithEnd(s, duration)),
       selectedTimeSlotsRaw: selectedSlots,
-      selectedTimeSlot: formatJa(selectedSlots[0]), // 後方互換
+      selectedTimeSlot: formatJaWithEnd(selectedSlots[0], duration),
     }
     localStorage.setItem("consult_match", JSON.stringify(matchData))
     router.push("/mail")
@@ -108,6 +106,7 @@ export default function MatchPage() {
 
   return (
     <div className={styles.container}>
+      <StepIndicator current={2} />
       <div className={styles.header}>
         <h1>相談先マッチング・日程調整</h1>
         <p>AIがリクエストに合った相談先を提案しました。候補日時は複数選択できます（相手に複数の選択肢を提示します）。</p>
@@ -215,7 +214,7 @@ export default function MatchPage() {
                           {getScoreEmoji(slot.score)}
                         </div>
                         <div className={styles.slotInfo}>
-                          <div className={styles.slotTime}>{formatJa(slot.timeSlot)}</div>
+                          <div className={styles.slotTime}>{formatJaWithEnd(slot.timeSlot, request?.duration ?? 30)}</div>
                           <div className={styles.slotReason}>{slot.privacyReason}</div>
                         </div>
                       </div>

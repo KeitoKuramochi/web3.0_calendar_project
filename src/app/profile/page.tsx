@@ -2,10 +2,20 @@
 
 import React, { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
-import { Save, User, Mail, BookOpen, Clock, AlertTriangle, Plus, X } from "lucide-react"
+import { Save, User, Mail, BookOpen, Clock, AlertTriangle, Plus, X, Link as LinkIcon } from "lucide-react"
+import Link from "next/link"
 import styles from "./profile.module.css"
-import { UserProfile } from "@/types"
-import { DUMMY_USERS, POPULAR_TOPICS, POPULAR_ROLES, MAIL_REQUIRED_INFO_OPTIONS } from "@/lib/dummyData"
+import { UserProfile, ContactMethod, ContactType } from "@/types"
+import { POPULAR_TOPICS, POPULAR_ROLES, MAIL_REQUIRED_INFO_OPTIONS } from "@/lib/dummyData"
+
+const CONTACT_TYPE_OPTIONS: { value: ContactType; label: string; placeholder: string }[] = [
+  { value: "discord", label: "Discord",    placeholder: "例: username#1234 または username" },
+  { value: "slack",   label: "Slack",      placeholder: "例: workspace.slack.com / @handle" },
+  { value: "line",    label: "LINE",        placeholder: "例: your_line_id" },
+  { value: "twitter", label: "Twitter/X",  placeholder: "例: @your_handle" },
+  { value: "github",  label: "GitHub",     placeholder: "例: your-username" },
+  { value: "custom",  label: "その他",     placeholder: "例: https://example.com/contact" },
+]
 
 const DEFAULT_PROFILE: UserProfile = {
   id: "user_default",
@@ -14,9 +24,11 @@ const DEFAULT_PROFILE: UserProfile = {
   role: "",
   department: "",
   bio: "",
+  publicIntro: "",
   avatar: "👤",
   topics: [],
   customTopics: "",
+  contactMethods: [],
   availableTimesFreeText: "",
   avoidTimesFreeText: "",
   absoluteNGTimes: [],
@@ -34,6 +46,12 @@ export default function ProfilePage() {
   const [showToast, setShowToast] = useState(false)
   const [customTopicInput, setCustomTopicInput] = useState("")
   const [customMailInput, setCustomMailInput] = useState("")
+
+  // 連絡先追加フォームの state
+  const [showContactForm, setShowContactForm] = useState(false)
+  const [newContactType, setNewContactType] = useState<ContactType>("discord")
+  const [newContactLabel, setNewContactLabel] = useState("")
+  const [newContactValue, setNewContactValue] = useState("")
 
   useEffect(() => {
     const saved = localStorage.getItem(storageKey)
@@ -112,17 +130,31 @@ export default function ProfilePage() {
     }))
   }
 
+  const addContactMethod = () => {
+    const val = newContactValue.trim()
+    if (!val) return
+    const defaultLabel = CONTACT_TYPE_OPTIONS.find((o) => o.value === newContactType)?.label ?? newContactType
+    const label = newContactLabel.trim() || defaultLabel
+    const method: ContactMethod = { type: newContactType, label, value: val }
+    setProfile((prev) => ({ ...prev, contactMethods: [...(prev.contactMethods ?? []), method] }))
+    setNewContactValue("")
+    setNewContactLabel("")
+    setShowContactForm(false)
+  }
+
+  const removeContactMethod = (index: number) => {
+    setProfile((prev) => ({
+      ...prev,
+      contactMethods: (prev.contactMethods ?? []).filter((_, i) => i !== index),
+    }))
+  }
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
     const toSave = { ...profile, id: userId }
     localStorage.setItem(storageKey, JSON.stringify(toSave))
     setShowToast(true)
     setTimeout(() => setShowToast(false), 3000)
-  }
-
-  const loadDemoUser = (demoUserId: string) => {
-    const found = DUMMY_USERS.find((u) => u.id === demoUserId)
-    if (found) setProfile(found)
   }
 
   // POPULAR_TOPICS に含まれないカスタムトピックのみ表示
@@ -133,15 +165,6 @@ export default function ProfilePage() {
       <div className={styles.header}>
         <h1>プロフィール設定</h1>
         <p>あなたの予定感や連絡方針を登録すると、AIが日程調整とメール作成を最適化します。自由に書けます。</p>
-      </div>
-
-      <div style={{ marginBottom: "20px", display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
-        <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>デモデータ:</span>
-        {DUMMY_USERS.slice(1).map((u) => (
-          <button key={u.id} type="button" onClick={() => loadDemoUser(u.id)} className={styles.infoTagButton}>
-            {u.name}
-          </button>
-        ))}
       </div>
 
       <form onSubmit={handleSave} className="glass-card fade-in">
@@ -155,8 +178,89 @@ export default function ProfilePage() {
 
           {/* メール */}
           <div className={styles.formGroup}>
-            <label className={styles.label}><Mail size={15} />メールアドレス</label>
+            <label className={styles.label}><Mail size={15} />メールアドレス（デフォルトの連絡先）</label>
             <input type="email" name="email" value={profile.email} onChange={handleChange} className={styles.input} placeholder="例: sato@univ.ac.jp" required />
+          </div>
+
+          {/* 追加の連絡先 */}
+          <div className={styles.formGroupFull}>
+            <label className={styles.label}><LinkIcon size={15} />追加の連絡先（Discord ID・Slackなど）</label>
+            <p className={styles.fieldHint}>メール以外で連絡できる方法を追加できます。公開プロフィールに表示されます。</p>
+
+            {/* 登録済み連絡先 */}
+            {(profile.contactMethods ?? []).length > 0 && (
+              <div className={styles.contactChipList}>
+                {(profile.contactMethods ?? []).map((m, i) => (
+                  <span key={i} className={styles.contactChip}>
+                    <span className={styles.contactChipLabel}>{m.label}</span>
+                    <span className={styles.contactChipValue}>{m.value}</span>
+                    <button type="button" onClick={() => removeContactMethod(i)} className={styles.removeBtn}><X size={11} /></button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* 追加フォーム */}
+            {showContactForm ? (
+              <div className={styles.contactAddForm}>
+                <select
+                  value={newContactType}
+                  onChange={(e) => {
+                    setNewContactType(e.target.value as ContactType)
+                    setNewContactLabel("")
+                  }}
+                  className={styles.contactTypeSelect}
+                >
+                  {CONTACT_TYPE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  value={newContactLabel}
+                  onChange={(e) => setNewContactLabel(e.target.value)}
+                  className={styles.input}
+                  placeholder={`表示名（省略可・デフォルト: ${CONTACT_TYPE_OPTIONS.find((o) => o.value === newContactType)?.label}）`}
+                  style={{ flex: "1" }}
+                />
+                <input
+                  type="text"
+                  value={newContactValue}
+                  onChange={(e) => setNewContactValue(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addContactMethod() } }}
+                  className={styles.input}
+                  placeholder={CONTACT_TYPE_OPTIONS.find((o) => o.value === newContactType)?.placeholder}
+                  style={{ flex: "2" }}
+                />
+                <button type="button" onClick={addContactMethod} className={styles.btnAddFree}><Plus size={16} /></button>
+                <button type="button" onClick={() => setShowContactForm(false)} className={styles.btnCancelContact}><X size={14} /></button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setShowContactForm(true)} className={styles.btnAddContact}>
+                <Plus size={14} />
+                連絡先を追加
+              </button>
+            )}
+          </div>
+
+          {/* 公開プロフィール紹介文 */}
+          <div className={styles.formGroupFull}>
+            <label className={styles.label}>公開プロフィール用の自己紹介文</label>
+            <p className={styles.fieldHint}>
+              公開プロフィールページ（
+              <Link href={`/u/${userId}`} target="_blank" className={styles.profileLink}>
+                /u/{userId}
+              </Link>
+              ）に表示される自己紹介文です。相談を考えている方が最初に目にします。
+            </p>
+            <textarea
+              name="publicIntro"
+              value={profile.publicIntro ?? ""}
+              onChange={handleChange}
+              className={styles.textarea}
+              style={{ minHeight: "80px" }}
+              placeholder="例: 情報工学科3年の佐藤です。研究室配属や進路についてご相談できる方を探しています。"
+            />
           </div>
 
           {/* ロール（自由入力 + 人気候補） */}

@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Mail, MessageSquare, ShieldCheck, AlertCircle, CheckCircle2, Copy, PartyPopper, Check, HelpCircle } from "lucide-react"
+import { Mail, MessageSquare, ShieldCheck, AlertCircle, CheckCircle2, Copy, PartyPopper, Check, HelpCircle, ArrowLeft } from "lucide-react"
 import styles from "./mail.module.css"
 import { generateEmail, checkEmail } from "@/lib/ai"
 import { DUMMY_USERS } from "@/lib/dummyData"
 import { ConsultRequest, UserProfile, MailCheckResult, OutputFormat } from "@/types"
+import StepIndicator from "@/components/StepIndicator/StepIndicator"
 
 const FORMAT_OPTIONS: { value: OutputFormat; label: string; icon: React.ReactNode; desc: string }[] = [
   { value: "email", label: "メール", icon: <Mail size={14} />, desc: "件名あり・丁寧な文体" },
@@ -34,6 +35,13 @@ export default function MailPage() {
 
   // データロードと初期メール生成
   useEffect(() => {
+    const savedMatch = localStorage.getItem("consult_match")
+    const savedReq = localStorage.getItem("consult_request")
+    if (!savedMatch || !savedReq) {
+      router.replace("/request")
+      return
+    }
+
     const sender = loadProfile()
     setRequester(sender)
 
@@ -102,18 +110,13 @@ export default function MailPage() {
 
   // ローカルストレージから読み込み
   const loadProfile = (): UserProfile => {
-    const saved = localStorage.getItem("user_profile")
-    if (!saved) {
-      // セッションキー付きで探す
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i)
-        if (key?.startsWith("profile_")) {
-          try { return JSON.parse(localStorage.getItem(key)!) } catch {}
-        }
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key?.startsWith("profile_")) {
+        try { return JSON.parse(localStorage.getItem(key)!) } catch {}
       }
-      return getDefaultSender()
     }
-    try { return JSON.parse(saved) } catch { return getDefaultSender() }
+    return getDefaultSender()
   }
 
   const loadRequest = (): ConsultRequest => {
@@ -166,7 +169,14 @@ export default function MailPage() {
 
   return (
     <div className={styles.container}>
+      <StepIndicator current={3} />
       <div className={styles.header}>
+        <div className={styles.headerTop}>
+          <button className={styles.btnBack} onClick={() => router.push("/match")}>
+            <ArrowLeft size={15} />
+            日程を変更する
+          </button>
+        </div>
         <h1>メッセージ生成・確認</h1>
         <p>相手の連絡方針を踏まえたメッセージを生成しました。フォーマットを切り替えて用途に合わせて使えます。</p>
       </div>
@@ -302,6 +312,22 @@ export default function MailPage() {
                   {targetUser.mailRequiredInfo.length === 0 && <li>特になし</li>}
                 </ul>
               </div>
+            )}
+
+            {/* 相手の公開プロフィールリンク */}
+            {targetUser && (
+              <a
+                href={`/u/${targetUser.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.btnProfileLink}
+              >
+                <HelpCircle size={14} />
+                <span>{targetUser.name}の連絡先ページを開く</span>
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: "auto" }}>
+                  <path d="M2 2h8v8M10 2 2 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </a>
             )}
           </div>
         </div>

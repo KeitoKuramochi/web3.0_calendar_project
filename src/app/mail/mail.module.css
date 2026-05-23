@@ -188,13 +188,13 @@
   white-space: nowrap;
   transition: background-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
   font-family: inherit;
-  box-shadow: 0 4px 12px rgba(107, 170, 115, 0.3);
+  box-shadow: 0 4px 12px rgba(112, 185, 126, 0.3);
 }
 
 .btnCopy:hover {
-  background: #5a9e62;
+  background: #5da36b;
   transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(107, 170, 115, 0.4);
+  box-shadow: 0 6px 18px rgba(112, 185, 126, 0.4);
 }
 
 .checkerSidebar {
@@ -373,7 +373,7 @@
   border-radius: 16px;
   font-weight: 700;
   font-size: 0.875rem;
-  box-shadow: 0 4px 20px rgba(107, 170, 115, 0.35);
+  box-shadow: 0 4px 20px rgba(112, 185, 126, 0.35);
   display: flex;
   align-items: center;
   gap: 8px;

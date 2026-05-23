@@ -2,11 +2,12 @@
 
 import React, { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Calendar, Clock, MessageSquare, Sparkles, Plus, Trash2, ArrowRight } from "lucide-react"
+import { Calendar, Clock, MessageSquare, Plus, Trash2, ArrowRight } from "lucide-react"
 import styles from "./request.module.css"
 import { parseFreeText } from "@/lib/ai"
 import { ConsultRequest } from "@/types"
 import { POPULAR_TOPICS } from "@/lib/dummyData"
+import StepIndicator from "@/components/StepIndicator/StepIndicator"
 
 // 15分単位の時刻オプション生成 (8:00〜21:00)
 function genTimeOptions() {
@@ -34,12 +35,19 @@ export default function RequestPage() {
 
   const [tempDate, setTempDate] = useState("")
   const [tempTime, setTempTime] = useState("10:00")
-  const [availableTimes, setAvailableTimes] = useState<string[]>([
-    "2026-05-29T10:00",
-    "2026-05-29T11:00",
-    "2026-05-27T14:00",
-    "2026-05-28T15:00",
-  ])
+  const [availableTimes, setAvailableTimes] = useState<string[]>(() => {
+    const base = new Date()
+    base.setHours(0, 0, 0, 0)
+    const fmt = (d: Date, h: number, m: number) => {
+      const dd = new Date(d)
+      dd.setHours(h, m, 0, 0)
+      return dd.toISOString().slice(0, 16)
+    }
+    const d7 = new Date(base); d7.setDate(base.getDate() + 7)
+    const d8 = new Date(base); d8.setDate(base.getDate() + 8)
+    const d9 = new Date(base); d9.setDate(base.getDate() + 9)
+    return [fmt(d7, 10, 0), fmt(d7, 11, 0), fmt(d8, 14, 0), fmt(d9, 15, 0)]
+  })
 
   const [aiNotice, setAiNotice] = useState<string | null>(null)
 
@@ -97,7 +105,12 @@ export default function RequestPage() {
     setFormat(parsed.extractedFormat)
     setUrgency(parsed.extractedUrgency)
     setSelectedTopics(["進路相談"])
-    setAvailableTimes(["2026-05-29T10:00", "2026-05-29T11:00", "2026-05-27T10:00", "2026-05-28T14:00"])
+    const base = new Date(); base.setHours(0, 0, 0, 0)
+    const fmt = (d: Date, h: number) => { const dd = new Date(d); dd.setHours(h, 0, 0, 0); return dd.toISOString().slice(0, 16) }
+    const d7 = new Date(base); d7.setDate(base.getDate() + 7)
+    const d8 = new Date(base); d8.setDate(base.getDate() + 8)
+    const d9 = new Date(base); d9.setDate(base.getDate() + 9)
+    setAvailableTimes([fmt(d7, 10), fmt(d7, 11), fmt(d8, 10), fmt(d9, 14)])
     setAiNotice(`デモ入力。AIが「${parsed.extractedTitle}」、${parsed.extractedDuration}分、対面を推測しました。`)
   }
 
@@ -127,15 +140,15 @@ export default function RequestPage() {
 
   return (
     <div className={styles.container}>
+      <StepIndicator current={1} />
       <div className={styles.header}>
         <h1>相談リクエスト作成</h1>
         <p>相談内容や希望形式、空き時間を入力してください。ざっくりした文章でもAIが読み取ります。</p>
       </div>
 
       <div style={{ marginBottom: "20px" }}>
-        <button type="button" onClick={loadPreset} className={styles.btnAddSlot} style={{ background: "var(--color-primary-bg)", borderColor: "var(--color-primary)", color: "var(--color-primary)" }}>
-          <Sparkles size={14} style={{ marginRight: "6px" }} />
-          【デモ用】自動入力する
+        <button type="button" onClick={loadPreset} className={styles.btnDemoText}>
+          デモ用サンプルを入力する
         </button>
       </div>
 
@@ -158,7 +171,6 @@ export default function RequestPage() {
           />
           {aiNotice && (
             <div className={styles.aiNotice}>
-              <Sparkles size={14} style={{ color: "var(--color-secondary)", flexShrink: 0 }} />
               <span>{aiNotice}</span>
             </div>
           )}
