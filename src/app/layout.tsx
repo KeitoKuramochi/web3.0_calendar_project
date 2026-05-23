@@ -5,7 +5,7 @@ import Providers from "@/components/Providers"
 import { auth } from "@/auth"
 
 export const metadata: Metadata = {
-  title: "Calmo - 日程調整とメッセージ作成",
+  title: "Calmail - 日程調整とメッセージ作成",
   description: "相手のプライバシーに配慮した日程調整と丁寧なメッセージ作成を手伝います。大学・組織内での相談・面談をスムーズに。",
 }
 

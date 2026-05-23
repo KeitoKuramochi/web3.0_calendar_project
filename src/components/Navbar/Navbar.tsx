@@ -30,7 +30,7 @@ export default function Navbar() {
     <nav className={styles.navbar}>
       <Link href="/" className={styles.logo}>
         <CalendarCheck size={22} />
-        <span>Calmo</span>
+        <span>Calmail</span>
       </Link>
 
       {/* デスクトップナビ */}

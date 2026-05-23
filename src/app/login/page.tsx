@@ -10,7 +10,7 @@ export default function LoginPage() {
       <div className={styles.card}>
         <div className={styles.logo}>
           <CalendarCheck size={28} />
-          <span>Calmo</span>
+          <span>Calmail</span>
         </div>
         <h1 className={styles.title}>ログイン</h1>
         <p className={styles.desc}>
