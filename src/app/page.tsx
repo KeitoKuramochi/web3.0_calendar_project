@@ -10,6 +10,50 @@ import { getConsultations, deleteConsultation, setActiveId, clearActiveId } from
 import type { ConsultationRecord, ConsultationStatus } from "@/types"
 import { DUMMY_USERS } from "@/lib/dummyData"
 
+const STEP_LABELS = ["リクエスト", "マッチング", "メッセージ"]
+const STATUS_TO_STEP: Record<ConsultationStatus, number> = {
+  draft: 1, matched: 2, composed: 3, sent: 3,
+}
+
+function StepMini({ status }: { status: ConsultationStatus }) {
+  const current = STATUS_TO_STEP[status]
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 0, marginTop: 6 }}>
+      {STEP_LABELS.map((label, i) => {
+        const step = i + 1
+        const done = step < current
+        const active = step === current && status !== "sent"
+        const sent = status === "sent"
+        return (
+          <React.Fragment key={label}>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 4,
+              fontSize: "0.72rem", fontWeight: 700,
+              color: sent || done ? "var(--color-excellent)" : active ? "var(--color-primary)" : "var(--text-muted)",
+            }}>
+              <span style={{
+                width: 18, height: 18, borderRadius: "50%", display: "grid", placeContent: "center",
+                fontSize: "0.65rem", fontWeight: 800,
+                background: sent || done ? "var(--color-excellent)" : active ? "var(--color-primary)" : "var(--border-color)",
+                color: sent || done || active ? "white" : "var(--text-muted)",
+                flexShrink: 0,
+              }}>{sent || done ? "✓" : step}</span>
+              {label}
+            </div>
+            {i < 2 && (
+              <div style={{
+                height: 1.5, width: 20, flexShrink: 0,
+                background: sent || done ? "var(--color-excellent)" : "var(--border-color)",
+                margin: "0 4px",
+              }} />
+            )}
+          </React.Fragment>
+        )
+      })}
+    </div>
+  )
+}
+
 const STATUS_META: Record<ConsultationStatus, { label: string; nextPath: string; actionLabel: string }> = {
   draft:    { label: "下書き",          nextPath: "/match", actionLabel: "相談先を探す" },
   matched:  { label: "日程候補あり",    nextPath: "/mail",  actionLabel: "メッセージを作成" },
@@ -121,6 +165,7 @@ export default function Home() {
                           ` 他${record.match.selectedTimeSlots.length - 1}件`}
                       </div>
                     )}
+                    <StepMini status={record.status} />
                   </div>
                   <div className={styles.consultCardFooter}>
                     <button className={styles.btnResume} onClick={() => handleResume(record)}>

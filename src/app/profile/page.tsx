@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { useSession } from "next-auth/react"
-import { Save, User, Mail, BookOpen, Clock, AlertTriangle, Plus, X, Link as LinkIcon } from "lucide-react"
+import { Save, User, Mail, BookOpen, Clock, AlertTriangle, Plus, X, Link as LinkIcon, CheckCircle2, Loader } from "lucide-react"
 import Link from "next/link"
 import styles from "./profile.module.css"
 import { UserProfile, ContactMethod, ContactType } from "@/types"
@@ -43,9 +43,13 @@ export default function ProfilePage() {
   const storageKey = `profile_${userId}`
 
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE)
-  const [showToast, setShowToast] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<"idle" | "unsaved" | "saving" | "saved">("idle")
   const [customTopicInput, setCustomTopicInput] = useState("")
   const [customMailInput, setCustomMailInput] = useState("")
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const userEditedRef = useRef(false)
+
+  const markEdited = () => { userEditedRef.current = true }
 
   // 連絡先追加フォームの state
   const [showContactForm, setShowContactForm] = useState(false)
@@ -70,14 +74,29 @@ export default function ProfilePage() {
     }
   }, [storageKey, session])
 
+  // 変更検知 → 自動保存（1.5秒後）
+  useEffect(() => {
+    if (!userEditedRef.current) return
+    setSaveStatus("unsaved")
+    clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => {
+      setSaveStatus("saving")
+      localStorage.setItem(storageKey, JSON.stringify({ ...profile, id: userId }))
+      setSaveStatus("saved")
+    }, 1500)
+    return () => clearTimeout(timerRef.current)
+  }, [profile, storageKey, userId])
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
+    markEdited()
     const { name, value } = e.target
     setProfile((prev) => ({ ...prev, [name]: value }))
   }
 
   const toggleTopic = (topic: string) => {
+    markEdited()
     setProfile((prev) => ({
       ...prev,
       topics: prev.topics.includes(topic)
@@ -89,6 +108,7 @@ export default function ProfilePage() {
   const addCustomTopic = () => {
     const t = customTopicInput.trim()
     if (!t) return
+    markEdited()
     if (!profile.topics.includes(t)) {
       setProfile((prev) => ({ ...prev, topics: [...prev.topics, t] }))
     }
@@ -96,6 +116,7 @@ export default function ProfilePage() {
   }
 
   const removeTopic = (topic: string) => {
+    markEdited()
     setProfile((prev) => ({
       ...prev,
       topics: prev.topics.filter((t) => t !== topic),
@@ -103,6 +124,7 @@ export default function ProfilePage() {
   }
 
   const toggleMailInfo = (info: string) => {
+    markEdited()
     setProfile((prev) => ({
       ...prev,
       mailRequiredInfo: prev.mailRequiredInfo.includes(info)
@@ -114,6 +136,7 @@ export default function ProfilePage() {
   const addCustomMailInfo = () => {
     const t = customMailInput.trim()
     if (!t) return
+    markEdited()
     if (!profile.mailRequiredInfo.includes(t)) {
       setProfile((prev) => ({
         ...prev,
@@ -124,6 +147,7 @@ export default function ProfilePage() {
   }
 
   const removeMailInfo = (info: string) => {
+    markEdited()
     setProfile((prev) => ({
       ...prev,
       mailRequiredInfo: prev.mailRequiredInfo.filter((i) => i !== info),
@@ -133,6 +157,7 @@ export default function ProfilePage() {
   const addContactMethod = () => {
     const val = newContactValue.trim()
     if (!val) return
+    markEdited()
     const defaultLabel = CONTACT_TYPE_OPTIONS.find((o) => o.value === newContactType)?.label ?? newContactType
     const label = newContactLabel.trim() || defaultLabel
     const method: ContactMethod = { type: newContactType, label, value: val }
@@ -143,6 +168,7 @@ export default function ProfilePage() {
   }
 
   const removeContactMethod = (index: number) => {
+    markEdited()
     setProfile((prev) => ({
       ...prev,
       contactMethods: (prev.contactMethods ?? []).filter((_, i) => i !== index),
@@ -151,10 +177,10 @@ export default function ProfilePage() {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
-    const toSave = { ...profile, id: userId }
-    localStorage.setItem(storageKey, JSON.stringify(toSave))
-    setShowToast(true)
-    setTimeout(() => setShowToast(false), 3000)
+    clearTimeout(timerRef.current)
+    setSaveStatus("saving")
+    localStorage.setItem(storageKey, JSON.stringify({ ...profile, id: userId }))
+    setSaveStatus("saved")
   }
 
   // POPULAR_TOPICS に含まれないカスタムトピックのみ表示
@@ -426,18 +452,23 @@ export default function ProfilePage() {
         </div>
 
         <div className={styles.footer}>
+          <span className={styles.saveStatus}>
+            {saveStatus === "saving" && (
+              <><Loader size={14} className={styles.spinIcon} />保存中…</>
+            )}
+            {saveStatus === "saved" && (
+              <><CheckCircle2 size={14} style={{ color: "var(--color-excellent)" }} />保存済み</>
+            )}
+            {saveStatus === "unsaved" && (
+              <span style={{ color: "var(--color-fair)" }}>未保存の変更があります</span>
+            )}
+          </span>
           <button type="submit" className={styles.btnSave}>
             <Save size={16} />
-            設定を保存
+            今すぐ保存
           </button>
         </div>
       </form>
-
-      {showToast && (
-        <div className={styles.toast}>
-          <span>✓ プロフィールを保存しました</span>
-        </div>
-      )}
     </div>
   )
 }

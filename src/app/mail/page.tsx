@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Mail, MessageSquare, ShieldCheck, AlertCircle, CheckCircle2, Copy, PartyPopper, Check, HelpCircle, ArrowLeft } from "lucide-react"
+import { Mail, MessageSquare, ShieldCheck, AlertCircle, CheckCircle2, Copy, PartyPopper, Check, HelpCircle, ArrowLeft, UserX } from "lucide-react"
 import styles from "./mail.module.css"
 import { generateEmail, checkEmail } from "@/lib/ai"
 import { DUMMY_USERS } from "@/lib/dummyData"
@@ -188,6 +188,25 @@ export default function MailPage() {
         <h1>メッセージ生成・確認</h1>
         <p>相手の連絡方針を踏まえたメッセージを生成しました。フォーマットを切り替えて用途に合わせて使えます。</p>
       </div>
+
+      {/* プロフィール未設定の警告 */}
+      {(!requester?.name || requester.name === "（あなたの名前）") && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "11px 16px",
+          background: "var(--color-fair-bg)",
+          border: "2px solid rgba(232, 146, 78, 0.3)",
+          borderRadius: 14,
+          fontSize: "0.85rem", fontWeight: 600, color: "var(--color-fair)",
+          marginBottom: 4,
+        }}>
+          <UserX size={16} />
+          プロフィールが未設定のため、差出人名などが空になっています。
+          <a href="/profile" style={{ marginLeft: "auto", color: "var(--color-fair)", textDecoration: "underline", whiteSpace: "nowrap" }}>
+            プロフィールを設定 →
+          </a>
+        </div>
+      )}
 
       {/* 出力フォーマット切り替え */}
       <div className={styles.formatPicker}>
