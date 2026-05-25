@@ -19,6 +19,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     status: record.status,
     confirmedSlot: record.confirmedSlot ?? null,
     recipientNote: record.recipientNote ?? null,
+    recipientContact: record.recipientContact ?? null,
   })
 }
 
@@ -51,10 +52,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     return NextResponse.json({ error: "already_confirmed" }, { status: 409 })
   }
 
-  const { slot } = body
+  const { slot, contact } = body
   if (!slot) return NextResponse.json({ error: "slot required" }, { status: 400 })
 
-  const updated = { ...record, status: "confirmed", confirmedSlot: slot }
+  const updated: any = { ...record, status: "confirmed", confirmedSlot: slot }
+  if (contact && typeof contact === "string" && contact.trim()) {
+    updated.recipientContact = contact.trim()
+  }
   await db.update(consultations)
     .set({ data: updated, status: "confirmed", updatedAt: new Date() })
     .where(eq(consultations.scheduleToken, token))

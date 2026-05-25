@@ -100,6 +100,78 @@
   line-height: 1.55;
 }
 
+/* 連絡先入力 */
+.contactSection {
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  background: var(--bg-primary);
+  border: 1.5px solid var(--border-color);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.contactLabel {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.contactInput {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid var(--border-color);
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: white;
+  transition: border-color 0.18s ease;
+  box-sizing: border-box;
+}
+
+.contactInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.contactInput:disabled {
+  opacity: 0.6;
+}
+
+.contactHint {
+  font-size: 0.73rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* 確定済み画面の連絡先表示 */
+.confirmedContact {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 8px 14px;
+  background: rgba(74, 144, 226, 0.07);
+  border: 1.5px solid rgba(74, 144, 226, 0.2);
+  border-radius: 10px;
+  text-align: left;
+}
+
+.confirmedContactLabel {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #4a90e2;
+}
+
+.confirmedContactValue {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
 .slotsLabel {
   display: flex;
   align-items: center;

@@ -379,6 +379,12 @@ export default function Home() {
                       ✓ {record.confirmedSlot}
                     </div>
                   )}
+                  {record.recipientContact && (
+                    <div className={styles.recipientContact}>
+                      <span className={styles.recipientContactLabel}>相手の連絡先：</span>
+                      <span className={styles.recipientContactValue}>{record.recipientContact}</span>
+                    </div>
+                  )}
                 </div>
                 <div className={styles.consultCardFooter}>
                   <button

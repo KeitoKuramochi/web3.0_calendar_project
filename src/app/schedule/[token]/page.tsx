@@ -15,6 +15,7 @@ interface ScheduleData {
   status: string
   confirmedSlot: string | null
   recipientNote: string | null
+  recipientContact: string | null
 }
 
 type View = "selecting" | "confirmed" | "rescheduling_form" | "rescheduled"
@@ -46,6 +47,7 @@ export default function SchedulePage() {
   const [view, setView] = useState<View>("selecting")
   const [rescheduleFrom, setRescheduleFrom] = useState<"selecting" | "confirmed">("selecting")
   const [confirmedSlot, setConfirmedSlot] = useState<string | null>(null)
+  const [recipientContact, setRecipientContact] = useState("")
   const [rescheduleNote, setRescheduleNote] = useState("")
   const [submittingReschedule, setSubmittingReschedule] = useState(false)
   const [rescheduleError, setRescheduleError] = useState("")
@@ -70,7 +72,7 @@ export default function SchedulePage() {
     const res = await fetch(`/api/schedule/${token}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slot }),
+      body: JSON.stringify({ slot, contact: recipientContact.trim() || undefined }),
     })
     if (res.ok) {
       setConfirmedSlot(slot)
@@ -145,6 +147,12 @@ export default function SchedulePage() {
               ? "場所の詳細は依頼者よりご連絡します。"
               : "形式・場所の詳細は依頼者よりご連絡します。"}
         </p>
+        {(recipientContact || data.recipientContact) && (
+          <div className={styles.confirmedContact}>
+            <span className={styles.confirmedContactLabel}>あなたの連絡先として送信しました：</span>
+            <span className={styles.confirmedContactValue}>{recipientContact || data.recipientContact}</span>
+          </div>
+        )}
         <div className={styles.ctaBox}>
           <p>TaskelTaskal を使うと、あなたの予定を登録して<br />次回から日程調整をさらにスムーズにできます。</p>
           <a href="/" className={styles.ctaBtn}>アカウントを作成する（無料）</a>
@@ -263,6 +271,22 @@ export default function SchedulePage() {
               <div className={styles.infoFormatDesc}>{fmt.desc}</div>
             </div>
           </div>
+        </div>
+
+        {/* 連絡先（任意） */}
+        <div className={styles.contactSection}>
+          <label className={styles.contactLabel}>
+            あなたの連絡先（任意）
+          </label>
+          <input
+            type="text"
+            className={styles.contactInput}
+            placeholder="Discord名 / メールアドレス / LINE IDなど"
+            value={recipientContact}
+            onChange={(e) => setRecipientContact(e.target.value)}
+            disabled={!!confirming}
+          />
+          <p className={styles.contactHint}>入力しなくても確定できます（匿名でもOK）</p>
         </div>
 
         {/* 日時選択 */}
