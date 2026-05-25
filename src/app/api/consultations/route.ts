@@ -28,11 +28,17 @@ export async function POST(req: Request) {
       userId: session.user.id,
       data: record,
       status: record.status,
+      scheduleToken: record.scheduleToken ?? null,
       updatedAt: now,
     })
     .onConflictDoUpdate({
       target: consultations.id,
-      set: { data: record, status: record.status, updatedAt: now },
+      set: {
+        data: record,
+        status: record.status,
+        scheduleToken: record.scheduleToken ?? null,
+        updatedAt: now,
+      },
     })
 
   return NextResponse.json({ ok: true })
