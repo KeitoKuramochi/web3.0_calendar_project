@@ -99,7 +99,7 @@ export interface ParsedRequest {
 }
 
 // 相談の進捗ステータス
-export type ConsultationStatus = "draft" | "matched" | "composed" | "sent" | "waiting" | "confirmed"
+export type ConsultationStatus = "draft" | "matched" | "composed" | "sent" | "waiting" | "confirmed" | "rescheduling"
 
 // マッチング結果
 export interface ConsultationMatch {
@@ -126,6 +126,7 @@ export interface ConsultationRecord {
   request?: ConsultRequest
   match?: ConsultationMatch
   mail?: ConsultationMail
-  scheduleToken?: string  // 確定リンク用トークン
-  confirmedSlot?: string  // 受信者が選んだ日時
+  scheduleToken?: string   // 確定リンク用トークン
+  confirmedSlot?: string   // 受信者が選んだ日時
+  recipientNote?: string   // 受信者が「全部合わない」時に入力した代替候補
 }

@@ -203,6 +203,132 @@
   opacity: 0.85;
 }
 
+/* 全部合わないボタン */
+.btnNoMatch {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 13px 20px;
+  background: none;
+  border: 2px solid var(--border-color);
+  border-radius: 14px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.18s ease;
+  margin-bottom: 16px;
+}
+
+.btnNoMatch:hover:not(:disabled) {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  background: var(--color-danger-bg);
+}
+
+.btnNoMatch:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 再調整フォーム */
+.rescheduleForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.rescheduleLabel {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.rescheduleTextarea {
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid var(--border-color);
+  border-radius: 14px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  resize: vertical;
+  line-height: 1.6;
+  transition: border-color 0.18s ease;
+  box-sizing: border-box;
+}
+
+.rescheduleTextarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.rescheduleError {
+  font-size: 0.82rem;
+  color: var(--color-danger);
+  font-weight: 600;
+  margin: 0;
+}
+
+.rescheduleActions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.btnBack {
+  flex: 1;
+  padding: 12px;
+  background: var(--bg-primary);
+  border: 2px solid var(--border-color);
+  border-radius: 14px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.18s ease;
+}
+
+.btnBack:hover {
+  border-color: var(--border-color-hover);
+  color: var(--text-primary);
+}
+
+.btnRescheduleSubmit {
+  flex: 2;
+  padding: 12px;
+  background: var(--color-primary);
+  border: none;
+  border-radius: 14px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: white;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.15s;
+}
+
+.btnRescheduleSubmit:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.btnRescheduleSubmit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 再調整済みアイコン（緑と区別するためにオレンジ系） */
+.rescheduledIcon {
+  color: var(--color-fair);
+  margin-bottom: 16px;
+}
+
 /* ローディング・エラー */
 .loadingCard, .errorCard {
   width: 100%;

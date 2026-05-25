@@ -4,14 +4,14 @@ import React, { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
-import { Plus, ArrowRight, Clock, CheckCircle2, Trash2, User, CalendarDays, Send } from "lucide-react"
+import { Plus, ArrowRight, Clock, CheckCircle2, Trash2, User, CalendarDays, Send, RefreshCw } from "lucide-react"
 import styles from "./page.module.css"
 import { getConsultations, deleteConsultation, setActiveId, clearActiveId } from "@/lib/storage"
 import type { ConsultationRecord, ConsultationStatus } from "@/types"
 
 const STEP_LABELS = ["リクエスト", "マッチング", "メッセージ"]
 const STATUS_TO_STEP: Record<ConsultationStatus, number> = {
-  draft: 1, matched: 2, composed: 3, sent: 3, waiting: 3, confirmed: 3,
+  draft: 1, matched: 2, composed: 3, sent: 3, waiting: 3, confirmed: 3, rescheduling: 3,
 }
 
 function StepMini({ status }: { status: ConsultationStatus }) {
@@ -57,9 +57,10 @@ const STATUS_META: Record<ConsultationStatus, { label: string; nextPath: string;
   draft:     { label: "下書き",          nextPath: "/match", actionLabel: "相談先を探す" },
   matched:   { label: "日程候補あり",    nextPath: "/mail",  actionLabel: "メッセージを作成" },
   composed:  { label: "メッセージ完成",  nextPath: "/mail",  actionLabel: "メッセージを確認" },
-  sent:      { label: "送信済み",        nextPath: "/",      actionLabel: "" },
-  waiting:   { label: "確定待ち",        nextPath: "/",      actionLabel: "" },
-  confirmed: { label: "確定済み",        nextPath: "/",      actionLabel: "" },
+  sent:         { label: "送信済み",      nextPath: "/",        actionLabel: "" },
+  waiting:      { label: "確定待ち",      nextPath: "/",        actionLabel: "" },
+  confirmed:    { label: "確定済み",      nextPath: "/",        actionLabel: "" },
+  rescheduling: { label: "要再調整",      nextPath: "/request", actionLabel: "新しい候補で作り直す" },
 }
 
 export default function Home() {
@@ -105,7 +106,8 @@ export default function Home() {
     return `${d.getMonth() + 1}月${d.getDate()}日`
   }
 
-  const active = records.filter((r) => !["sent", "waiting", "confirmed"].includes(r.status))
+  const active = records.filter((r) => !["sent", "waiting", "confirmed", "rescheduling"].includes(r.status))
+  const rescheduling = records.filter((r) => r.status === "rescheduling")
   const waiting = records.filter((r) => r.status === "waiting")
   const confirmed = records.filter((r) => r.status === "confirmed").slice(0, 5)
   const sent = records.filter((r) => r.status === "sent").slice(0, 5)
@@ -224,6 +226,54 @@ export default function Home() {
           <ArrowRight size={16} className={styles.quickCardArrow} />
         </Link>
       </section>
+
+      {/* 要再調整 */}
+      {rescheduling.length > 0 && (
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>
+            <RefreshCw size={16} />
+            要再調整の相談
+          </h2>
+          <div className={styles.cardList}>
+            {rescheduling.map((record) => {
+              const targetName = getTargetName(record)
+              return (
+                <div key={record.id} className={`${styles.consultCard} ${styles.reschedulingCard}`}>
+                  <div className={styles.consultCardTop}>
+                    <span className={`${styles.statusBadge} ${styles.rescheduling}`}>要再調整</span>
+                    <button className={styles.btnDelete} onClick={() => setDeleteConfirm(record.id)} title="削除">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                  <div className={styles.consultCardBody}>
+                    <h3 className={styles.consultTitle}>{record.request?.title || "（タイトルなし）"}</h3>
+                    <div className={styles.consultMeta}>
+                      {targetName && (
+                        <span className={styles.consultMetaItem}>
+                          <User size={13} />
+                          {targetName}
+                        </span>
+                      )}
+                    </div>
+                    {record.recipientNote && (
+                      <div className={styles.recipientNote}>
+                        <div className={styles.recipientNoteLabel}>相手からの返信:</div>
+                        <div className={styles.recipientNoteText}>{record.recipientNote}</div>
+                      </div>
+                    )}
+                  </div>
+                  <div className={styles.consultCardFooter}>
+                    <button className={styles.btnResume} onClick={() => handleResume(record)}>
+                      新しい候補で作り直す
+                      <ArrowRight size={15} />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
       {/* 確定待ち */}
       {waiting.length > 0 && (

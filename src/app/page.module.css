@@ -145,6 +145,38 @@
   background: rgba(138, 180, 104, 0.04);
 }
 
+.rescheduling {
+  background: rgba(180, 120, 180, 0.12);
+  color: #9b59b6;
+}
+
+.reschedulingCard {
+  border-color: rgba(155, 89, 182, 0.3);
+  background: rgba(155, 89, 182, 0.03);
+}
+
+.recipientNote {
+  margin-top: 8px;
+  padding: 10px 14px;
+  background: rgba(155, 89, 182, 0.07);
+  border: 1.5px solid rgba(155, 89, 182, 0.2);
+  border-radius: 10px;
+}
+
+.recipientNoteLabel {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #9b59b6;
+  margin-bottom: 4px;
+}
+
+.recipientNoteText {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
 .btnDelete {
   display: flex;
   align-items: center;
