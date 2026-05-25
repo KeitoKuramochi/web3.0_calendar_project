@@ -203,6 +203,25 @@
   opacity: 0.85;
 }
 
+.btnChangeConfirmed {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+  padding: 10px;
+  background: none;
+  border: none;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: underline;
+  transition: color 0.15s;
+}
+
+.btnChangeConfirmed:hover {
+  color: var(--color-fair);
+}
+
 /* 全部合わないボタン */
 .btnNoMatch {
   width: 100%;

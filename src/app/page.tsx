@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { Plus, ArrowRight, Clock, CheckCircle2, Trash2, User, CalendarDays, Send, RefreshCw } from "lucide-react"
 import styles from "./page.module.css"
-import { getConsultations, deleteConsultation, setActiveId, clearActiveId } from "@/lib/storage"
+import { getConsultations, deleteConsultation, upsertConsultation, setActiveId, clearActiveId } from "@/lib/storage"
 import type { ConsultationRecord, ConsultationStatus } from "@/types"
 
 const STEP_LABELS = ["リクエスト", "マッチング", "メッセージ"]
@@ -69,6 +69,7 @@ export default function Home() {
   const [records, setRecords] = useState<ConsultationRecord[]>([])
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [deletedTitle, setDeletedTitle] = useState<string | null>(null)
+  const [resetConfirm, setResetConfirm] = useState<string | null>(null)
 
   useEffect(() => {
     getConsultations().then(setRecords)
@@ -91,6 +92,25 @@ export default function Home() {
     setDeleteConfirm(null)
     setDeletedTitle(title)
     setTimeout(() => setDeletedTitle(null), 2500)
+  }
+
+  const handleResetConfirmed = async (id: string) => {
+    const record = records.find((r) => r.id === id)
+    if (!record) return
+    const reset: ConsultationRecord = {
+      ...record,
+      status: "draft",
+      match: undefined,
+      mail: undefined,
+      scheduleToken: undefined,
+      confirmedSlot: undefined,
+      recipientNote: undefined,
+      updatedAt: new Date().toISOString(),
+    }
+    await upsertConsultation(reset)
+    setResetConfirm(null)
+    setActiveId(id)
+    router.push("/match")
   }
 
   const getTargetName = (record: ConsultationRecord): string | null =>
@@ -355,6 +375,15 @@ export default function Home() {
                     </div>
                   )}
                 </div>
+                <div className={styles.consultCardFooter}>
+                  <button
+                    className={styles.btnChangeSchedule}
+                    onClick={() => setResetConfirm(record.id)}
+                  >
+                    <RefreshCw size={14} />
+                    日程を変更する
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -436,6 +465,29 @@ export default function Home() {
                 onClick={() => handleDelete(deleteConfirm)}
               >
                 削除する
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 日程変更確認ダイアログ */}
+      {resetConfirm && (
+        <div className={styles.dialogOverlay} onClick={() => setResetConfirm(null)}>
+          <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
+            <p className={styles.dialogText}>確定済みの日程を変更しますか？</p>
+            <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", textAlign: "center", marginBottom: 20 }}>
+              相手への確定リンクは無効になります。<br />新しい候補を選んでメッセージを送り直してください。
+            </p>
+            <div className={styles.dialogActions}>
+              <button className={styles.btnCancel} onClick={() => setResetConfirm(null)}>
+                キャンセル
+              </button>
+              <button
+                className={styles.btnConfirmReset}
+                onClick={() => handleResetConfirmed(resetConfirm)}
+              >
+                変更する
               </button>
             </div>
           </div>

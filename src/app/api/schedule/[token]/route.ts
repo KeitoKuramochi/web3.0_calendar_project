@@ -32,13 +32,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
 
   const record = row.data as any
 
-  // 二重確定・再調整済みは受け付けない
-  if (record.status === "confirmed" || record.status === "rescheduling") {
-    return NextResponse.json({ error: "already_processed" }, { status: 409 })
-  }
-
-  // 「全部合わない」— 代替候補を保存
+  // 「全部合わない」または「確定後に変更したい」— 再調整済みの場合のみブロック
   if (body.action === "reschedule") {
+    if (record.status === "rescheduling") {
+      return NextResponse.json({ error: "already_processed" }, { status: 409 })
+    }
     const note = typeof body.note === "string" ? body.note.trim() : ""
     if (!note) return NextResponse.json({ error: "note required" }, { status: 400 })
     const updated = { ...record, status: "rescheduling", recipientNote: note }
@@ -48,7 +46,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     return NextResponse.json({ ok: true })
   }
 
-  // 通常確定
+  // 通常確定 — 既に確定済みなら409
+  if (record.status === "confirmed") {
+    return NextResponse.json({ error: "already_confirmed" }, { status: 409 })
+  }
+
   const { slot } = body
   if (!slot) return NextResponse.json({ error: "slot required" }, { status: 400 })
 

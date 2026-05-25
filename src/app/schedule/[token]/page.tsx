@@ -118,6 +118,12 @@ export default function SchedulePage() {
           <p>TaskelTaskal を使うと、あなたの予定を登録して<br />次回から日程調整をさらにスムーズにできます。</p>
           <a href="/" className={styles.ctaBtn}>アカウントを作成する（無料）</a>
         </div>
+        <button
+          className={styles.btnChangeConfirmed}
+          onClick={() => setView("rescheduling_form")}
+        >
+          日程を変更したい場合はこちら
+        </button>
       </div>
     </div>
   )
