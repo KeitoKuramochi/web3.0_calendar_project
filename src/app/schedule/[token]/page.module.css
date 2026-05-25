@@ -42,6 +42,132 @@
   margin: 0;
 }
 
+/* 送信者バッジ */
+.senderBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: var(--color-primary-bg);
+  border: 1.5px solid rgba(112, 185, 126, 0.3);
+  border-radius: 20px;
+  padding: 4px 12px;
+  margin-bottom: 10px;
+}
+
+/* 開催情報カード */
+.infoCard {
+  background: var(--bg-primary);
+  border: 1.5px solid var(--border-color);
+  border-radius: 16px;
+  padding: 14px 18px;
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.infoRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--text-secondary);
+}
+
+.infoRow > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--color-primary);
+}
+
+.infoDivider {
+  height: 1px;
+  background: var(--border-color);
+}
+
+.infoFormatLabel {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+}
+
+.infoFormatDesc {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.slotsLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.slotsHint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 0 0 12px;
+}
+
+/* 全部合わないボックス */
+.noMatchBox {
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.noMatchHint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 6px 0 0;
+}
+
+/* 戻るボタン（フォーム上部） */
+.btnBackTop {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  padding: 0 0 16px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.15s;
+}
+
+.btnBackTop:hover {
+  color: var(--text-primary);
+}
+
+/* 送信先の注記（フォーム内） */
+.rescheduleContext {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  border: 1.5px solid var(--border-color);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+}
+
+.rescheduleContext svg {
+  flex-shrink: 0;
+  color: var(--color-primary);
+}
+
+/* 旧 metaRow / metaItem (後方互換) */
 .metaRow {
   display: flex;
   gap: 12px;
@@ -59,16 +185,6 @@
   border: 1.5px solid var(--border-color);
   border-radius: 20px;
   padding: 4px 12px;
-}
-
-.slotsLabel {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 12px;
 }
 
 .slotList {

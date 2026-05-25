@@ -126,7 +126,8 @@ export interface ConsultationRecord {
   request?: ConsultRequest
   match?: ConsultationMatch
   mail?: ConsultationMail
-  scheduleToken?: string   // 確定リンク用トークン
-  confirmedSlot?: string   // 受信者が選んだ日時
-  recipientNote?: string   // 受信者が「全部合わない」時に入力した代替候補
+  scheduleToken?: string      // 確定リンク用トークン
+  confirmedSlot?: string      // 受信者が選んだ日時
+  recipientNote?: string      // 受信者が「全部合わない」時に入力した代替候補
+  senderDisplayName?: string  // 確定リンクで表示する送信者名
 }

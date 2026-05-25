@@ -126,7 +126,7 @@ export default function MailPage() {
     const token = crypto.randomUUID()
     const active = await getActiveConsultation()
     if (active && requester && targetUser && request && matchData) {
-      await upsertConsultation({ ...active, status: "waiting", scheduleToken: token })
+      await upsertConsultation({ ...active, status: "waiting", scheduleToken: token, senderDisplayName: requester.name })
       regenerate(requester, targetUser, request, matchData, outputFormat, token)
       // URL挿入後の文面で少し待ってからコピー（state更新を待つ）
       await new Promise((r) => setTimeout(r, 50))
