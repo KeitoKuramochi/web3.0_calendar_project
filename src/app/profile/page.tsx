@@ -291,6 +291,20 @@ export default function ProfilePage() {
           </div>
 
 
+          {/* 公開プロフィール紹介文 */}
+          <div className={styles.formGroupFull}>
+            <label className={styles.label}>公開プロフィール用の自己紹介文</label>
+            <p className={styles.fieldHint}>相談を考えている方が最初に目にする自己紹介文です。</p>
+            <textarea
+              name="publicIntro"
+              value={profile.publicIntro ?? ""}
+              onChange={handleChange}
+              className={styles.textarea}
+              style={{ minHeight: "80px" }}
+              placeholder="例: 情報工学科3年の佐藤です。研究室配属や進路についてご相談できる方を探しています。"
+            />
+          </div>
+
           {/* ── 役割・所属 ── */}
           <div className={styles.formSectionHeader}>
             <BookOpen size={15} /><span>役割・所属</span>
