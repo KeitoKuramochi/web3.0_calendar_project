@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation"
 import { Mail, MessageSquare, ShieldCheck, AlertCircle, CheckCircle2, Copy, PartyPopper, Check, HelpCircle, ArrowLeft, UserX } from "lucide-react"
 import styles from "./mail.module.css"
 import { generateEmail, checkEmail } from "@/lib/ai"
-import { DUMMY_USERS } from "@/lib/dummyData"
 import { ConsultRequest, UserProfile, MailCheckResult, MailIssue, OutputFormat } from "@/types"
 import StepIndicator from "@/components/StepIndicator/StepIndicator"
 import { getActiveConsultation, upsertConsultation, clearActiveId } from "@/lib/storage"
@@ -56,7 +55,7 @@ export default function MailPage() {
       const match = active.match
       setMatchData(match)
 
-      const target = DUMMY_USERS.find((u) => u.id === match.targetUserId) || DUMMY_USERS[1]
+      const target: UserProfile = match.inferredProfile ?? buildFallbackProfile(req)
       setTargetUser(target)
 
       await upsertConsultation({ ...active, status: "composed" })
@@ -156,6 +155,20 @@ export default function MailPage() {
     clearActiveId()
     router.push("/")
   }
+
+  const buildFallbackProfile = (req: ConsultRequest): UserProfile => ({
+    id: "recipient",
+    name: req.recipient?.name || "（相手の名前）",
+    email: "",
+    role: req.recipient?.role || "",
+    department: req.recipient?.department || "",
+    topics: [],
+    availableTimesFreeText: "",
+    avoidTimesFreeText: "",
+    absoluteNGTimes: [],
+    mailPolicy: "",
+    mailRequiredInfo: [],
+  })
 
   const getDefaultSender = (): UserProfile => ({
     id: "user",

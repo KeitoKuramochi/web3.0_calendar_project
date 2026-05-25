@@ -62,11 +62,14 @@ export default function MatchPage() {
     const active = await getActiveConsultation()
     if (!active) return
     const duration = request?.duration ?? 30
+    const r = request?.recipient ?? {}
+    const inferred = inferProfileFromRole(r.name ?? "", r.role ?? "", r.department ?? "", r.notes ?? "")
     const matchData = {
-      targetUserId: inferredUserId,
+      targetUserId: inferred.id,
       selectedTimeSlots: selectedSlots.map((s) => formatJaWithEnd(s, duration)),
       selectedTimeSlotsRaw: selectedSlots,
       selectedTimeSlot: formatJaWithEnd(selectedSlots[0], duration),
+      inferredProfile: inferred,
     }
     await upsertConsultation({ ...active, status: "matched", match: matchData })
     router.push("/mail")

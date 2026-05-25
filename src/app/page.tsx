@@ -8,7 +8,6 @@ import { Plus, ArrowRight, Clock, CheckCircle2, Trash2, User, CalendarDays, Send
 import styles from "./page.module.css"
 import { getConsultations, deleteConsultation, setActiveId, clearActiveId } from "@/lib/storage"
 import type { ConsultationRecord, ConsultationStatus } from "@/types"
-import { DUMMY_USERS } from "@/lib/dummyData"
 
 const STEP_LABELS = ["リクエスト", "マッチング", "メッセージ"]
 const STATUS_TO_STEP: Record<ConsultationStatus, number> = {
@@ -93,8 +92,8 @@ export default function Home() {
     setTimeout(() => setDeletedTitle(null), 2500)
   }
 
-  const getTargetUser = (record: ConsultationRecord) =>
-    record.match ? DUMMY_USERS.find((u) => u.id === record.match!.targetUserId) : null
+  const getTargetName = (record: ConsultationRecord): string | null =>
+    record.match?.inferredProfile?.name ?? record.request?.recipient?.name ?? null
 
   const formatDate = (iso: string) => {
     const d = new Date(iso)
@@ -140,7 +139,7 @@ export default function Home() {
           <div className={styles.cardList}>
             {active.map((record) => {
               const meta = STATUS_META[record.status]
-              const target = getTargetUser(record)
+              const targetName = getTargetName(record)
               return (
                 <div key={record.id} className={styles.consultCard}>
                   <div className={styles.consultCardTop}>
@@ -160,10 +159,10 @@ export default function Home() {
                       {record.request?.title || "（タイトルなし）"}
                     </h3>
                     <div className={styles.consultMeta}>
-                      {target && (
+                      {targetName && (
                         <span className={styles.consultMetaItem}>
                           <User size={13} />
-                          {target.name}
+                          {targetName}
                         </span>
                       )}
                       <span className={styles.consultMetaItem}>
@@ -235,7 +234,6 @@ export default function Home() {
           </h2>
           <div className={styles.cardList}>
             {waiting.map((record) => {
-              const target = getTargetUser(record)
               return (
                 <div key={record.id} className={styles.consultCard}>
                   <div className={styles.consultCardTop}>
@@ -322,7 +320,7 @@ export default function Home() {
           </h2>
           <div className={styles.cardList}>
             {sent.map((record) => {
-              const target = getTargetUser(record)
+              const targetName = getTargetName(record)
               return (
                 <div key={record.id} className={`${styles.consultCard} ${styles.sentCard}`}>
                   <div className={styles.consultCardTop}>
@@ -340,10 +338,10 @@ export default function Home() {
                       {record.request?.title || "（タイトルなし）"}
                     </h3>
                     <div className={styles.consultMeta}>
-                      {target && (
+                      {targetName && (
                         <span className={styles.consultMetaItem}>
                           <User size={13} />
-                          {target.name}
+                          {targetName}
                         </span>
                       )}
                       <span className={styles.consultMetaItem}>

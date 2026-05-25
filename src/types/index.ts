@@ -107,6 +107,7 @@ export interface ConsultationMatch {
   selectedTimeSlots: string[]
   selectedTimeSlotsRaw: string[]
   selectedTimeSlot: string
+  inferredProfile?: UserProfile  // 役職推論で生成したプロフィール
 }
 
 // メール/メッセージ生成結果
