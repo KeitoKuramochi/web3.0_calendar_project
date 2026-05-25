@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from "react"
 import { useSession } from "next-auth/react"
 import { Save, User, Mail, BookOpen, Clock, AlertTriangle, Plus, X, Link as LinkIcon, CheckCircle2, Loader } from "lucide-react"
-import Link from "next/link"
 import styles from "./profile.module.css"
 import { UserProfile, ContactMethod, ContactType } from "@/types"
 import { POPULAR_TOPICS, POPULAR_ROLES, MAIL_REQUIRED_INFO_OPTIONS } from "@/lib/dummyData"
@@ -291,25 +290,6 @@ export default function ProfilePage() {
             )}
           </div>
 
-          {/* 公開プロフィール紹介文 */}
-          <div className={styles.formGroupFull}>
-            <label className={styles.label}>公開プロフィール用の自己紹介文</label>
-            <p className={styles.fieldHint}>
-              公開プロフィールページ（
-              <Link href={`/u/${session?.user?.id ?? ""}`} target="_blank" className={styles.profileLink}>
-                /u/{session?.user?.id ?? ""}
-              </Link>
-              ）に表示される自己紹介文です。相談を考えている方が最初に目にします。
-            </p>
-            <textarea
-              name="publicIntro"
-              value={profile.publicIntro ?? ""}
-              onChange={handleChange}
-              className={styles.textarea}
-              style={{ minHeight: "80px" }}
-              placeholder="例: 情報工学科3年の佐藤です。研究室配属や進路についてご相談できる方を探しています。"
-            />
-          </div>
 
           {/* ── 役割・所属 ── */}
           <div className={styles.formSectionHeader}>

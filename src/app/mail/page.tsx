@@ -372,21 +372,6 @@ export default function MailPage() {
               </div>
             )}
 
-            {/* 相手の公開プロフィールリンク */}
-            {targetUser && (
-              <a
-                href={`/u/${targetUser.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.btnProfileLink}
-              >
-                <HelpCircle size={14} />
-                <span>{targetUser.name}の連絡先ページを開く</span>
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: "auto" }}>
-                  <path d="M2 2h8v8M10 2 2 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </a>
-            )}
           </div>
         </div>
       </div>
