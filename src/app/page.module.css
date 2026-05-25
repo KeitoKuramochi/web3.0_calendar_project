@@ -504,6 +504,111 @@
   opacity: 0.85;
 }
 
+/* プロフィールサマリー */
+.profileSummary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-color);
+  border-radius: 16px;
+  flex-wrap: wrap;
+}
+
+.profileSummaryInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.profileSummaryName {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.profileSummaryMeta {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.profileSummaryLink {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: opacity var(--transition-fast);
+}
+
+.profileSummaryLink:hover {
+  opacity: 0.75;
+}
+
+/* メールプレビュー */
+.mailPreview {
+  margin-top: 8px;
+  padding: 10px 14px;
+  background: var(--bg-primary);
+  border: 1.5px solid var(--border-color);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mailPreviewSubject {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mailPreviewBody {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  white-space: pre-line;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.btnRecopy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-color);
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+  width: fit-content;
+}
+
+.btnRecopy:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.btnRecopyDone {
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
 @media (max-width: 600px) {
   .pageHeader {
     flex-direction: column;

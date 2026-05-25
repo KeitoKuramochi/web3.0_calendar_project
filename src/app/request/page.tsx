@@ -60,6 +60,7 @@ export default function RequestPage() {
   const [aiNotice, setAiNotice] = useState<string | null>(null)
   const [errors, setErrors] = useState<{ title?: string; slots?: string }>({})
   const [activeCount, setActiveCount] = useState(0)
+  const [saveDraftToast, setSaveDraftToast] = useState(false)
 
   useEffect(() => {
     getConsultations().then((list) => {
@@ -130,23 +131,15 @@ export default function RequestPage() {
     setAiNotice(`デモ入力。AIが「${parsed.extractedTitle}」、${parsed.extractedDuration}分、対面を推測しました。`)
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const errs: { title?: string; slots?: string } = {}
-    const resolvedTitle = title.trim() || selectedTopics[0] || ""
-    if (!resolvedTitle) errs.title = "件名またはトピックを入力してください"
-    if (availableTimes.length === 0) errs.slots = "空き時間を1つ以上追加してください"
-    if (Object.keys(errs).length > 0) { setErrors(errs); return }
-    setErrors({})
-
-    const id = `req_${Date.now()}`
+  const buildRequestData = (id: string): ConsultRequest => {
+    const resolvedTitle = title.trim() || selectedTopics[0] || freeText.trim().slice(0, 40) || "（タイトルなし）"
     const recipient: RecipientInfo = {
       name: recipientName.trim() || undefined,
       role: recipientRole.trim() || undefined,
       department: recipientDept.trim() || undefined,
       notes: recipientNotes.trim() || undefined,
     }
-    const requestData: ConsultRequest = {
+    return {
       id,
       requesterId: "user",
       title: resolvedTitle,
@@ -158,8 +151,29 @@ export default function RequestPage() {
       consultTopics: [...selectedTopics],
       recipient,
     }
+  }
+
+  const handleSaveDraft = async () => {
+    const id = `req_${Date.now()}`
     const now = new Date().toISOString()
-    await upsertConsultation({ id, status: "draft", createdAt: now, updatedAt: now, request: requestData })
+    await upsertConsultation({ id, status: "draft", createdAt: now, updatedAt: now, request: buildRequestData(id) })
+    setActiveId(id)
+    setSaveDraftToast(true)
+    setTimeout(() => setSaveDraftToast(false), 2000)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const errs: { title?: string; slots?: string } = {}
+    const resolvedTitle = title.trim() || selectedTopics[0] || ""
+    if (!resolvedTitle) errs.title = "件名またはトピックを入力してください"
+    if (availableTimes.length === 0) errs.slots = "空き時間を1つ以上追加してください"
+    if (Object.keys(errs).length > 0) { setErrors(errs); return }
+    setErrors({})
+
+    const id = `req_${Date.now()}`
+    const now = new Date().toISOString()
+    await upsertConsultation({ id, status: "draft", createdAt: now, updatedAt: now, request: buildRequestData(id) })
     setActiveId(id)
     router.push("/match")
   }
@@ -199,20 +213,20 @@ export default function RequestPage() {
 
       <form onSubmit={handleSubmit} className="glass-card fade-in">
 
-        {/* 1. 自由文 */}
+        {/* 1. 相談の目的 */}
         <div className={styles.sectionTitle}>
           <MessageSquare size={16} />
-          <span>1. ざっくりした文章で伝える（推奨）</span>
+          <span>1. 相談の目的</span>
         </div>
 
-        <div className={styles.formGroupFull} style={{ marginBottom: "24px" }}>
-          <label className={styles.label}>相談の目的・予定感を自由に入力</label>
+        <div className={styles.formGroupFull} style={{ marginBottom: aiNotice ? "12px" : "24px" }}>
           <textarea
             value={freeText}
             onChange={(e) => setFreeText(e.target.value)}
             onBlur={handleFreeTextBlur}
-            placeholder="例: 来週くらいに進路について相談したいです。30分くらいで対面が希望。金曜午前が空いています。"
-            className={styles.textarea}
+            placeholder="例: 来週くらいに進路について鈴木先生に相談したいです。30分くらいで対面が希望。金曜午前が空いています。"
+            className={styles.textareaMain}
+            rows={4}
           />
           {aiNotice && (
             <div className={styles.aiNotice}>
@@ -221,16 +235,12 @@ export default function RequestPage() {
           )}
         </div>
 
-        <hr style={{ border: "0", borderTop: "1px solid var(--border-color)", margin: "24px 0" }} />
-
-        {/* 2. 相談内容トピック */}
-        <div className={styles.sectionTitle}>
-          <Calendar size={16} />
-          <span>2. 相談内容（タグ選択 + 自由入力）</span>
-        </div>
-
+        {/* 2. 相談内容タグ */}
         <div className={styles.formGroupFull} style={{ marginBottom: "24px" }}>
-          <label className={styles.label}>人気のトピック（複数選択可）</label>
+          <label className={styles.label}>
+            <Calendar size={14} />
+            相談内容タグ（複数選択可）
+          </label>
           <div className={styles.tagGrid}>
             {POPULAR_TOPICS.map((t) => (
               <button key={t} type="button"
@@ -241,7 +251,6 @@ export default function RequestPage() {
             ))}
           </div>
 
-          {/* カスタムトピック */}
           {selectedTopics.filter((t) => !POPULAR_TOPICS.includes(t)).length > 0 && (
             <div className={styles.tagGrid} style={{ marginTop: "6px" }}>
               {selectedTopics.filter((t) => !POPULAR_TOPICS.includes(t)).map((t) => (
@@ -269,12 +278,83 @@ export default function RequestPage() {
           </div>
         </div>
 
-        <hr style={{ border: "0", borderTop: "1px solid var(--border-color)", margin: "0 0 24px" }} />
+        <hr style={{ border: "0", borderTop: "1px solid var(--border-color)", margin: "0 0 20px" }} />
 
-        {/* 3. 相談相手の情報 */}
+        {/* 3. 詳細設定（折りたたみ） */}
+        <details className={styles.detailsSection}>
+          <summary className={styles.detailsSummary}>
+            <Clock size={14} />
+            詳細設定（形式・急ぎ度・所要時間・件名）
+          </summary>
+          <div className={styles.detailsContent}>
+            <div className={styles.formGrid}>
+              {/* 面談形式 */}
+              <div className={styles.formGroup}>
+                <label className={styles.label}>面談形式</label>
+                <div className={styles.toggleGroup}>
+                  {(["hybrid", "offline", "online"] as const).map((v) => (
+                    <button key={v} type="button"
+                      onClick={() => setFormat(v)}
+                      className={`${styles.toggleButton} ${format === v ? styles.toggleButtonActive : ""}`}>
+                      {v === "offline" ? "対面" : v === "online" ? "オンライン" : "どちらでも"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 急ぎ度 */}
+              <div className={styles.formGroup}>
+                <label className={styles.label}>優先度</label>
+                <div className={styles.toggleGroup}>
+                  {([["normal", "普通"], ["high", "急ぎ"], ["low", "急がない"]] as const).map(([v, label]) => (
+                    <button key={v} type="button"
+                      onClick={() => setUrgency(v)}
+                      className={`${styles.toggleButton} ${urgency === v ? styles.toggleButtonActive : ""}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 所要時間 */}
+              <div className={styles.formGroup}>
+                <label className={styles.label}>所要時間</label>
+                <div className={styles.toggleGroup}>
+                  {([15, 30, 60, 90] as const).map((v) => (
+                    <button key={v} type="button"
+                      onClick={() => setDuration(v)}
+                      className={`${styles.toggleButton} ${duration === v ? styles.toggleButtonActive : ""}`}>
+                      {v}分
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 件名 */}
+              <div className={styles.formGroup}>
+                <label className={styles.label}>件名（AIが自動入力）</label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => { setTitle(e.target.value); setErrors((p) => ({ ...p, title: undefined })) }}
+                  placeholder="例: 進路相談、研究室のことを聞きたい"
+                  className={styles.input}
+                  style={errors.title ? { borderColor: "var(--color-danger)" } : {}}
+                />
+                {errors.title && (
+                  <span style={{ fontSize: "0.8rem", color: "var(--color-danger)", fontWeight: 600 }}>{errors.title}</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <hr style={{ border: "0", borderTop: "1px solid var(--border-color)", margin: "20px 0" }} />
+
+        {/* 4. 相談相手の情報 */}
         <div className={styles.sectionTitle}>
           <Calendar size={16} />
-          <span>3. 相談相手の情報（日程の推測精度が上がります）</span>
+          <span>4. 相手の情報（日程の推測精度が上がります）</span>
         </div>
 
         <div className={styles.formGrid} style={{ marginBottom: "24px" }}>
@@ -325,126 +405,82 @@ export default function RequestPage() {
 
         <hr style={{ border: "0", borderTop: "1px solid var(--border-color)", margin: "0 0 24px" }} />
 
-        {/* 4. 詳細条件 */}
+        {/* 5. 空き時間 */}
         <div className={styles.sectionTitle}>
           <Clock size={16} />
-          <span>4. 詳細条件</span>
+          <span>5. 自分の空き時間（15分単位）</span>
         </div>
 
-        <div className={styles.formGrid}>
-          {/* 件名 */}
-          <div className={styles.formGroup}>
-            <label className={styles.label}>件名（ざっくりでOK）</label>
+        <div className={styles.formGroupFull}>
+          <div className={styles.timeSlotInputGroup}>
             <input
-              type="text"
-              value={title}
-              onChange={(e) => { setTitle(e.target.value); setErrors((p) => ({ ...p, title: undefined })) }}
-              placeholder="例: 進路相談、研究室のことを聞きたい"
+              type="date"
+              value={tempDate}
+              onChange={(e) => setTempDate(e.target.value)}
               className={styles.input}
-              style={errors.title ? { borderColor: "var(--color-danger)" } : {}}
+              style={{ flex: "1" }}
             />
-            {errors.title && (
-              <span style={{ fontSize: "0.8rem", color: "var(--color-danger)", fontWeight: 600 }}>{errors.title}</span>
-            )}
-          </div>
-
-          {/* 所要時間 */}
-          <div className={styles.formGroup}>
-            <label className={styles.label}>所要時間</label>
-            <select value={duration} onChange={(e) => setDuration(Number(e.target.value))} className={styles.select}>
-              <option value={15}>15分（ちょっとした質問）</option>
-              <option value={30}>30分（標準的な相談）</option>
-              <option value={60}>60分（じっくり面談）</option>
-              <option value={90}>90分（詳細な模擬面接など）</option>
+            <select
+              value={tempTime}
+              onChange={(e) => setTempTime(e.target.value)}
+              className={styles.select}
+              style={{ width: "110px" }}
+            >
+              {TIME_OPTIONS.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
             </select>
+            <button type="button" onClick={addTimeSlot} className={styles.btnAddSlot}
+              style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+              <Plus size={15} />
+              追加
+            </button>
           </div>
 
-          {/* 面談形式 */}
-          <div className={styles.formGroup}>
-            <label className={styles.label}>面談形式</label>
-            <div className={styles.toggleGroup}>
-              {(["offline", "online", "hybrid"] as const).map((v) => (
-                <button key={v} type="button"
-                  onClick={() => setFormat(v)}
-                  className={`${styles.toggleButton} ${format === v ? styles.toggleButtonActive : ""}`}>
-                  {v === "offline" ? "対面" : v === "online" ? "オンライン" : "どちらでも"}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 急ぎ度 */}
-          <div className={styles.formGroup}>
-            <label className={styles.label}>優先度</label>
-            <div className={styles.toggleGroup}>
-              {([["low", "急がない"], ["normal", "普通"], ["high", "急ぎ"]] as const).map(([v, label]) => (
-                <button key={v} type="button"
-                  onClick={() => setUrgency(v)}
-                  className={`${styles.toggleButton} ${urgency === v ? styles.toggleButtonActive : ""}`}>
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 空き時間 (15分単位) */}
-          <div className={styles.formGroupFull} style={{ marginTop: "10px" }}>
-            <label className={styles.label}><Clock size={15} />自分の空き時間（15分単位で選択）</label>
-
-            <div className={styles.timeSlotInputGroup}>
-              <input
-                type="date"
-                value={tempDate}
-                onChange={(e) => setTempDate(e.target.value)}
-                className={styles.input}
-                style={{ flex: "1" }}
-              />
-              <select
-                value={tempTime}
-                onChange={(e) => setTempTime(e.target.value)}
-                className={styles.select}
-                style={{ width: "110px" }}
-              >
-                {TIME_OPTIONS.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-              <button type="button" onClick={addTimeSlot} className={styles.btnAddSlot}
-                style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                <Plus size={15} />
-                追加
-              </button>
-            </div>
-
-            {errors.slots && (
-              <span style={{ fontSize: "0.8rem", color: "var(--color-danger)", fontWeight: 600 }}>{errors.slots}</span>
+          {errors.slots && (
+            <span style={{ fontSize: "0.8rem", color: "var(--color-danger)", fontWeight: 600 }}>{errors.slots}</span>
+          )}
+          <div className={styles.timeSlotList}>
+            {availableTimes.length === 0 ? (
+              <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", padding: "8px 0" }}>
+                空き時間が追加されていません
+              </p>
+            ) : (
+              availableTimes.map((slot) => (
+                <div key={slot} className={styles.timeSlotItem}>
+                  <span>{formatJa(slot)}</span>
+                  <button type="button" onClick={() => removeTimeSlot(slot)} className={styles.btnRemoveSlot}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))
             )}
-            <div className={styles.timeSlotList}>
-              {availableTimes.length === 0 ? (
-                <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", padding: "8px 0" }}>
-                  空き時間が追加されていません
-                </p>
-              ) : (
-                availableTimes.map((slot) => (
-                  <div key={slot} className={styles.timeSlotItem}>
-                    <span>{formatJa(slot)}</span>
-                    <button type="button" onClick={() => removeTimeSlot(slot)} className={styles.btnRemoveSlot}>
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
           </div>
         </div>
 
         <div className={styles.footer}>
+          <button type="button" className={styles.btnSaveDraft} onClick={handleSaveDraft}>
+            下書き保存
+          </button>
           <button type="submit" className={styles.btnSubmit}>
-            相談先と日程候補を探す
+            次へ
             <ArrowRight size={17} />
           </button>
         </div>
       </form>
+
+      {saveDraftToast && (
+        <div style={{
+          position: "fixed", bottom: 24, right: 24,
+          background: "var(--text-primary)", color: "white",
+          padding: "12px 20px", borderRadius: 16,
+          fontWeight: 700, fontSize: "0.875rem",
+          boxShadow: "0 4px 20px rgba(74, 55, 40, 0.25)",
+          zIndex: 1000,
+        }}>
+          ✓ 下書きを保存しました
+        </div>
+      )}
     </div>
   )
 }

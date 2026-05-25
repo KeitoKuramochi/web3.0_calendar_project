@@ -7,7 +7,7 @@ import styles from "./mail.module.css"
 import { generateEmail, checkEmail } from "@/lib/ai"
 import { ConsultRequest, UserProfile, MailCheckResult, MailIssue, OutputFormat } from "@/types"
 import StepIndicator from "@/components/StepIndicator/StepIndicator"
-import { getActiveConsultation, upsertConsultation, clearActiveId } from "@/lib/storage"
+import { getActiveConsultation, upsertConsultation, clearActiveId, getConsultations } from "@/lib/storage"
 
 const FORMAT_OPTIONS: { value: OutputFormat; label: string; icon: React.ReactNode; desc: string }[] = [
   { value: "email", label: "メール", icon: <Mail size={14} />, desc: "件名あり・丁寧な文体" },
@@ -26,6 +26,8 @@ export default function MailPage() {
   const [request, setRequest] = useState<ConsultRequest | null>(null)
 
   const [outputFormat, setOutputFormat] = useState<OutputFormat>("email")
+  const [isFirstContact, setIsFirstContact] = useState(true)
+  const [pastContactCount, setPastContactCount] = useState(0)
   const [subject, setSubject] = useState("")
   const [body, setBody] = useState("")
   const [checkResult, setCheckResult] = useState<MailCheckResult>({ passed: true, issues: [] })
@@ -58,8 +60,23 @@ export default function MailPage() {
       const target: UserProfile = match.inferredProfile ?? buildFallbackProfile(req)
       setTargetUser(target)
 
+      // 同一相手への過去の連絡件数を集計して初回判定
+      const allConsults = await getConsultations()
+      const recipientName = req.recipient?.name
+      let firstContact = req.isFirstContact ?? true
+      if (recipientName) {
+        const past = allConsults.filter(r =>
+          r.id !== active.id &&
+          r.request?.recipient?.name === recipientName &&
+          ["sent", "waiting", "confirmed", "rescheduling"].includes(r.status)
+        ).length
+        setPastContactCount(past)
+        if (past > 0) firstContact = false
+      }
+      setIsFirstContact(firstContact)
+
       await upsertConsultation({ ...active, status: "composed" })
-      regenerate(sender, target, req, match, "email")
+      regenerate(sender, target, req, match, "email", undefined, firstContact)
     })()
   }, [])
 
@@ -67,7 +84,15 @@ export default function MailPage() {
   const handleFormatChange = (fmt: OutputFormat) => {
     setOutputFormat(fmt)
     if (requester && targetUser && request && matchData) {
-      regenerate(requester, targetUser, request, matchData, fmt)
+      regenerate(requester, targetUser, request, matchData, fmt, undefined, isFirstContact)
+    }
+  }
+
+  // isFirstContact切替時に再生成
+  const handleFirstContactToggle = (val: boolean) => {
+    setIsFirstContact(val)
+    if (requester && targetUser && request && matchData) {
+      regenerate(requester, targetUser, request, matchData, outputFormat, undefined, val)
     }
   }
 
@@ -77,10 +102,11 @@ export default function MailPage() {
     req: ConsultRequest,
     match: any,
     fmt: OutputFormat,
-    token?: string
+    token?: string,
+    firstContact: boolean = true
   ) => {
     const slots: string[] = match.selectedTimeSlots ?? [match.selectedTimeSlot ?? "候補日時"]
-    const generated = generateEmail(sender, target, req.title || "ご相談", slots, req.format || "offline", req.freeTextInput || "", fmt, token)
+    const generated = generateEmail(sender, target, req.title || "ご相談", slots, req.format || "offline", req.freeTextInput || "", fmt, token, firstContact)
     setSubject(generated.subject)
     setBody(generated.body)
     if (fmt === "email") {
@@ -127,7 +153,7 @@ export default function MailPage() {
     const active = await getActiveConsultation()
     if (active && requester && targetUser && request && matchData) {
       await upsertConsultation({ ...active, status: "waiting", scheduleToken: token, senderDisplayName: requester.name })
-      regenerate(requester, targetUser, request, matchData, outputFormat, token)
+      regenerate(requester, targetUser, request, matchData, outputFormat, token, isFirstContact)
       // URL挿入後の文面で少し待ってからコピー（state更新を待つ）
       await new Promise((r) => setTimeout(r, 50))
     }
@@ -253,6 +279,32 @@ export default function MailPage() {
             <span className={styles.formatDesc}>{opt.desc}</span>
           </button>
         ))}
+      </div>
+
+      {/* 初回/2回目以降トグル */}
+      <div className={styles.firstContactRow}>
+        <span className={styles.firstContactLabel}>
+          {request?.recipient?.name ? `${request.recipient.name}さんへの連絡` : "相手への連絡"}：
+        </span>
+        {pastContactCount > 0 && (
+          <span className={styles.pastCountBadge}>過去 {pastContactCount} 件</span>
+        )}
+        <div className={styles.firstContactToggle}>
+          <button
+            type="button"
+            className={`${styles.firstContactBtn} ${isFirstContact ? styles.firstContactBtnActive : ""}`}
+            onClick={() => handleFirstContactToggle(true)}
+          >
+            はじめまして
+          </button>
+          <button
+            type="button"
+            className={`${styles.firstContactBtn} ${!isFirstContact ? styles.firstContactBtnActive : ""}`}
+            onClick={() => handleFirstContactToggle(false)}
+          >
+            以前にやり取りあり
+          </button>
+        </div>
       </div>
 
       <div className={styles.layout}>

@@ -52,8 +52,70 @@
 .formatPicker {
   display: flex;
   gap: 9px;
-  margin-bottom: 24px;
+  margin-bottom: 12px;
   flex-wrap: wrap;
+}
+
+/* 初回/2回目トグル */
+.firstContactRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  padding: 10px 16px;
+  background: var(--bg-primary);
+  border: 1.5px solid var(--border-color);
+  border-radius: 14px;
+}
+
+.firstContactLabel {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.pastCountBadge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-fair);
+  background: var(--color-fair-bg);
+  border: 1.5px solid rgba(232, 146, 78, 0.3);
+  border-radius: 20px;
+  padding: 2px 9px;
+  white-space: nowrap;
+}
+
+.firstContactToggle {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.firstContactBtn {
+  padding: 6px 14px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-color);
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.firstContactBtn:hover {
+  border-color: var(--border-color-hover);
+  color: var(--text-primary);
+}
+
+.firstContactBtnActive {
+  background: var(--color-primary-bg);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .formatBtn {

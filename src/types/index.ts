@@ -60,6 +60,7 @@ export interface ConsultRequest {
   consultTopics?: string[]     // 相談トピックタグ
   customConsultTopic?: string  // 自由入力トピック
   recipient?: RecipientInfo    // 相談相手の情報（役職推論用）
+  isFirstContact?: boolean     // 初回連絡かどうか（冒頭文切り替え用）
 }
 
 // 日程調整候補

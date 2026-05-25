@@ -1,57 +1,14 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
-import { Plus, ArrowRight, Clock, CheckCircle2, Trash2, User, CalendarDays, Send, RefreshCw } from "lucide-react"
+import { Plus, ArrowRight, Clock, CheckCircle2, Trash2, User, CalendarDays, Send, RefreshCw, Copy } from "lucide-react"
 import styles from "./page.module.css"
 import { getConsultations, deleteConsultation, upsertConsultation, setActiveId, clearActiveId } from "@/lib/storage"
-import type { ConsultationRecord, ConsultationStatus } from "@/types"
+import type { ConsultationRecord, ConsultationStatus, UserProfile } from "@/types"
 
-const STEP_LABELS = ["リクエスト", "マッチング", "メッセージ"]
-const STATUS_TO_STEP: Record<ConsultationStatus, number> = {
-  draft: 1, matched: 2, composed: 3, sent: 3, waiting: 3, confirmed: 3, rescheduling: 3,
-}
-
-function StepMini({ status }: { status: ConsultationStatus }) {
-  const current = STATUS_TO_STEP[status]
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 0, marginTop: 6 }}>
-      {STEP_LABELS.map((label, i) => {
-        const step = i + 1
-        const done = step < current
-        const active = step === current && status !== "sent"
-        const sent = status === "sent"
-        return (
-          <React.Fragment key={label}>
-            <div style={{
-              display: "flex", alignItems: "center", gap: 4,
-              fontSize: "0.72rem", fontWeight: 700,
-              color: sent || done ? "var(--color-excellent)" : active ? "var(--color-primary)" : "var(--text-muted)",
-            }}>
-              <span style={{
-                width: 18, height: 18, borderRadius: "50%", display: "grid", placeContent: "center",
-                fontSize: "0.65rem", fontWeight: 800,
-                background: sent || done ? "var(--color-excellent)" : active ? "var(--color-primary)" : "var(--border-color)",
-                color: sent || done || active ? "white" : "var(--text-muted)",
-                flexShrink: 0,
-              }}>{sent || done ? "✓" : step}</span>
-              {label}
-            </div>
-            {i < 2 && (
-              <div style={{
-                height: 1.5, width: 20, flexShrink: 0,
-                background: sent || done ? "var(--color-excellent)" : "var(--border-color)",
-                margin: "0 4px",
-              }} />
-            )}
-          </React.Fragment>
-        )
-      })}
-    </div>
-  )
-}
 
 const STATUS_META: Record<ConsultationStatus, { label: string; nextPath: string; actionLabel: string }> = {
   draft:     { label: "下書き",          nextPath: "/match", actionLabel: "相談先を探す" },
@@ -67,12 +24,15 @@ export default function Home() {
   const { data: session } = useSession()
   const router = useRouter()
   const [records, setRecords] = useState<ConsultationRecord[]>([])
+  const [profile, setProfile] = useState<UserProfile | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [deletedTitle, setDeletedTitle] = useState<string | null>(null)
   const [resetConfirm, setResetConfirm] = useState<string | null>(null)
+  const [recopyToast, setRecopyToast] = useState<string | null>(null)
 
   useEffect(() => {
     getConsultations().then(setRecords)
+    fetch("/api/profile").then(r => r.ok ? r.json() : null).then(setProfile)
   }, [session])
 
   const handleResume = (record: ConsultationRecord) => {
@@ -113,6 +73,17 @@ export default function Home() {
     router.push("/match")
   }
 
+  const handleRecopy = (record: ConsultationRecord) => {
+    if (!record.mail) return
+    const text = record.mail.format === "email" && record.mail.subject
+      ? `件名: ${record.mail.subject}\n\n${record.mail.body}`
+      : record.mail.body
+    navigator.clipboard.writeText(text).then(() => {
+      setRecopyToast(record.id)
+      setTimeout(() => setRecopyToast(null), 2000)
+    })
+  }
+
   const getTargetName = (record: ConsultationRecord): string | null =>
     record.match?.inferredProfile?.name ?? record.request?.recipient?.name ?? null
 
@@ -149,6 +120,30 @@ export default function Home() {
           <Plus size={17} />
           新しい相談を作成
         </button>
+      </div>
+
+      {/* プロフィールサマリー */}
+      <div className={styles.profileSummary}>
+        {profile?.name ? (
+          <>
+            <div className={styles.profileSummaryInfo}>
+              <div className={styles.profileSummaryName}>{profile.name}</div>
+              <div className={styles.profileSummaryMeta}>
+                {[profile.role, profile.department].filter(Boolean).join(" · ")}
+              </div>
+            </div>
+            <Link href="/profile" className={styles.profileSummaryLink}>
+              編集する →
+            </Link>
+          </>
+        ) : (
+          <>
+            <div className={styles.profileSummaryMeta}>プロフィールを設定すると、より精度の高いメッセージが生成されます</div>
+            <Link href="/profile" className={styles.profileSummaryLink}>
+              設定する →
+            </Link>
+          </>
+        )}
       </div>
 
       {/* 進行中の相談 */}
@@ -199,7 +194,6 @@ export default function Home() {
                           ` 他${record.match.selectedTimeSlots.length - 1}件`}
                       </div>
                     )}
-                    <StepMini status={record.status} />
                   </div>
                   <div className={styles.consultCardFooter}>
                     <button className={styles.btnResume} onClick={() => handleResume(record)}>
@@ -226,26 +220,6 @@ export default function Home() {
           </button>
         </div>
       )}
-
-      {/* プロフィール設定カード */}
-      <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>
-          <User size={16} />
-          設定
-        </h2>
-        <Link href="/profile" className={`${styles.quickCard} glass-card`}>
-          <div className={styles.quickCardIcon}>
-            <User size={20} />
-          </div>
-          <div className={styles.quickCardBody}>
-            <div className={styles.quickCardTitle}>プロフィール設定</div>
-            <div className={styles.quickCardDesc}>
-              名前・空き時間・連絡方針を登録するとより精度の高いメッセージが生成されます
-            </div>
-          </div>
-          <ArrowRight size={16} className={styles.quickCardArrow} />
-        </Link>
-      </section>
 
       {/* 要再調整 */}
       {rescheduling.length > 0 && (
@@ -326,9 +300,23 @@ export default function Home() {
                         {formatDate(record.updatedAt)}送信
                       </span>
                     </div>
-                    <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)", marginTop: 6 }}>
-                      相手の確定を待っています...
-                    </div>
+                    {record.mail && (
+                      <div className={styles.mailPreview}>
+                        {record.mail.format === "email" && record.mail.subject && (
+                          <div className={styles.mailPreviewSubject}>件名: {record.mail.subject}</div>
+                        )}
+                        <div className={styles.mailPreviewBody}>
+                          {record.mail.body.split("\n").filter(l => l.trim()).slice(0, 3).join("\n")}
+                        </div>
+                        <button
+                          className={`${styles.btnRecopy} ${recopyToast === record.id ? styles.btnRecopyDone : ""}`}
+                          onClick={() => handleRecopy(record)}
+                        >
+                          <Copy size={12} />
+                          {recopyToast === record.id ? "コピーしました！" : "もう一度コピー"}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )
@@ -428,6 +416,23 @@ export default function Home() {
                         {formatDate(record.updatedAt)}送信
                       </span>
                     </div>
+                    {record.mail && (
+                      <div className={styles.mailPreview}>
+                        {record.mail.format === "email" && record.mail.subject && (
+                          <div className={styles.mailPreviewSubject}>件名: {record.mail.subject}</div>
+                        )}
+                        <div className={styles.mailPreviewBody}>
+                          {record.mail.body.split("\n").filter(l => l.trim()).slice(0, 3).join("\n")}
+                        </div>
+                        <button
+                          className={`${styles.btnRecopy} ${recopyToast === record.id ? styles.btnRecopyDone : ""}`}
+                          onClick={() => handleRecopy(record)}
+                        >
+                          <Copy size={12} />
+                          {recopyToast === record.id ? "コピーしました！" : "もう一度コピー"}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )

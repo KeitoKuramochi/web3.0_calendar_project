@@ -306,3 +306,82 @@
   transform: none;
   box-shadow: none;
 }
+
+/* 分岐選択カード */
+.branchRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+@media (max-width: 600px) {
+  .branchRow { grid-template-columns: 1fr; }
+}
+
+.branchCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 18px;
+  border: 2px solid var(--border-color);
+  background: var(--bg-card);
+}
+
+.branchCardDisabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  user-select: none;
+}
+
+.branchCardActive {
+  border-color: var(--color-primary);
+  background: var(--color-primary-bg);
+}
+
+.branchCardIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-content: center;
+  background: white;
+  border: 1.5px solid var(--border-color);
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.branchCardActive .branchCardIcon {
+  color: var(--color-primary);
+  border-color: rgba(112, 185, 126, 0.3);
+}
+
+.branchCardContent {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.branchCardTitle {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.branchBadge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--bg-primary);
+  border: 1.5px solid var(--border-color);
+  border-radius: 20px;
+  padding: 2px 8px;
+  width: fit-content;
+}
+
+.branchActiveHint {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}

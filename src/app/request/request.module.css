@@ -101,6 +101,32 @@
   resize: vertical;
 }
 
+.textareaMain {
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
+  border-radius: 14px;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  font-family: inherit;
+  min-height: 120px;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.textareaMain::placeholder {
+  color: var(--text-muted);
+}
+
+.textareaMain:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px var(--border-focus);
+}
+
 .aiNotice {
   background: var(--color-primary-bg);
   border: 2px solid rgba(107, 170, 115, 0.25);
@@ -264,12 +290,72 @@
   color: var(--text-secondary);
 }
 
+/* 詳細設定（折りたたみ） */
+.detailsSection {
+  margin-bottom: 4px;
+}
+
+.detailsSummary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 10px 0;
+  list-style: none;
+  user-select: none;
+  transition: color var(--transition-fast);
+}
+
+.detailsSummary::-webkit-details-marker { display: none; }
+
+.detailsSummary::before {
+  content: "▶";
+  font-size: 0.7rem;
+  transition: transform 0.18s ease;
+  color: var(--text-muted);
+}
+
+details[open] .detailsSummary::before {
+  transform: rotate(90deg);
+}
+
+.detailsSummary:hover {
+  color: var(--text-primary);
+}
+
+.detailsContent {
+  padding: 14px 0 10px;
+}
+
 .footer {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
   margin-top: 28px;
   border-top: 2px solid var(--border-color);
   padding-top: 20px;
+}
+
+.btnSaveDraft {
+  padding: 11px 22px;
+  background: var(--bg-primary);
+  border: 2px solid var(--border-color);
+  border-radius: 20px;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+}
+
+.btnSaveDraft:hover {
+  border-color: var(--border-color-hover);
+  color: var(--text-primary);
 }
 
 .btnSubmit {

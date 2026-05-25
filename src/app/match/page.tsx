@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { CalendarDays, ShieldCheck, Mail, AlertCircle } from "lucide-react"
+import { CalendarDays, ShieldCheck, Mail, AlertCircle, Search } from "lucide-react"
 import styles from "./match.module.css"
 import { analyzeProfile, scoreTimeSlots, inferProfileFromRole } from "@/lib/ai"
 import { ConsultRequest, TimeSlotScore } from "@/types"
@@ -98,6 +98,24 @@ export default function MatchPage() {
         </div>
         <h1>日程スコアリング</h1>
         <p>入力された相手の役職・情報から、各候補日時の調整しやすさを推測しました。複数選択できます。</p>
+      </div>
+
+      {/* 分岐選択 */}
+      <div className={styles.branchRow}>
+        <div className={`${styles.branchCard} ${styles.branchCardDisabled}`}>
+          <div className={styles.branchCardIcon}><Search size={18} /></div>
+          <div className={styles.branchCardContent}>
+            <div className={styles.branchCardTitle}>相談先を探す</div>
+            <span className={styles.branchBadge}>準備中</span>
+          </div>
+        </div>
+        <div className={`${styles.branchCard} ${styles.branchCardActive}`}>
+          <div className={styles.branchCardIcon}><CalendarDays size={18} /></div>
+          <div className={styles.branchCardContent}>
+            <div className={styles.branchCardTitle}>日程候補から選ぶ</div>
+            <div className={styles.branchActiveHint}>← 今はこちら</div>
+          </div>
+        </div>
       </div>
 
       {/* 相手情報と推論の説明 */}

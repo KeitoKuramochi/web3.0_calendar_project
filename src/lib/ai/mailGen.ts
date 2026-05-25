@@ -12,7 +12,8 @@ export function generateEmail(
   format: "offline" | "online" | "hybrid",
   extraText: string,
   outputFormat: OutputFormat = "email",
-  scheduleToken?: string
+  scheduleToken?: string,
+  isFirstContact: boolean = true
 ): MailOutput {
   const slots = Array.isArray(selectedTimeSlots) ? selectedTimeSlots : [selectedTimeSlots]
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ""
@@ -20,15 +21,15 @@ export function generateEmail(
 
   switch (outputFormat) {
     case "slack":
-      return generateSlack(requester, targetUser, title, slots, format, scheduleUrl)
+      return generateSlack(requester, targetUser, title, slots, format, scheduleUrl, isFirstContact)
     case "discord":
-      return generateDiscord(requester, targetUser, title, slots, format, scheduleUrl)
+      return generateDiscord(requester, targetUser, title, slots, format, scheduleUrl, isFirstContact)
     case "line":
-      return generateLine(requester, targetUser, title, slots, scheduleUrl)
+      return generateLine(requester, targetUser, title, slots, scheduleUrl, isFirstContact)
     case "short":
-      return generateShort(requester, targetUser, title, slots, scheduleUrl)
+      return generateShort(requester, targetUser, title, slots, scheduleUrl, isFirstContact)
     default:
-      return generateFormalEmail(requester, targetUser, title, slots, format, extraText, scheduleUrl)
+      return generateFormalEmail(requester, targetUser, title, slots, format, extraText, scheduleUrl, isFirstContact)
   }
 }
 
@@ -39,7 +40,8 @@ function generateFormalEmail(
   slots: string[],
   format: "offline" | "online" | "hybrid",
   extraText: string,
-  scheduleUrl?: string
+  scheduleUrl?: string,
+  isFirstContact: boolean = true
 ): MailOutput {
   const formatJa =
     format === "offline"
@@ -56,8 +58,13 @@ function generateFormalEmail(
   let body = ""
   body += `${targetUser.department}\n`
   body += `${targetNameWithTitle}\n\n`
-  body += `突然のご連絡にて失礼いたします。\n`
-  body += `${requester.department}の${requester.name}と申します。\n\n`
+  if (isFirstContact) {
+    body += `突然のご連絡にて失礼いたします。\n`
+    body += `${requester.department}の${requester.name}と申します。\n\n`
+  } else {
+    body += `お世話になっております。\n`
+    body += `${requester.department}の${requester.name}です。\n\n`
+  }
   body += `本日は、${title}についてご相談したく、メールいたしました。\n`
   if (extraText) {
     body += `\n（相談の詳細・背景）\n${extraText}\n\n`
@@ -122,7 +129,8 @@ function generateSlack(
   title: string,
   slots: string[],
   format: "offline" | "online" | "hybrid",
-  scheduleUrl?: string
+  scheduleUrl?: string,
+  isFirstContact: boolean = true
 ): MailOutput {
   const formatJa = format === "offline" ? "対面" : format === "online" ? "オンライン" : "対面/オンライン"
   const slotsText =
@@ -130,8 +138,12 @@ function generateSlack(
       ? slots[0]
       : slots.map((s, i) => `第${i + 1}希望: ${s}`).join("\n")
 
+  const greeting = isFirstContact
+    ? `${targetUser.name}さん、はじめまして。${requester.name}（${requester.department}）です。\n\n`
+    : `${targetUser.name}さん、お疲れ様です。${requester.name}（${requester.department}）です。\n\n`
+
   let body =
-    `${targetUser.name}さん、お疲れ様です。${requester.name}（${requester.department}）です。\n\n` +
+    greeting +
     `「${title}」についてご相談させてください。\n\n` +
     `*候補日時:*\n${slotsText}\n` +
     `*形式:* ${formatJa}\n\n`
@@ -147,13 +159,18 @@ function generateDiscord(
   title: string,
   slots: string[],
   format: "offline" | "online" | "hybrid",
-  scheduleUrl?: string
+  scheduleUrl?: string,
+  isFirstContact: boolean = true
 ): MailOutput {
   const formatJa = format === "offline" ? "対面" : format === "online" ? "オンライン" : "どちらでも"
   const slotsText = slots.map((s, i) => `> ${i + 1}. ${s}`).join("\n")
 
+  const greeting = isFirstContact
+    ? `@${targetUser.name} はじめまして！${requester.name}です🙌\n\n`
+    : `@${targetUser.name} お疲れ様です！${requester.name}です🙌\n\n`
+
   let body =
-    `@${targetUser.name} こんにちは！${requester.name}です🙌\n\n` +
+    greeting +
     `**${title}** について相談させてもらいたいです！\n\n` +
     `**候補日時:**\n${slotsText}\n` +
     `**形式:** ${formatJa}\n\n`
@@ -168,16 +185,20 @@ function generateLine(
   targetUser: UserProfile,
   title: string,
   slots: string[],
-  scheduleUrl?: string
+  scheduleUrl?: string,
+  isFirstContact: boolean = true
 ): MailOutput {
   const slotsText =
     slots.length === 1
       ? slots[0]
       : slots.map((s, i) => `・${s}`).join("\n")
 
+  const intro = isFirstContact
+    ? `${targetUser.name}さん、はじめまして！\n${requester.name}といいます。\n\n`
+    : `${targetUser.name}さん、こんにちは！\n${requester.name}です。\n\n`
+
   let body =
-    `${targetUser.name}さん、こんにちは！\n` +
-    `${requester.name}です。\n\n` +
+    intro +
     `「${title}」について相談させていただきたいのですが、` +
     `以下の日時はご都合いかがでしょうか？\n\n` +
     `${slotsText}\n\n`
@@ -192,7 +213,8 @@ function generateShort(
   targetUser: UserProfile,
   title: string,
   slots: string[],
-  scheduleUrl?: string
+  scheduleUrl?: string,
+  isFirstContact: boolean = true
 ): MailOutput {
   const slotsText =
     slots.length === 1
