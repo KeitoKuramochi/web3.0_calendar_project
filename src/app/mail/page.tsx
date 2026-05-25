@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Mail, MessageSquare, ShieldCheck, AlertCircle, CheckCircle2, Copy, PartyPopper, Check, HelpCircle, ArrowLeft, UserX } from "lucide-react"
+import { Mail, MessageSquare, ShieldCheck, AlertCircle, CheckCircle2, Copy, PartyPopper, Check, HelpCircle, ArrowLeft, UserX, Share2 } from "lucide-react"
 import styles from "./mail.module.css"
 import { generateEmail, checkEmail } from "@/lib/ai"
 import { ConsultRequest, UserProfile, MailCheckResult, MailIssue, OutputFormat } from "@/types"
@@ -25,8 +25,10 @@ export default function MailPage() {
   const [matchData, setMatchData] = useState<any>(null)
   const [request, setRequest] = useState<ConsultRequest | null>(null)
 
-  const [outputFormat, setOutputFormat] = useState<OutputFormat>("email")
+  const [outputFormat, setOutputFormat] = useState<OutputFormat | null>(null)
   const [isFirstContact, setIsFirstContact] = useState(true)
+  const [scheduleUrlForShare, setScheduleUrlForShare] = useState<string | null>(null)
+  const [linkCopied, setLinkCopied] = useState(false)
   const [pastContactCount, setPastContactCount] = useState(0)
   const [subject, setSubject] = useState("")
   const [body, setBody] = useState("")
@@ -76,7 +78,6 @@ export default function MailPage() {
       setIsFirstContact(firstContact)
 
       await upsertConsultation({ ...active, status: "composed" })
-      regenerate(sender, target, req, match, "email", undefined, firstContact)
     })()
   }, [])
 
@@ -91,7 +92,7 @@ export default function MailPage() {
   // isFirstContact切替時に再生成
   const handleFirstContactToggle = (val: boolean) => {
     setIsFirstContact(val)
-    if (requester && targetUser && request && matchData) {
+    if (outputFormat && requester && targetUser && request && matchData) {
       regenerate(requester, targetUser, request, matchData, outputFormat, undefined, val)
     }
   }
@@ -101,10 +102,11 @@ export default function MailPage() {
     target: UserProfile,
     req: ConsultRequest,
     match: any,
-    fmt: OutputFormat,
+    fmt: OutputFormat | null,
     token?: string,
     firstContact: boolean = true
   ) => {
+    if (!fmt) return
     const slots: string[] = match.selectedTimeSlots ?? [match.selectedTimeSlot ?? "候補日時"]
     const generated = generateEmail(sender, target, req.title || "ご相談", slots, req.format || "offline", req.freeTextInput || "", fmt, token, firstContact)
     setSubject(generated.subject)
@@ -140,6 +142,7 @@ export default function MailPage() {
   }
 
   const handleCopy = async () => {
+    if (!outputFormat) return
     if (outputFormat === "email") {
       const firstError = checkResult.issues.find((i) => i.type === "error")
       if (firstError) {
@@ -154,6 +157,8 @@ export default function MailPage() {
     if (active && requester && targetUser && request && matchData) {
       await upsertConsultation({ ...active, status: "waiting", scheduleToken: token, senderDisplayName: requester.name })
       regenerate(requester, targetUser, request, matchData, outputFormat, token, isFirstContact)
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin
+      setScheduleUrlForShare(`${appUrl}/schedule/${token}`)
       // URL挿入後の文面で少し待ってからコピー（state更新を待つ）
       await new Promise((r) => setTimeout(r, 50))
     }
@@ -170,7 +175,7 @@ export default function MailPage() {
 
   const handleGoDashboard = async () => {
     const active = await getActiveConsultation()
-    if (active) {
+    if (active && outputFormat) {
       const nextStatus = active.status === "waiting" ? "waiting" : "sent"
       await upsertConsultation({
         ...active,
@@ -316,29 +321,44 @@ export default function MailPage() {
           </div>
 
           <div className={styles.mailEditor}>
-            {isEmailFormat && (
-              <input
-                type="text"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                className={styles.subjectInput}
-                placeholder="件名"
-              />
+            {!outputFormat ? (
+              <div className={styles.formatEmptyState}>
+                <MessageSquare size={28} style={{ color: "var(--color-primary)", opacity: 0.5 }} />
+                <p>上のボタンからフォーマットを選んでください</p>
+                <span>メール・Slack・LINE・Discord・短文に対応しています</span>
+              </div>
+            ) : (
+              <>
+                {isEmailFormat && (
+                  <input
+                    type="text"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    className={styles.subjectInput}
+                    placeholder="件名"
+                  />
+                )}
+                <textarea
+                  ref={bodyRef}
+                  value={body}
+                  onChange={handleBodyChange}
+                  className={`${styles.bodyTextarea} ${flashTextarea ? styles.bodyTextareaFlash : ""}`}
+                  placeholder="メッセージ本文"
+                />
+              </>
             )}
-            <textarea
-              ref={bodyRef}
-              value={body}
-              onChange={handleBodyChange}
-              className={`${styles.bodyTextarea} ${flashTextarea ? styles.bodyTextareaFlash : ""}`}
-              placeholder="メッセージ本文"
-            />
 
             <div className={styles.editorFooter}>
               <span style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>
-                {isEmailFormat ? "コピーしてメーラーに貼り付けて送信してください。" : "コピーして各アプリに貼り付けてください。"}
+                {!outputFormat
+                  ? "フォーマットを選ぶとメッセージが生成されます"
+                  : isEmailFormat
+                    ? "コピーしてメーラーに貼り付けて送信してください。"
+                    : "コピーして各アプリに貼り付けてください。"}
               </span>
               <button
                 onClick={handleCopy}
+                disabled={!outputFormat}
                 className={`${styles.btnCopy} ${isEmailFormat && errors.length > 0 ? styles.btnCopyError : ""}`}
               >
                 {isEmailFormat && errors.length > 0 ? (
@@ -468,6 +488,40 @@ export default function MailPage() {
             <p>
               {targetUser?.name}との「{request?.title}」のメッセージが作成・コピーされました。
             </p>
+
+            {scheduleUrlForShare && (
+              <div className={styles.scheduleLinkBox}>
+                <p className={styles.scheduleLinkLabel}>
+                  このリンクを相手に送ると、相手が都合のよい日時を選べます
+                </p>
+                <div className={styles.scheduleLinkUrl}>{scheduleUrlForShare}</div>
+                <div className={styles.scheduleLinkActions}>
+                  <button
+                    className={`${styles.btnCopyLink} ${linkCopied ? styles.btnCopyLinkDone : ""}`}
+                    onClick={() => {
+                      navigator.clipboard.writeText(scheduleUrlForShare).then(() => {
+                        setLinkCopied(true)
+                        setTimeout(() => setLinkCopied(false), 2000)
+                      })
+                    }}
+                  >
+                    {linkCopied ? <><Check size={14} />コピー済み</> : <><Copy size={14} />リンクをコピー</>}
+                  </button>
+                  {typeof navigator !== "undefined" && "share" in navigator && (
+                    <button
+                      className={styles.btnShareLink}
+                      onClick={() => {
+                        navigator.share({ url: scheduleUrlForShare, title: `${request?.title ?? "日程確定リンク"}` })
+                      }}
+                    >
+                      <Share2 size={14} />
+                      送る
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
             <button onClick={handleGoDashboard} className={styles.btnDashboard}>
               ダッシュボードへ戻る
             </button>

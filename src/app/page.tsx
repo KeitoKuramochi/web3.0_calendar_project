@@ -379,10 +379,12 @@ export default function Home() {
                       ✓ {record.confirmedSlot}
                     </div>
                   )}
-                  {record.recipientContact && (
+                  {(record.recipientName || record.recipientContact) && (
                     <div className={styles.recipientContact}>
-                      <span className={styles.recipientContactLabel}>相手の連絡先：</span>
-                      <span className={styles.recipientContactValue}>{record.recipientContact}</span>
+                      <span className={styles.recipientContactLabel}>相手：</span>
+                      <span className={styles.recipientContactValue}>
+                        {[record.recipientName, record.recipientContact].filter(Boolean).join(" / ")}
+                      </span>
                     </div>
                   )}
                 </div>

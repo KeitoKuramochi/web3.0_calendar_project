@@ -15,6 +15,7 @@ interface ScheduleData {
   status: string
   confirmedSlot: string | null
   recipientNote: string | null
+  recipientName: string | null
   recipientContact: string | null
 }
 
@@ -47,7 +48,9 @@ export default function SchedulePage() {
   const [view, setView] = useState<View>("selecting")
   const [rescheduleFrom, setRescheduleFrom] = useState<"selecting" | "confirmed">("selecting")
   const [confirmedSlot, setConfirmedSlot] = useState<string | null>(null)
+  const [recipientName, setRecipientName] = useState("")
   const [recipientContact, setRecipientContact] = useState("")
+  const [contactError, setContactError] = useState("")
   const [rescheduleNote, setRescheduleNote] = useState("")
   const [submittingReschedule, setSubmittingReschedule] = useState(false)
   const [rescheduleError, setRescheduleError] = useState("")
@@ -68,11 +71,16 @@ export default function SchedulePage() {
   }, [token])
 
   const handleConfirm = async (slot: string) => {
+    if (!recipientName.trim() || !recipientContact.trim()) {
+      setContactError("お名前と連絡先を両方入力してください")
+      return
+    }
+    setContactError("")
     setConfirming(slot)
     const res = await fetch(`/api/schedule/${token}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slot, contact: recipientContact.trim() || undefined }),
+      body: JSON.stringify({ slot, name: recipientName.trim(), contact: recipientContact.trim() }),
     })
     if (res.ok) {
       setConfirmedSlot(slot)
@@ -147,10 +155,13 @@ export default function SchedulePage() {
               ? "場所の詳細は依頼者よりご連絡します。"
               : "形式・場所の詳細は依頼者よりご連絡します。"}
         </p>
-        {(recipientContact || data.recipientContact) && (
+        {(recipientName || data.recipientName || recipientContact || data.recipientContact) && (
           <div className={styles.confirmedContact}>
-            <span className={styles.confirmedContactLabel}>あなたの連絡先として送信しました：</span>
-            <span className={styles.confirmedContactValue}>{recipientContact || data.recipientContact}</span>
+            <span className={styles.confirmedContactLabel}>送信者に伝えた情報：</span>
+            <span className={styles.confirmedContactValue}>
+              {(recipientName || data.recipientName)}
+              {(recipientContact || data.recipientContact) && ` / ${recipientContact || data.recipientContact}`}
+            </span>
           </div>
         )}
         <div className={styles.ctaBox}>
@@ -273,20 +284,37 @@ export default function SchedulePage() {
           </div>
         </div>
 
-        {/* 連絡先（任意） */}
+        {/* 名前・連絡先（必須） */}
         <div className={styles.contactSection}>
-          <label className={styles.contactLabel}>
-            あなたの連絡先（任意）
-          </label>
-          <input
-            type="text"
-            className={styles.contactInput}
-            placeholder="Discord名 / メールアドレス / LINE IDなど"
-            value={recipientContact}
-            onChange={(e) => setRecipientContact(e.target.value)}
-            disabled={!!confirming}
-          />
-          <p className={styles.contactHint}>入力しなくても確定できます（匿名でもOK）</p>
+          <div className={styles.contactField}>
+            <label className={styles.contactLabel}>
+              お名前・ニックネーム
+              <span className={styles.contactRequired}>必須</span>
+            </label>
+            <input
+              type="text"
+              className={styles.contactInput}
+              placeholder="例: たろう / Taro"
+              value={recipientName}
+              onChange={(e) => { setRecipientName(e.target.value); setContactError("") }}
+              disabled={!!confirming}
+            />
+          </div>
+          <div className={styles.contactField}>
+            <label className={styles.contactLabel}>
+              連絡先
+              <span className={styles.contactRequired}>必須</span>
+            </label>
+            <input
+              type="text"
+              className={styles.contactInput}
+              placeholder="Discord名 / メールアドレス / LINE ID / Slack名など"
+              value={recipientContact}
+              onChange={(e) => { setRecipientContact(e.target.value); setContactError("") }}
+              disabled={!!confirming}
+            />
+          </div>
+          {contactError && <p className={styles.contactError}>{contactError}</p>}
         </div>
 
         {/* 日時選択 */}

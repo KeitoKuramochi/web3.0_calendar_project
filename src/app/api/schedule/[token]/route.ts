@@ -19,6 +19,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     status: record.status,
     confirmedSlot: record.confirmedSlot ?? null,
     recipientNote: record.recipientNote ?? null,
+    recipientName: record.recipientName ?? null,
     recipientContact: record.recipientContact ?? null,
   })
 }
@@ -52,10 +53,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     return NextResponse.json({ error: "already_confirmed" }, { status: 409 })
   }
 
-  const { slot, contact } = body
+  const { slot, name, contact } = body
   if (!slot) return NextResponse.json({ error: "slot required" }, { status: 400 })
 
   const updated: any = { ...record, status: "confirmed", confirmedSlot: slot }
+  if (name && typeof name === "string" && name.trim()) {
+    updated.recipientName = name.trim()
+  }
   if (contact && typeof contact === "string" && contact.trim()) {
     updated.recipientContact = contact.trim()
   }

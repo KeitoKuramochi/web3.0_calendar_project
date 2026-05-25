@@ -109,13 +109,31 @@
   border-radius: 14px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
+}
+
+.contactField {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
 .contactLabel {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 700;
   color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.contactRequired {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: white;
+  background: var(--color-danger);
+  border-radius: 4px;
+  padding: 1px 6px;
 }
 
 .contactInput {
@@ -140,9 +158,10 @@
   opacity: 0.6;
 }
 
-.contactHint {
-  font-size: 0.73rem;
-  color: var(--text-muted);
+.contactError {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-danger);
   margin: 0;
 }
 
