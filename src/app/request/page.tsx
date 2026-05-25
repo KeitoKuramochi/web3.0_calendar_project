@@ -278,78 +278,75 @@ export default function RequestPage() {
           </div>
         </div>
 
-        <hr style={{ border: "0", borderTop: "1px solid var(--border-color)", margin: "0 0 20px" }} />
+        <hr style={{ border: "0", borderTop: "1px solid var(--border-color)", margin: "0 0 24px" }} />
 
-        {/* 3. 詳細設定（折りたたみ） */}
-        <details className={styles.detailsSection}>
-          <summary className={styles.detailsSummary}>
-            <Clock size={14} />
-            詳細設定（形式・急ぎ度・所要時間・件名）
-          </summary>
-          <div className={styles.detailsContent}>
-            <div className={styles.formGrid}>
-              {/* 面談形式 */}
-              <div className={styles.formGroup}>
-                <label className={styles.label}>面談形式</label>
-                <div className={styles.toggleGroup}>
-                  {(["hybrid", "offline", "online"] as const).map((v) => (
-                    <button key={v} type="button"
-                      onClick={() => setFormat(v)}
-                      className={`${styles.toggleButton} ${format === v ? styles.toggleButtonActive : ""}`}>
-                      {v === "offline" ? "対面" : v === "online" ? "オンライン" : "どちらでも"}
-                    </button>
-                  ))}
-                </div>
-              </div>
+        {/* 3. 詳細設定 */}
+        <div className={styles.sectionTitle}>
+          <Clock size={16} />
+          <span>3. 詳細設定</span>
+        </div>
 
-              {/* 急ぎ度 */}
-              <div className={styles.formGroup}>
-                <label className={styles.label}>優先度</label>
-                <div className={styles.toggleGroup}>
-                  {([["normal", "普通"], ["high", "急ぎ"], ["low", "急がない"]] as const).map(([v, label]) => (
-                    <button key={v} type="button"
-                      onClick={() => setUrgency(v)}
-                      className={`${styles.toggleButton} ${urgency === v ? styles.toggleButtonActive : ""}`}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 所要時間 */}
-              <div className={styles.formGroup}>
-                <label className={styles.label}>所要時間</label>
-                <div className={styles.toggleGroup}>
-                  {([15, 30, 60, 90] as const).map((v) => (
-                    <button key={v} type="button"
-                      onClick={() => setDuration(v)}
-                      className={`${styles.toggleButton} ${duration === v ? styles.toggleButtonActive : ""}`}>
-                      {v}分
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 件名 */}
-              <div className={styles.formGroup}>
-                <label className={styles.label}>件名（AIが自動入力）</label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => { setTitle(e.target.value); setErrors((p) => ({ ...p, title: undefined })) }}
-                  placeholder="例: 進路相談、研究室のことを聞きたい"
-                  className={styles.input}
-                  style={errors.title ? { borderColor: "var(--color-danger)" } : {}}
-                />
-                {errors.title && (
-                  <span style={{ fontSize: "0.8rem", color: "var(--color-danger)", fontWeight: 600 }}>{errors.title}</span>
-                )}
-              </div>
+        <div className={styles.formGrid}>
+          {/* 面談形式 */}
+          <div className={styles.formGroup}>
+            <label className={styles.label}>面談形式</label>
+            <div className={styles.toggleGroup}>
+              {(["hybrid", "offline", "online"] as const).map((v) => (
+                <button key={v} type="button"
+                  onClick={() => setFormat(v)}
+                  className={`${styles.toggleButton} ${format === v ? styles.toggleButtonActive : ""}`}>
+                  {v === "offline" ? "対面" : v === "online" ? "オンライン" : "どちらでも"}
+                </button>
+              ))}
             </div>
           </div>
-        </details>
 
-        <hr style={{ border: "0", borderTop: "1px solid var(--border-color)", margin: "20px 0" }} />
+          {/* 急ぎ度 */}
+          <div className={styles.formGroup}>
+            <label className={styles.label}>優先度</label>
+            <div className={styles.toggleGroup}>
+              {([["normal", "普通"], ["high", "急ぎ"], ["low", "急がない"]] as const).map(([v, label]) => (
+                <button key={v} type="button"
+                  onClick={() => setUrgency(v)}
+                  className={`${styles.toggleButton} ${urgency === v ? styles.toggleButtonActive : ""}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 所要時間 */}
+          <div className={styles.formGroup}>
+            <label className={styles.label}>所要時間</label>
+            <div className={styles.toggleGroup}>
+              {([15, 30, 60, 90] as const).map((v) => (
+                <button key={v} type="button"
+                  onClick={() => setDuration(v)}
+                  className={`${styles.toggleButton} ${duration === v ? styles.toggleButtonActive : ""}`}>
+                  {v}分
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 件名 */}
+          <div className={styles.formGroup}>
+            <label className={styles.label}>件名（AIが自動入力）</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => { setTitle(e.target.value); setErrors((p) => ({ ...p, title: undefined })) }}
+              placeholder="例: 進路相談、研究室のことを聞きたい"
+              className={styles.input}
+              style={errors.title ? { borderColor: "var(--color-danger)" } : {}}
+            />
+            {errors.title && (
+              <span style={{ fontSize: "0.8rem", color: "var(--color-danger)", fontWeight: 600 }}>{errors.title}</span>
+            )}
+          </div>
+        </div>
+
+<hr style={{ border: "0", borderTop: "1px solid var(--border-color)", margin: "24px 0" }} />
 
         {/* 4. 相談相手の情報 */}
         <div className={styles.sectionTitle}>

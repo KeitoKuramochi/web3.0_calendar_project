@@ -29,6 +29,7 @@ export default function Home() {
   const [deletedTitle, setDeletedTitle] = useState<string | null>(null)
   const [resetConfirm, setResetConfirm] = useState<string | null>(null)
   const [recopyToast, setRecopyToast] = useState<string | null>(null)
+  const [expandedMail, setExpandedMail] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     getConsultations().then(setRecords)
@@ -122,8 +123,8 @@ export default function Home() {
         </button>
       </div>
 
-      {/* プロフィールサマリー */}
-      <div className={styles.profileSummary}>
+      {/* プロフィールサマリー（全体がリンク） */}
+      <Link href="/profile" className={styles.profileSummary}>
         {profile?.name ? (
           <>
             <div className={styles.profileSummaryInfo}>
@@ -132,19 +133,15 @@ export default function Home() {
                 {[profile.role, profile.department].filter(Boolean).join(" · ")}
               </div>
             </div>
-            <Link href="/profile" className={styles.profileSummaryLink}>
-              編集する →
-            </Link>
+            <span className={styles.profileSummaryLink}>編集する →</span>
           </>
         ) : (
           <>
             <div className={styles.profileSummaryMeta}>プロフィールを設定すると、より精度の高いメッセージが生成されます</div>
-            <Link href="/profile" className={styles.profileSummaryLink}>
-              設定する →
-            </Link>
+            <span className={styles.profileSummaryLink}>設定する →</span>
           </>
         )}
-      </div>
+      </Link>
 
       {/* 進行中の相談 */}
       {active.length > 0 && (
@@ -300,23 +297,43 @@ export default function Home() {
                         {formatDate(record.updatedAt)}送信
                       </span>
                     </div>
-                    {record.mail && (
-                      <div className={styles.mailPreview}>
-                        {record.mail.format === "email" && record.mail.subject && (
-                          <div className={styles.mailPreviewSubject}>件名: {record.mail.subject}</div>
-                        )}
-                        <div className={styles.mailPreviewBody}>
-                          {record.mail.body.split("\n").filter(l => l.trim()).slice(0, 3).join("\n")}
+                    {record.mail && (() => {
+                      const isExpanded = expandedMail.has(record.id)
+                      const lines = record.mail.body.split("\n").filter(l => l.trim())
+                      const preview = lines.slice(0, 3).join("\n")
+                      const hasMore = lines.length > 3
+                      return (
+                        <div className={styles.mailPreview}>
+                          {record.mail.format === "email" && record.mail.subject && (
+                            <div className={styles.mailPreviewSubject}>件名: {record.mail.subject}</div>
+                          )}
+                          <div className={isExpanded ? styles.mailPreviewBodyFull : styles.mailPreviewBody}>
+                            {isExpanded ? record.mail.body : preview}
+                          </div>
+                          <div className={styles.mailPreviewActions}>
+                            {hasMore && (
+                              <button
+                                className={styles.btnExpandMail}
+                                onClick={() => setExpandedMail(prev => {
+                                  const next = new Set(prev)
+                                  isExpanded ? next.delete(record.id) : next.add(record.id)
+                                  return next
+                                })}
+                              >
+                                {isExpanded ? "閉じる ▲" : "全文を見る ▼"}
+                              </button>
+                            )}
+                            <button
+                              className={`${styles.btnRecopy} ${recopyToast === record.id ? styles.btnRecopyDone : ""}`}
+                              onClick={() => handleRecopy(record)}
+                            >
+                              <Copy size={12} />
+                              {recopyToast === record.id ? "コピーしました！" : "もう一度コピー"}
+                            </button>
+                          </div>
                         </div>
-                        <button
-                          className={`${styles.btnRecopy} ${recopyToast === record.id ? styles.btnRecopyDone : ""}`}
-                          onClick={() => handleRecopy(record)}
-                        >
-                          <Copy size={12} />
-                          {recopyToast === record.id ? "コピーしました！" : "もう一度コピー"}
-                        </button>
-                      </div>
-                    )}
+                      )
+                    })()}
                   </div>
                 </div>
               )
@@ -416,23 +433,43 @@ export default function Home() {
                         {formatDate(record.updatedAt)}送信
                       </span>
                     </div>
-                    {record.mail && (
-                      <div className={styles.mailPreview}>
-                        {record.mail.format === "email" && record.mail.subject && (
-                          <div className={styles.mailPreviewSubject}>件名: {record.mail.subject}</div>
-                        )}
-                        <div className={styles.mailPreviewBody}>
-                          {record.mail.body.split("\n").filter(l => l.trim()).slice(0, 3).join("\n")}
+                    {record.mail && (() => {
+                      const isExpanded = expandedMail.has(record.id)
+                      const lines = record.mail.body.split("\n").filter(l => l.trim())
+                      const preview = lines.slice(0, 3).join("\n")
+                      const hasMore = lines.length > 3
+                      return (
+                        <div className={styles.mailPreview}>
+                          {record.mail.format === "email" && record.mail.subject && (
+                            <div className={styles.mailPreviewSubject}>件名: {record.mail.subject}</div>
+                          )}
+                          <div className={isExpanded ? styles.mailPreviewBodyFull : styles.mailPreviewBody}>
+                            {isExpanded ? record.mail.body : preview}
+                          </div>
+                          <div className={styles.mailPreviewActions}>
+                            {hasMore && (
+                              <button
+                                className={styles.btnExpandMail}
+                                onClick={() => setExpandedMail(prev => {
+                                  const next = new Set(prev)
+                                  isExpanded ? next.delete(record.id) : next.add(record.id)
+                                  return next
+                                })}
+                              >
+                                {isExpanded ? "閉じる ▲" : "全文を見る ▼"}
+                              </button>
+                            )}
+                            <button
+                              className={`${styles.btnRecopy} ${recopyToast === record.id ? styles.btnRecopyDone : ""}`}
+                              onClick={() => handleRecopy(record)}
+                            >
+                              <Copy size={12} />
+                              {recopyToast === record.id ? "コピーしました！" : "もう一度コピー"}
+                            </button>
+                          </div>
                         </div>
-                        <button
-                          className={`${styles.btnRecopy} ${recopyToast === record.id ? styles.btnRecopyDone : ""}`}
-                          onClick={() => handleRecopy(record)}
-                        >
-                          <Copy size={12} />
-                          {recopyToast === record.id ? "コピーしました！" : "もう一度コピー"}
-                        </button>
-                      </div>
-                    )}
+                      )
+                    })()}
                   </div>
                 </div>
               )
