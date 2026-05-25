@@ -130,6 +130,21 @@
   color: var(--color-primary);
 }
 
+.waiting {
+  background: rgba(232, 146, 78, 0.12);
+  color: var(--color-fair);
+}
+
+.confirmed {
+  background: rgba(138, 180, 104, 0.15);
+  color: var(--color-excellent);
+}
+
+.confirmedCard {
+  border-color: rgba(138, 180, 104, 0.35);
+  background: rgba(138, 180, 104, 0.04);
+}
+
 .btnDelete {
   display: flex;
   align-items: center;

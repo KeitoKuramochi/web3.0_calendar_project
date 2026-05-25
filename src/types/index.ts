@@ -38,6 +38,14 @@ export interface UserProfile {
   generalNotes?: string
 }
 
+// 相談相手の情報（役職推論に使用）
+export interface RecipientInfo {
+  name?: string
+  role?: string
+  department?: string
+  notes?: string
+}
+
 // 相談リクエスト
 export interface ConsultRequest {
   id: string
@@ -51,6 +59,7 @@ export interface ConsultRequest {
   urgency: "high" | "normal" | "low"
   consultTopics?: string[]     // 相談トピックタグ
   customConsultTopic?: string  // 自由入力トピック
+  recipient?: RecipientInfo    // 相談相手の情報（役職推論用）
 }
 
 // 日程調整候補
@@ -90,7 +99,7 @@ export interface ParsedRequest {
 }
 
 // 相談の進捗ステータス
-export type ConsultationStatus = "draft" | "matched" | "composed" | "sent"
+export type ConsultationStatus = "draft" | "matched" | "composed" | "sent" | "waiting" | "confirmed"
 
 // マッチング結果
 export interface ConsultationMatch {
@@ -116,4 +125,6 @@ export interface ConsultationRecord {
   request?: ConsultRequest
   match?: ConsultationMatch
   mail?: ConsultationMail
+  scheduleToken?: string  // 確定リンク用トークン
+  confirmedSlot?: string  // 受信者が選んだ日時
 }

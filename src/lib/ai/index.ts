@@ -4,7 +4,8 @@ export { analyzeProfile } from "./analyzer";
 export { scoreTimeSlots } from "./scorer";
 export { sanitizeReason, getPrivacyProtectedStatus } from "./privacy";
 export { generateEmail } from "./mailGen";
-export { checkEmail } from "./mailCheck";
+export { checkEmail } from "./mailCheck"
+export { inferProfileFromRole } from "./inferrer";
 
 export type { SelectorCandidate } from "./selector";
 export type { AnalyzedProfile } from "./analyzer";

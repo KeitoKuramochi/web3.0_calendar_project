@@ -7,8 +7,8 @@ import Link from "next/link"
 import { Calendar, Clock, MessageSquare, Plus, Trash2, ArrowRight, ArrowLeft } from "lucide-react"
 import styles from "./request.module.css"
 import { parseFreeText } from "@/lib/ai"
-import { ConsultRequest } from "@/types"
-import { POPULAR_TOPICS } from "@/lib/dummyData"
+import { ConsultRequest, RecipientInfo } from "@/types"
+import { POPULAR_TOPICS, POPULAR_ROLES } from "@/lib/dummyData"
 import { upsertConsultation, setActiveId, getConsultations } from "@/lib/storage"
 import StepIndicator from "@/components/StepIndicator/StepIndicator"
 
@@ -51,6 +51,11 @@ export default function RequestPage() {
     const d9 = new Date(base); d9.setDate(base.getDate() + 9)
     return [fmt(d7, 10, 0), fmt(d7, 11, 0), fmt(d8, 14, 0), fmt(d9, 15, 0)]
   })
+
+  const [recipientName, setRecipientName] = useState("")
+  const [recipientRole, setRecipientRole] = useState("")
+  const [recipientDept, setRecipientDept] = useState("")
+  const [recipientNotes, setRecipientNotes] = useState("")
 
   const [aiNotice, setAiNotice] = useState<string | null>(null)
   const [errors, setErrors] = useState<{ title?: string; slots?: string }>({})
@@ -135,6 +140,12 @@ export default function RequestPage() {
     setErrors({})
 
     const id = `req_${Date.now()}`
+    const recipient: RecipientInfo = {
+      name: recipientName.trim() || undefined,
+      role: recipientRole.trim() || undefined,
+      department: recipientDept.trim() || undefined,
+      notes: recipientNotes.trim() || undefined,
+    }
     const requestData: ConsultRequest = {
       id,
       requesterId: "user",
@@ -145,6 +156,7 @@ export default function RequestPage() {
       freeTextInput: freeText,
       urgency,
       consultTopics: [...selectedTopics],
+      recipient,
     }
     const now = new Date().toISOString()
     await upsertConsultation({ id, status: "draft", createdAt: now, updatedAt: now, request: requestData })
@@ -259,10 +271,64 @@ export default function RequestPage() {
 
         <hr style={{ border: "0", borderTop: "1px solid var(--border-color)", margin: "0 0 24px" }} />
 
-        {/* 3. 詳細条件 */}
+        {/* 3. 相談相手の情報 */}
+        <div className={styles.sectionTitle}>
+          <Calendar size={16} />
+          <span>3. 相談相手の情報（日程の推測精度が上がります）</span>
+        </div>
+
+        <div className={styles.formGrid} style={{ marginBottom: "24px" }}>
+          <div className={styles.formGroup}>
+            <label className={styles.label}>相手の名前（任意）</label>
+            <input
+              type="text"
+              value={recipientName}
+              onChange={(e) => setRecipientName(e.target.value)}
+              className={styles.input}
+              placeholder="例: 鈴木 茂"
+            />
+          </div>
+          <div className={styles.formGroup}>
+            <label className={styles.label}>役割・役職</label>
+            <select
+              value={recipientRole}
+              onChange={(e) => setRecipientRole(e.target.value)}
+              className={styles.select}
+            >
+              <option value="">-- 選択してください --</option>
+              {POPULAR_ROLES.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </div>
+          <div className={styles.formGroup}>
+            <label className={styles.label}>所属・学科・部署（任意）</label>
+            <input
+              type="text"
+              value={recipientDept}
+              onChange={(e) => setRecipientDept(e.target.value)}
+              className={styles.input}
+              placeholder="例: 情報工学科、キャリアセンター"
+            />
+          </div>
+          <div className={styles.formGroup}>
+            <label className={styles.label}>メモ（任意）</label>
+            <input
+              type="text"
+              value={recipientNotes}
+              onChange={(e) => setRecipientNotes(e.target.value)}
+              className={styles.input}
+              placeholder="例: 火曜に研究会あり"
+            />
+          </div>
+        </div>
+
+        <hr style={{ border: "0", borderTop: "1px solid var(--border-color)", margin: "0 0 24px" }} />
+
+        {/* 4. 詳細条件 */}
         <div className={styles.sectionTitle}>
           <Clock size={16} />
-          <span>3. 詳細条件</span>
+          <span>4. 詳細条件</span>
         </div>
 
         <div className={styles.formGrid}>

@@ -77,10 +77,11 @@ export default function MailPage() {
     target: UserProfile,
     req: ConsultRequest,
     match: any,
-    fmt: OutputFormat
+    fmt: OutputFormat,
+    token?: string
   ) => {
     const slots: string[] = match.selectedTimeSlots ?? [match.selectedTimeSlot ?? "候補日時"]
-    const generated = generateEmail(sender, target, req.title || "ご相談", slots, req.format || "offline", req.freeTextInput || "", fmt)
+    const generated = generateEmail(sender, target, req.title || "ご相談", slots, req.format || "offline", req.freeTextInput || "", fmt, token)
     setSubject(generated.subject)
     setBody(generated.body)
     if (fmt === "email") {
@@ -113,7 +114,7 @@ export default function MailPage() {
     setTimeout(() => setFlashTextarea(false), 700)
   }
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (outputFormat === "email") {
       const firstError = checkResult.issues.find((i) => i.type === "error")
       if (firstError) {
@@ -122,7 +123,17 @@ export default function MailPage() {
         return
       }
     }
-    const text = subject ? `件名: ${subject}\n\n${body}` : body
+    // スケジュールトークンを生成してDB保存し、URL付き文面を再生成
+    const token = crypto.randomUUID()
+    const active = await getActiveConsultation()
+    if (active && requester && targetUser && request && matchData) {
+      await upsertConsultation({ ...active, status: "waiting", scheduleToken: token })
+      regenerate(requester, targetUser, request, matchData, outputFormat, token)
+      // URL挿入後の文面で少し待ってからコピー（state更新を待つ）
+      await new Promise((r) => setTimeout(r, 50))
+    }
+    const latestBody = bodyRef.current?.value ?? body
+    const text = subject ? `件名: ${subject}\n\n${latestBody}` : latestBody
     navigator.clipboard.writeText(text).then(() => {
       setShowToast(true)
       setTimeout(() => {
@@ -135,9 +146,10 @@ export default function MailPage() {
   const handleGoDashboard = async () => {
     const active = await getActiveConsultation()
     if (active) {
+      const nextStatus = active.status === "waiting" ? "waiting" : "sent"
       await upsertConsultation({
         ...active,
-        status: "sent",
+        status: nextStatus,
         mail: { subject, body, format: outputFormat },
       })
     }

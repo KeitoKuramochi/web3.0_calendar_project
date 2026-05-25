@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
-import { Plus, ArrowRight, Clock, CheckCircle2, Trash2, User, CalendarDays } from "lucide-react"
+import { Plus, ArrowRight, Clock, CheckCircle2, Trash2, User, CalendarDays, Send } from "lucide-react"
 import styles from "./page.module.css"
 import { getConsultations, deleteConsultation, setActiveId, clearActiveId } from "@/lib/storage"
 import type { ConsultationRecord, ConsultationStatus } from "@/types"
@@ -12,7 +12,7 @@ import { DUMMY_USERS } from "@/lib/dummyData"
 
 const STEP_LABELS = ["リクエスト", "マッチング", "メッセージ"]
 const STATUS_TO_STEP: Record<ConsultationStatus, number> = {
-  draft: 1, matched: 2, composed: 3, sent: 3,
+  draft: 1, matched: 2, composed: 3, sent: 3, waiting: 3, confirmed: 3,
 }
 
 function StepMini({ status }: { status: ConsultationStatus }) {
@@ -55,10 +55,12 @@ function StepMini({ status }: { status: ConsultationStatus }) {
 }
 
 const STATUS_META: Record<ConsultationStatus, { label: string; nextPath: string; actionLabel: string }> = {
-  draft:    { label: "下書き",          nextPath: "/match", actionLabel: "相談先を探す" },
-  matched:  { label: "日程候補あり",    nextPath: "/mail",  actionLabel: "メッセージを作成" },
-  composed: { label: "メッセージ完成",  nextPath: "/mail",  actionLabel: "メッセージを確認" },
-  sent:     { label: "送信済み",        nextPath: "/",      actionLabel: "" },
+  draft:     { label: "下書き",          nextPath: "/match", actionLabel: "相談先を探す" },
+  matched:   { label: "日程候補あり",    nextPath: "/mail",  actionLabel: "メッセージを作成" },
+  composed:  { label: "メッセージ完成",  nextPath: "/mail",  actionLabel: "メッセージを確認" },
+  sent:      { label: "送信済み",        nextPath: "/",      actionLabel: "" },
+  waiting:   { label: "確定待ち",        nextPath: "/",      actionLabel: "" },
+  confirmed: { label: "確定済み",        nextPath: "/",      actionLabel: "" },
 }
 
 export default function Home() {
@@ -104,7 +106,9 @@ export default function Home() {
     return `${d.getMonth() + 1}月${d.getDate()}日`
   }
 
-  const active = records.filter((r) => r.status !== "sent")
+  const active = records.filter((r) => !["sent", "waiting", "confirmed"].includes(r.status))
+  const waiting = records.filter((r) => r.status === "waiting")
+  const confirmed = records.filter((r) => r.status === "confirmed").slice(0, 5)
   const sent = records.filter((r) => r.status === "sent").slice(0, 5)
 
   return (
@@ -221,6 +225,93 @@ export default function Home() {
           <ArrowRight size={16} className={styles.quickCardArrow} />
         </Link>
       </section>
+
+      {/* 確定待ち */}
+      {waiting.length > 0 && (
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>
+            <Send size={16} />
+            確定待ちの相談
+          </h2>
+          <div className={styles.cardList}>
+            {waiting.map((record) => {
+              const target = getTargetUser(record)
+              return (
+                <div key={record.id} className={styles.consultCard}>
+                  <div className={styles.consultCardTop}>
+                    <span className={`${styles.statusBadge} ${styles.waiting}`}>確定待ち</span>
+                    <button className={styles.btnDelete} onClick={() => setDeleteConfirm(record.id)} title="削除">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                  <div className={styles.consultCardBody}>
+                    <h3 className={styles.consultTitle}>{record.request?.title || "（タイトルなし）"}</h3>
+                    <div className={styles.consultMeta}>
+                      {record.request?.recipient?.name && (
+                        <span className={styles.consultMetaItem}>
+                          <User size={13} />
+                          {record.request.recipient.name}
+                        </span>
+                      )}
+                      <span className={styles.consultMetaItem}>
+                        <CalendarDays size={13} />
+                        {formatDate(record.updatedAt)}送信
+                      </span>
+                    </div>
+                    <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)", marginTop: 6 }}>
+                      相手の確定を待っています...
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* 確定済み */}
+      {confirmed.length > 0 && (
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>
+            <CheckCircle2 size={16} />
+            確定済みの相談
+          </h2>
+          <div className={styles.cardList}>
+            {confirmed.map((record) => (
+              <div key={record.id} className={`${styles.consultCard} ${styles.confirmedCard}`}>
+                <div className={styles.consultCardTop}>
+                  <span className={`${styles.statusBadge} ${styles.confirmed}`}>確定済み</span>
+                  <button className={styles.btnDelete} onClick={() => setDeleteConfirm(record.id)} title="削除">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+                <div className={styles.consultCardBody}>
+                  <h3 className={styles.consultTitle}>{record.request?.title || "（タイトルなし）"}</h3>
+                  {record.request?.recipient?.name && (
+                    <div className={styles.consultMeta}>
+                      <span className={styles.consultMetaItem}>
+                        <User size={13} />
+                        {record.request.recipient.name}
+                      </span>
+                    </div>
+                  )}
+                  {record.confirmedSlot && (
+                    <div style={{
+                      marginTop: 8, padding: "8px 12px",
+                      background: "rgba(138,180,104,0.12)",
+                      border: "1.5px solid rgba(138,180,104,0.3)",
+                      borderRadius: 10, fontSize: "0.88rem", fontWeight: 700,
+                      color: "var(--color-excellent)",
+                    }}>
+                      ✓ {record.confirmedSlot}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* 送信済み */}
       {sent.length > 0 && (

@@ -11,22 +11,24 @@ export function generateEmail(
   selectedTimeSlots: string | string[],
   format: "offline" | "online" | "hybrid",
   extraText: string,
-  outputFormat: OutputFormat = "email"
+  outputFormat: OutputFormat = "email",
+  scheduleToken?: string
 ): MailOutput {
-  // 複数スロットを配列で扱う
   const slots = Array.isArray(selectedTimeSlots) ? selectedTimeSlots : [selectedTimeSlots]
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ""
+  const scheduleUrl = scheduleToken ? `${appUrl}/schedule/${scheduleToken}` : undefined
 
   switch (outputFormat) {
     case "slack":
-      return generateSlack(requester, targetUser, title, slots, format)
+      return generateSlack(requester, targetUser, title, slots, format, scheduleUrl)
     case "discord":
-      return generateDiscord(requester, targetUser, title, slots, format)
+      return generateDiscord(requester, targetUser, title, slots, format, scheduleUrl)
     case "line":
-      return generateLine(requester, targetUser, title, slots)
+      return generateLine(requester, targetUser, title, slots, scheduleUrl)
     case "short":
-      return generateShort(requester, targetUser, title, slots)
+      return generateShort(requester, targetUser, title, slots, scheduleUrl)
     default:
-      return generateFormalEmail(requester, targetUser, title, slots, format, extraText)
+      return generateFormalEmail(requester, targetUser, title, slots, format, extraText, scheduleUrl)
   }
 }
 
@@ -36,7 +38,8 @@ function generateFormalEmail(
   title: string,
   slots: string[],
   format: "offline" | "online" | "hybrid",
-  extraText: string
+  extraText: string,
+  scheduleUrl?: string
 ): MailOutput {
   const formatJa =
     format === "offline"
@@ -95,6 +98,14 @@ function generateFormalEmail(
     body += `--------------------------------------------------\n\n`
   }
 
+  if (scheduleUrl) {
+    body += `--------------------------------------------------\n`
+    body += `■ ワンクリック日程確定リンク\n`
+    body += `${scheduleUrl}\n`
+    body += `上記リンクよりご都合の良い日時をお選びいただけます（アカウント登録不要）。\n`
+    body += `--------------------------------------------------\n\n`
+  }
+
   body += `上記日程でご都合が悪い場合は、大変お手数ですが、折り返しご都合の良い日時をご教示いただけますと幸いです。\n\n`
   body += `お忙しいところお手数をおかけいたしますが、ご検討のほどよろしくお願い申し上げます。\n\n`
   body += `--------------------------------------------------\n`
@@ -110,7 +121,8 @@ function generateSlack(
   targetUser: UserProfile,
   title: string,
   slots: string[],
-  format: "offline" | "online" | "hybrid"
+  format: "offline" | "online" | "hybrid",
+  scheduleUrl?: string
 ): MailOutput {
   const formatJa = format === "offline" ? "対面" : format === "online" ? "オンライン" : "対面/オンライン"
   const slotsText =
@@ -118,12 +130,13 @@ function generateSlack(
       ? slots[0]
       : slots.map((s, i) => `第${i + 1}希望: ${s}`).join("\n")
 
-  const body =
+  let body =
     `${targetUser.name}さん、お疲れ様です。${requester.name}（${requester.department}）です。\n\n` +
     `「${title}」についてご相談させてください。\n\n` +
     `*候補日時:*\n${slotsText}\n` +
-    `*形式:* ${formatJa}\n\n` +
-    `ご都合はいかがでしょうか？よろしくお願いします！`
+    `*形式:* ${formatJa}\n\n`
+  if (scheduleUrl) body += `*日程確定リンク:* ${scheduleUrl}\n\n`
+  body += `ご都合はいかがでしょうか？よろしくお願いします！`
 
   return { subject: "", body }
 }
@@ -133,17 +146,19 @@ function generateDiscord(
   targetUser: UserProfile,
   title: string,
   slots: string[],
-  format: "offline" | "online" | "hybrid"
+  format: "offline" | "online" | "hybrid",
+  scheduleUrl?: string
 ): MailOutput {
   const formatJa = format === "offline" ? "対面" : format === "online" ? "オンライン" : "どちらでも"
   const slotsText = slots.map((s, i) => `> ${i + 1}. ${s}`).join("\n")
 
-  const body =
+  let body =
     `@${targetUser.name} こんにちは！${requester.name}です🙌\n\n` +
     `**${title}** について相談させてもらいたいです！\n\n` +
     `**候補日時:**\n${slotsText}\n` +
-    `**形式:** ${formatJa}\n\n` +
-    `都合いい日時あったら教えてください〜！よろしくお願いします！`
+    `**形式:** ${formatJa}\n\n`
+  if (scheduleUrl) body += `**日程確定リンク:** ${scheduleUrl}\n\n`
+  body += `都合いい日時あったら教えてください〜！よろしくお願いします！`
 
   return { subject: "", body }
 }
@@ -152,20 +167,22 @@ function generateLine(
   requester: UserProfile,
   targetUser: UserProfile,
   title: string,
-  slots: string[]
+  slots: string[],
+  scheduleUrl?: string
 ): MailOutput {
   const slotsText =
     slots.length === 1
       ? slots[0]
       : slots.map((s, i) => `・${s}`).join("\n")
 
-  const body =
+  let body =
     `${targetUser.name}さん、こんにちは！\n` +
     `${requester.name}です。\n\n` +
     `「${title}」について相談させていただきたいのですが、` +
     `以下の日時はご都合いかがでしょうか？\n\n` +
-    `${slotsText}\n\n` +
-    `よろしくお願いします！`
+    `${slotsText}\n\n`
+  if (scheduleUrl) body += `日程確定リンク: ${scheduleUrl}\n\n`
+  body += `よろしくお願いします！`
 
   return { subject: "", body }
 }
@@ -174,17 +191,19 @@ function generateShort(
   requester: UserProfile,
   targetUser: UserProfile,
   title: string,
-  slots: string[]
+  slots: string[],
+  scheduleUrl?: string
 ): MailOutput {
   const slotsText =
     slots.length === 1
       ? slots[0]
       : slots.map((s) => s).join(" / ")
 
-  const body =
+  let body =
     `${requester.name}（${requester.department}）です。` +
     `「${title}」の件でご相談があります。` +
     `【候補】${slotsText} はご都合いかがでしょうか？`
+  if (scheduleUrl) body += ` 日程確定: ${scheduleUrl}`
 
   return { subject: "", body }
 }

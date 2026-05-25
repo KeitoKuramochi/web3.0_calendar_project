@@ -45,8 +45,12 @@ export function scoreTimeSlots(
       score = "poor";
       privacyReason = "窓口対応時間外です。";
     }
-    // TA田中: 水曜午前・木曜午前NG
-    else if (targetUser.id === "ta_tanaka" && ((dayOfWeek === 3 && timeVal < 1200 && targetUser.absoluteNGTimes.includes("Wednesday-Morning")) || (dayOfWeek === 4 && timeVal < 1200 && targetUser.absoluteNGTimes.includes("Thursday-Morning")))) {
+    // 水曜午前・木曜午前NG
+    else if (dayOfWeek === 3 && timeVal < 1200 && targetUser.absoluteNGTimes.includes("Wednesday-Morning")) {
+      score = "poor";
+      privacyReason = "相手の対応不可時間帯です。";
+    }
+    else if (dayOfWeek === 4 && timeVal < 1200 && targetUser.absoluteNGTimes.includes("Thursday-Morning")) {
       score = "poor";
       privacyReason = "相手の対応不可時間帯です。";
     }
@@ -70,8 +74,8 @@ export function scoreTimeSlots(
         score = "fair";
         privacyReason = "混雑が予想される時間帯、または休憩時間です。";
       }
-      // 水・木避けたい (TAなど)
-      else if ((dayOfWeek === 3 || dayOfWeek === 4) && targetUser.id === "ta_tanaka") {
+      // 水・木避けたい（avoidTextに水曜・木曜両方含む場合）
+      else if ((dayOfWeek === 3 || dayOfWeek === 4) && avoidText.includes("水曜") && avoidText.includes("木曜")) {
         score = "fair";
         privacyReason = "相手の研究活動のピーク時間と重なる可能性があります。";
       }
@@ -91,13 +95,13 @@ export function scoreTimeSlots(
         score = "excellent";
         privacyReason = "相手の優先面談枠（木曜午後）に合致しています。";
       }
-      // 平日昼間 (キャリアセンターなど)
-      else if (dayOfWeek >= 1 && dayOfWeek <= 5 && timeVal >= 900 && timeVal < 1700 && targetUser.id === "office_career") {
+      // 平日昼間（availTextに9:00〜17:00 or 平日の窓口時間が含まれる場合）
+      else if (dayOfWeek >= 1 && dayOfWeek <= 5 && timeVal >= 900 && timeVal < 1700 && (availText.includes("9:00〜17:00") || availText.includes("平日の窓口"))) {
         score = "excellent";
         privacyReason = "窓口の通常稼働時間帯です。";
       }
-      // 月・火の夕方 (TAなど)
-      else if ((dayOfWeek === 1 || dayOfWeek === 2) && timeVal >= 1630 && targetUser.id === "ta_tanaka") {
+      // 月・火の夕方（availTextに月曜・火曜・16:30以降が含まれる場合）
+      else if ((dayOfWeek === 1 || dayOfWeek === 2) && timeVal >= 1630 && availText.includes("月曜") && availText.includes("火曜") && availText.includes("16:30以降")) {
         score = "excellent";
         privacyReason = "相手の対応可能時間帯（放課後枠）に合致しています。";
       }
