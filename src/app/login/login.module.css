@@ -1,77 +1,493 @@
-.wrapper {
+/* ── ページ全体 ─────────────────────────────────── */
+.page {
   min-height: 100vh;
-  display: grid;
-  place-content: center;
-  background: var(--bg-primary);
-  padding: 20px;
-}
-
-.card {
-  width: 100%;
-  max-width: 420px;
-  background: var(--bg-card);
-  border: 2px solid var(--border-color);
-  border-radius: 28px;
-  padding: 48px 40px;
-  box-shadow: var(--box-shadow-card-hover);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 22px;
-  text-align: center;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 1.3rem;
-  font-weight: 800;
-  color: var(--color-primary);
-  letter-spacing: 0.01em;
-}
-
-.title {
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: var(--text-primary);
-  margin-top: -6px;
-}
-
-.desc {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  line-height: 1.7;
-  font-weight: 500;
-}
-
-.btnGoogle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  width: 100%;
-  padding: 13px 20px;
-  background: var(--bg-card);
-  border: 2px solid var(--border-color-hover);
-  border-radius: 20px;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+  background: var(--bg-secondary);
   font-family: inherit;
 }
 
-.btnGoogle:hover {
-  border-color: var(--color-primary);
-  box-shadow: 0 4px 14px rgba(107, 170, 115, 0.2);
-  transform: translateY(-1px);
+/* ── Navbar ─────────────────────────────────────── */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 24px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border-color);
 }
 
-.note {
+.navLogo {
+  font-size: 1rem;
+  font-weight: 900;
+  color: var(--color-primary);
+  letter-spacing: 0.02em;
+}
+
+.btnNavLogin {
+  padding: 8px 20px;
+  background: var(--color-primary);
+  border: none;
+  border-radius: 20px;
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.15s;
+}
+
+.btnNavLogin:hover {
+  opacity: 0.85;
+}
+
+/* ── Hero ───────────────────────────────────────── */
+.hero {
+  text-align: center;
+  padding: 72px 24px 64px;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.heroBadge {
+  display: inline-block;
+  padding: 6px 16px;
+  background: var(--color-primary-bg);
+  border: 1.5px solid rgba(112, 185, 126, 0.3);
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: 20px;
+}
+
+.heroTitle {
+  font-size: clamp(1.8rem, 5vw, 2.6rem);
+  font-weight: 900;
+  color: var(--text-primary);
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  margin: 0 0 16px;
+}
+
+.heroAccent {
+  color: var(--color-primary);
+}
+
+.heroDesc {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  margin: 0 0 32px;
+}
+
+.btnHeroLogin {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 32px;
+  background: white;
+  border: 2px solid var(--border-color);
+  border-radius: 14px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 4px 16px rgba(74, 55, 40, 0.1);
+  transition: all 0.18s ease;
+  margin-bottom: 12px;
+}
+
+.btnHeroLogin:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 6px 20px rgba(112, 185, 126, 0.2);
+  transform: translateY(-2px);
+}
+
+.heroNote {
   font-size: 0.78rem;
   color: var(--text-muted);
-  line-height: 1.65;
-  font-weight: 500;
+}
+
+/* ── セクション共通 ────────────────────────────── */
+.section {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 56px 24px;
+}
+
+.sectionAlt {
+  background: white;
+  padding: 56px 24px;
+}
+
+.sectionAlt > * {
+  max-width: 780px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.sectionLabel {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  margin-bottom: 8px;
+}
+
+.sectionTitle {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0 0 32px;
+  letter-spacing: -0.01em;
+}
+
+/* ── Flow ───────────────────────────────────────── */
+.flowSide {
+  margin-bottom: 8px;
+}
+
+.flowSideLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: rgba(112, 185, 126, 0.08);
+  border: 1.5px solid rgba(112, 185, 126, 0.2);
+  border-radius: 20px;
+  padding: 4px 12px;
+  margin-bottom: 14px;
+}
+
+.flowSteps {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.stepCard {
+  flex: 1;
+  min-width: 140px;
+  max-width: 220px;
+  background: white;
+  border: 2px solid var(--border-color);
+  border-radius: 18px;
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stepNum {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 800;
+  display: grid;
+  place-content: center;
+  flex-shrink: 0;
+}
+
+.stepIcon {
+  color: var(--color-primary);
+}
+
+.stepTitle {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.stepDesc {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.flowArrow {
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  padding-top: 32px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.flowBridge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.flowBridgeLine {
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+.flowBridgeText {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  background: var(--bg-primary);
+  border: 1.5px solid var(--border-color);
+  border-radius: 20px;
+  padding: 6px 14px;
+  flex-shrink: 0;
+}
+
+.flowResult {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+  padding: 14px 20px;
+  background: rgba(138, 180, 104, 0.1);
+  border: 2px solid rgba(138, 180, 104, 0.3);
+  border-radius: 14px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-excellent);
+}
+
+/* ── Features ───────────────────────────────────── */
+.featureGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.featureCard {
+  background: var(--bg-primary);
+  border: 2px solid var(--border-color);
+  border-radius: 18px;
+  padding: 22px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: box-shadow 0.18s, border-color 0.18s;
+}
+
+.featureCard:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 4px 16px rgba(112, 185, 126, 0.12);
+}
+
+.featureIcon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+  display: grid;
+  place-content: center;
+  border: 1.5px solid rgba(112, 185, 126, 0.25);
+}
+
+.featureTitle {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.35;
+}
+
+.featureDesc {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* ── Profile ────────────────────────────────────── */
+.profileCards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.profileCard {
+  background: white;
+  border: 2px solid var(--border-color);
+  border-radius: 18px;
+  padding: 18px 16px;
+}
+
+.profileCardTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.profileCardTitle svg {
+  color: var(--color-primary);
+}
+
+.profileList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.profileList li {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  padding-left: 12px;
+  position: relative;
+  line-height: 1.5;
+}
+
+.profileList li::before {
+  content: "·";
+  position: absolute;
+  left: 0;
+  color: var(--color-primary);
+  font-weight: 900;
+}
+
+.profileNote {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ── CTA ────────────────────────────────────────── */
+.ctaSection {
+  text-align: center;
+  padding: 72px 24px;
+  background: var(--color-primary);
+}
+
+.ctaTitle {
+  font-size: 1.7rem;
+  font-weight: 900;
+  color: white;
+  margin: 0 0 12px;
+}
+
+.ctaDesc {
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.7;
+  margin: 0 0 28px;
+}
+
+.btnCtaLogin {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 32px;
+  background: white;
+  border: none;
+  border-radius: 14px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  transition: all 0.18s ease;
+  margin-bottom: 12px;
+}
+
+.btnCtaLogin:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
+}
+
+.ctaNote {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ── Footer ─────────────────────────────────────── */
+.footer {
+  text-align: center;
+  padding: 24px;
+  background: var(--text-primary);
+}
+
+.footerLogo {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 4px;
+}
+
+.footerNote {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* ── レスポンシブ ────────────────────────────────── */
+@media (max-width: 600px) {
+  .hero {
+    padding: 48px 20px 40px;
+  }
+
+  .flowSteps {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .stepCard {
+    max-width: 100%;
+  }
+
+  .flowArrow {
+    transform: rotate(90deg);
+    padding: 4px 0;
+    justify-content: center;
+  }
+
+  .flowBridge {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .flowBridgeLine {
+    width: 1px;
+    height: 20px;
+    flex: none;
+    margin: 0 auto;
+  }
+
+  .flowBridgeText {
+    white-space: normal;
+    text-align: center;
+  }
+
+  .featureGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .profileCards {
+    grid-template-columns: 1fr;
+  }
 }
