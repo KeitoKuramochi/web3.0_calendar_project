@@ -20,7 +20,7 @@ export default function Navbar() {
   ]
 
   const handleLogout = () => {
-    clearActiveId(session?.user?.id ?? "guest")
+    clearActiveId()
     signOut({ callbackUrl: "/login" })
   }
 

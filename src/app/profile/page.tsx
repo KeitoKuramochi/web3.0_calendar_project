@@ -39,8 +39,6 @@ const DEFAULT_PROFILE: UserProfile = {
 
 export default function ProfilePage() {
   const { data: session } = useSession()
-  const userId = session?.user?.id ?? "guest"
-  const storageKey = `profile_${userId}`
 
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE)
   const [saveStatus, setSaveStatus] = useState<"idle" | "unsaved" | "saving" | "saved">("idle")
@@ -58,34 +56,37 @@ export default function ProfilePage() {
   const [newContactValue, setNewContactValue] = useState("")
 
   useEffect(() => {
-    const saved = localStorage.getItem(storageKey)
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved)
-        setProfile(parsed)
-      } catch {}
-    } else if (session?.user) {
-      // Google から取得した情報をデフォルト値として使う
-      setProfile((prev) => ({
-        ...prev,
-        name: session.user.name ?? "",
-        email: session.user.email ?? "",
-      }))
-    }
-  }, [storageKey, session])
+    fetch("/api/profile").then(async (res) => {
+      if (res.ok) {
+        const data = await res.json()
+        if (data) { setProfile(data); return }
+      }
+      if (session?.user) {
+        setProfile((prev) => ({
+          ...prev,
+          name: session.user.name ?? "",
+          email: session.user.email ?? "",
+        }))
+      }
+    })
+  }, [session])
 
   // 変更検知 → 自動保存（1.5秒後）
   useEffect(() => {
     if (!userEditedRef.current) return
     setSaveStatus("unsaved")
     clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(() => {
+    timerRef.current = setTimeout(async () => {
       setSaveStatus("saving")
-      localStorage.setItem(storageKey, JSON.stringify({ ...profile, id: userId }))
+      await fetch("/api/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profile),
+      })
       setSaveStatus("saved")
     }, 1500)
     return () => clearTimeout(timerRef.current)
-  }, [profile, storageKey, userId])
+  }, [profile])
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -175,11 +176,15 @@ export default function ProfilePage() {
     }))
   }
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     clearTimeout(timerRef.current)
     setSaveStatus("saving")
-    localStorage.setItem(storageKey, JSON.stringify({ ...profile, id: userId }))
+    await fetch("/api/profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(profile),
+    })
     setSaveStatus("saved")
   }
 
@@ -291,8 +296,8 @@ export default function ProfilePage() {
             <label className={styles.label}>公開プロフィール用の自己紹介文</label>
             <p className={styles.fieldHint}>
               公開プロフィールページ（
-              <Link href={`/u/${userId}`} target="_blank" className={styles.profileLink}>
-                /u/{userId}
+              <Link href={`/u/${session?.user?.id ?? ""}`} target="_blank" className={styles.profileLink}>
+                /u/{session?.user?.id ?? ""}
               </Link>
               ）に表示される自己紹介文です。相談を考えている方が最初に目にします。
             </p>

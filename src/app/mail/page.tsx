@@ -6,7 +6,6 @@ import { Mail, MessageSquare, ShieldCheck, AlertCircle, CheckCircle2, Copy, Part
 import styles from "./mail.module.css"
 import { generateEmail, checkEmail } from "@/lib/ai"
 import { DUMMY_USERS } from "@/lib/dummyData"
-import { useSession } from "next-auth/react"
 import { ConsultRequest, UserProfile, MailCheckResult, MailIssue, OutputFormat } from "@/types"
 import StepIndicator from "@/components/StepIndicator/StepIndicator"
 import { getActiveConsultation, upsertConsultation, clearActiveId } from "@/lib/storage"
@@ -21,8 +20,6 @@ const FORMAT_OPTIONS: { value: OutputFormat; label: string; icon: React.ReactNod
 
 export default function MailPage() {
   const router = useRouter()
-  const { data: session } = useSession()
-  const userId = session?.user?.id ?? "guest"
 
   const [requester, setRequester] = useState<UserProfile | null>(null)
   const [targetUser, setTargetUser] = useState<UserProfile | null>(null)
@@ -42,26 +39,29 @@ export default function MailPage() {
 
   // データロードと初期メール生成
   useEffect(() => {
-    const active = getActiveConsultation(userId)
-    if (!active?.request || !active?.match) {
-      router.replace("/request")
-      return
-    }
+    (async () => {
+      const active = await getActiveConsultation()
+      if (!active?.request || !active?.match) {
+        router.replace("/request")
+        return
+      }
 
-    const sender = loadProfile()
-    setRequester(sender)
+      const profileRes = await fetch("/api/profile")
+      const sender: UserProfile = profileRes.ok ? await profileRes.json() : getDefaultSender()
+      setRequester(sender)
 
-    const req = active.request
-    setRequest(req)
+      const req = active.request
+      setRequest(req)
 
-    const match = active.match
-    setMatchData(match)
+      const match = active.match
+      setMatchData(match)
 
-    const target = DUMMY_USERS.find((u) => u.id === match.targetUserId) || DUMMY_USERS[1]
-    setTargetUser(target)
+      const target = DUMMY_USERS.find((u) => u.id === match.targetUserId) || DUMMY_USERS[1]
+      setTargetUser(target)
 
-    upsertConsultation({ ...active, status: "composed" }, userId)
-    regenerate(sender, target, req, match, "email")
+      await upsertConsultation({ ...active, status: "composed" })
+      regenerate(sender, target, req, match, "email")
+    })()
   }, [])
 
   // フォーマット切替時に再生成
@@ -132,40 +132,17 @@ export default function MailPage() {
     })
   }
 
-  const handleGoDashboard = () => {
-    const active = getActiveConsultation(userId)
+  const handleGoDashboard = async () => {
+    const active = await getActiveConsultation()
     if (active) {
-      upsertConsultation({
+      await upsertConsultation({
         ...active,
         status: "sent",
         mail: { subject, body, format: outputFormat },
-      }, userId)
+      })
     }
-    clearActiveId(userId)
+    clearActiveId()
     router.push("/")
-  }
-
-  // ローカルストレージから読み込み
-  const loadProfile = (): UserProfile => {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i)
-      if (key?.startsWith("profile_")) {
-        try { return JSON.parse(localStorage.getItem(key)!) } catch {}
-      }
-    }
-    return getDefaultSender()
-  }
-
-  const loadRequest = (): ConsultRequest => {
-    const saved = localStorage.getItem("consult_request")
-    if (saved) try { return JSON.parse(saved) } catch {}
-    return getDefaultRequest()
-  }
-
-  const loadMatch = () => {
-    const saved = localStorage.getItem("consult_match")
-    if (saved) try { return JSON.parse(saved) } catch {}
-    return getDefaultMatch()
   }
 
   const getDefaultSender = (): UserProfile => ({

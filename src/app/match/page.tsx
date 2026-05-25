@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useSession } from "next-auth/react"
 import { Users, CalendarDays, ShieldCheck, Mail } from "lucide-react"
 import styles from "./match.module.css"
 import { selectCandidates, scoreTimeSlots, analyzeProfile } from "@/lib/ai"
@@ -14,8 +13,6 @@ import { getActiveConsultation, upsertConsultation } from "@/lib/storage"
 
 export default function MatchPage() {
   const router = useRouter()
-  const { data: session } = useSession()
-  const userId = session?.user?.id ?? "guest"
 
   const [request, setRequest] = useState<ConsultRequest | null>(null)
   const [candidates, setCandidates] = useState<any[]>([])
@@ -25,22 +22,23 @@ export default function MatchPage() {
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]) // 複数選択
 
   useEffect(() => {
-    const active = getActiveConsultation(userId)
-    if (!active?.request) { router.replace("/request"); return }
-    const reqData = active.request
-    setRequest(reqData)
+    getActiveConsultation().then((active) => {
+      if (!active?.request) { router.replace("/request"); return }
+      const reqData = active.request
+      setRequest(reqData)
 
-    const keywords = reqData.consultTopics?.length
-      ? reqData.consultTopics
-      : reqData.title
-      ? [reqData.title]
-      : ["研究室選び"]
-    const matched = selectCandidates(keywords, reqData.freeTextInput || "")
-    setCandidates(matched)
+      const keywords = reqData.consultTopics?.length
+        ? reqData.consultTopics
+        : reqData.title
+        ? [reqData.title]
+        : ["研究室選び"]
+      const matched = selectCandidates(keywords, reqData.freeTextInput || "")
+      setCandidates(matched)
 
-    if (matched.length > 0) {
-      handleSelectCandidate(matched[0].user.id, reqData)
-    }
+      if (matched.length > 0) {
+        handleSelectCandidate(matched[0].user.id, reqData)
+      }
+    })
   }, [])
 
   const getDefault = (): ConsultRequest => ({
@@ -88,9 +86,9 @@ export default function MatchPage() {
     return `${base} ${styles.scorePoor}`
   }
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!selectedCandidateId || selectedSlots.length === 0) return
-    const active = getActiveConsultation(userId)
+    const active = await getActiveConsultation()
     if (!active) return
     const duration = request?.duration ?? 30
     const matchData = {
@@ -99,7 +97,7 @@ export default function MatchPage() {
       selectedTimeSlotsRaw: selectedSlots,
       selectedTimeSlot: formatJaWithEnd(selectedSlots[0], duration),
     }
-    upsertConsultation({ ...active, status: "matched", match: matchData }, userId)
+    await upsertConsultation({ ...active, status: "matched", match: matchData })
     router.push("/mail")
   }
 

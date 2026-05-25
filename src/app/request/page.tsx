@@ -27,8 +27,6 @@ const TIME_OPTIONS = genTimeOptions()
 
 export default function RequestPage() {
   const router = useRouter()
-  const { data: session } = useSession()
-  const userId = session?.user?.id ?? "guest"
 
   const [freeText, setFreeText] = useState("")
   const [title, setTitle] = useState("")
@@ -59,9 +57,10 @@ export default function RequestPage() {
   const [activeCount, setActiveCount] = useState(0)
 
   useEffect(() => {
-    const n = getConsultations(userId).filter((r) => r.status !== "sent").length
-    setActiveCount(n)
-  }, [userId])
+    getConsultations().then((list) => {
+      setActiveCount(list.filter((r) => r.status !== "sent").length)
+    })
+  }, [])
 
   const handleFreeTextBlur = () => {
     if (!freeText.trim()) return
@@ -126,7 +125,7 @@ export default function RequestPage() {
     setAiNotice(`デモ入力。AIが「${parsed.extractedTitle}」、${parsed.extractedDuration}分、対面を推測しました。`)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const errs: { title?: string; slots?: string } = {}
     const resolvedTitle = title.trim() || selectedTopics[0] || ""
@@ -148,8 +147,8 @@ export default function RequestPage() {
       consultTopics: [...selectedTopics],
     }
     const now = new Date().toISOString()
-    upsertConsultation({ id, status: "draft", createdAt: now, updatedAt: now, request: requestData }, userId)
-    setActiveId(id, userId)
+    await upsertConsultation({ id, status: "draft", createdAt: now, updatedAt: now, request: requestData })
+    setActiveId(id)
     router.push("/match")
   }
 
