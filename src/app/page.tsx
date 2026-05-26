@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
-import { Plus, ArrowRight, Clock, CheckCircle2, Trash2, User, CalendarDays, Send, RefreshCw, Copy } from "lucide-react"
+import { Plus, ArrowRight, Clock, CheckCircle2, Trash2, User, CalendarDays, Send, RefreshCw, Copy, Share2 } from "lucide-react"
 import styles from "./page.module.css"
 import { getConsultations, deleteConsultation, upsertConsultation, setActiveId, clearActiveId } from "@/lib/storage"
 import type { ConsultationRecord, ConsultationStatus, UserProfile } from "@/types"
@@ -330,6 +330,18 @@ export default function Home() {
                               <Copy size={12} />
                               {recopyToast === record.id ? "コピーしました！" : "もう一度コピー"}
                             </button>
+                            {record.scheduleToken && typeof navigator !== "undefined" && "share" in navigator && (
+                              <button
+                                className={styles.btnRecopy}
+                                onClick={() => {
+                                  const url = `${process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin}/schedule/${record.scheduleToken}`
+                                  navigator.share({ url, title: record.request?.title ?? "日程確定リンク" })
+                                }}
+                              >
+                                <Share2 size={12} />
+                                送る
+                              </button>
+                            )}
                           </div>
                         </div>
                       )
@@ -474,6 +486,20 @@ export default function Home() {
                               <Copy size={12} />
                               {recopyToast === record.id ? "コピーしました！" : "もう一度コピー"}
                             </button>
+                            {typeof navigator !== "undefined" && "share" in navigator && record.mail && (
+                              <button
+                                className={styles.btnRecopy}
+                                onClick={() => {
+                                  const text = record.mail!.format === "email" && record.mail!.subject
+                                    ? `${record.mail!.subject}\n\n${record.mail!.body}`
+                                    : record.mail!.body
+                                  navigator.share({ text, title: record.request?.title })
+                                }}
+                              >
+                                <Share2 size={12} />
+                                送る
+                              </button>
+                            )}
                           </div>
                         </div>
                       )

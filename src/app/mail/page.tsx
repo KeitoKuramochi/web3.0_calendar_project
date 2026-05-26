@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Mail, MessageSquare, ShieldCheck, AlertCircle, CheckCircle2, Copy, PartyPopper, Check, HelpCircle, ArrowLeft, UserX } from "lucide-react"
+import { Mail, MessageSquare, ShieldCheck, AlertCircle, CheckCircle2, Copy, PartyPopper, Check, HelpCircle, ArrowLeft, UserX, Share2 } from "lucide-react"
 import styles from "./mail.module.css"
 import { generateEmail, checkEmail } from "@/lib/ai"
 import { ConsultRequest, UserProfile, MailCheckResult, MailIssue, OutputFormat } from "@/types"
@@ -499,13 +499,14 @@ export default function MailPage() {
                   <button
                     className={`${styles.btnCopyLink} ${linkCopied ? styles.btnCopyLinkDone : ""}`}
                     onClick={() => {
-                      navigator.clipboard.writeText(scheduleUrlForShare).then(() => {
+                      const fullText = subject ? `${subject}\n\n${body}` : body
+                      navigator.clipboard.writeText(fullText).then(() => {
                         setLinkCopied(true)
                         setTimeout(() => setLinkCopied(false), 2000)
                       })
                     }}
                   >
-                    {linkCopied ? <><Check size={14} />コピー済み</> : <><Copy size={14} />リンクをコピー</>}
+                    {linkCopied ? <><Check size={14} />コピー済み</> : <><Copy size={14} />全文をコピー</>}
                   </button>
                   <a
                     href={`mailto:${targetUser?.email ?? ""}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`}
@@ -514,6 +515,17 @@ export default function MailPage() {
                     <Mail size={14} />
                     メールで開く
                   </a>
+                  {typeof navigator !== "undefined" && "share" in navigator && (
+                    <button
+                      className={styles.btnShareLink}
+                      onClick={() => {
+                        navigator.share({ url: scheduleUrlForShare!, title: request?.title ?? "日程確定リンク" })
+                      }}
+                    >
+                      <Share2 size={14} />
+                      その他
+                    </button>
+                  )}
                 </div>
               </div>
             )}
