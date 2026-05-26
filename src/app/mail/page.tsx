@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Mail, MessageSquare, ShieldCheck, AlertCircle, CheckCircle2, Copy, PartyPopper, Check, HelpCircle, ArrowLeft, UserX, Share2 } from "lucide-react"
+import { Mail, MessageSquare, ShieldCheck, AlertCircle, CheckCircle2, Copy, PartyPopper, Check, HelpCircle, ArrowLeft, UserX } from "lucide-react"
 import styles from "./mail.module.css"
 import { generateEmail, checkEmail } from "@/lib/ai"
 import { ConsultRequest, UserProfile, MailCheckResult, MailIssue, OutputFormat } from "@/types"
@@ -163,7 +163,7 @@ export default function MailPage() {
       await new Promise((r) => setTimeout(r, 50))
     }
     const latestBody = bodyRef.current?.value ?? body
-    const text = subject ? `件名: ${subject}\n\n${latestBody}` : latestBody
+    const text = (outputFormat === "email" && subject) ? `${subject}\n\n${latestBody}` : latestBody
     navigator.clipboard.writeText(text).then(() => {
       setShowToast(true)
       setTimeout(() => {
@@ -507,17 +507,13 @@ export default function MailPage() {
                   >
                     {linkCopied ? <><Check size={14} />コピー済み</> : <><Copy size={14} />リンクをコピー</>}
                   </button>
-                  {typeof navigator !== "undefined" && "share" in navigator && (
-                    <button
-                      className={styles.btnShareLink}
-                      onClick={() => {
-                        navigator.share({ url: scheduleUrlForShare, title: `${request?.title ?? "日程確定リンク"}` })
-                      }}
-                    >
-                      <Share2 size={14} />
-                      送る
-                    </button>
-                  )}
+                  <a
+                    href={`mailto:${targetUser?.email ?? ""}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`}
+                    className={styles.btnShareLink}
+                  >
+                    <Mail size={14} />
+                    メールで開く
+                  </a>
                 </div>
               </div>
             )}
