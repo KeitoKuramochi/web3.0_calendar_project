@@ -2,6 +2,7 @@ import { db } from "@/lib/db"
 import { consultations } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
+import { sendConfirmedNotification, sendReschedulingNotification } from "@/lib/email"
 
 export async function GET(_req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
@@ -45,6 +46,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     await db.update(consultations)
       .set({ data: updated, status: "rescheduling", updatedAt: new Date() })
       .where(eq(consultations.scheduleToken, token))
+
+    if (record.senderEmail) {
+      sendReschedulingNotification({
+        toEmail: record.senderEmail,
+        toName: record.senderDisplayName ?? "送信者",
+        title: record.request?.title ?? "ご面談",
+        recipientNote: note,
+      }).catch(() => {})
+    }
     return NextResponse.json({ ok: true })
   }
 
@@ -67,5 +77,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     .set({ data: updated, status: "confirmed", updatedAt: new Date() })
     .where(eq(consultations.scheduleToken, token))
 
+  if (record.senderEmail) {
+    sendConfirmedNotification({
+      toEmail: record.senderEmail,
+      toName: record.senderDisplayName ?? "送信者",
+      title: record.request?.title ?? "ご面談",
+      confirmedSlot: slot,
+      recipientName: updated.recipientName,
+      recipientContact: updated.recipientContact,
+    }).catch(() => {})
+  }
   return NextResponse.json({ ok: true })
 }

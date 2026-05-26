@@ -22,11 +22,18 @@ export async function POST(req: Request) {
   const record = await req.json()
   const now = new Date()
 
+  // 送信者のGoogle認証メールをデータに埋め込む（通知送信用）
+  const enriched = {
+    ...record,
+    senderEmail: record.senderEmail ?? session.user.email ?? null,
+    senderDisplayName: record.senderDisplayName ?? session.user.name ?? null,
+  }
+
   await db.insert(consultations)
     .values({
-      id: record.id,
+      id: enriched.id,
       userId: session.user.id,
-      data: record,
+      data: enriched,
       status: record.status,
       scheduleToken: record.scheduleToken ?? null,
       updatedAt: now,
@@ -34,9 +41,9 @@ export async function POST(req: Request) {
     .onConflictDoUpdate({
       target: consultations.id,
       set: {
-        data: record,
-        status: record.status,
-        scheduleToken: record.scheduleToken ?? null,
+        data: enriched,
+        status: enriched.status,
+        scheduleToken: enriched.scheduleToken ?? null,
         updatedAt: now,
       },
     })

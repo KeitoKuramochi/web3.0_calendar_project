@@ -133,4 +133,5 @@ export interface ConsultationRecord {
   recipientName?: string      // 受信者が入力した名前・ニックネーム
   recipientContact?: string   // 受信者が入力した連絡先（Discord名・メールなど）
   senderDisplayName?: string  // 確定リンクで表示する送信者名
+  senderEmail?: string        // 通知送信先（Google認証メール）
 }
