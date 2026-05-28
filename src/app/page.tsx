@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
-import { Plus, ArrowRight, Clock, CheckCircle2, Trash2, User, CalendarDays, Send, RefreshCw, Copy, Share2, Mail } from "lucide-react"
+import { Plus, ArrowRight, Clock, CheckCircle2, Trash2, User, CalendarDays, Send, RefreshCw, Copy, Share2, Mail, Pencil, Bookmark } from "lucide-react"
 import styles from "./page.module.css"
 import { getConsultations, deleteConsultation, upsertConsultation, setActiveId, clearActiveId } from "@/lib/storage"
 import type { ConsultationRecord, ConsultationStatus, UserProfile } from "@/types"
@@ -110,6 +110,29 @@ export default function Home() {
     router.push("/match")
   }
 
+  const handleCopyAndSend = async (record: ConsultationRecord) => {
+    if (!record.mail) return
+    const text = record.mail.format === "email" && record.mail.subject
+      ? `件名: ${record.mail.subject}\n\n${record.mail.body}`
+      : record.mail.body
+    navigator.clipboard.writeText(text).then(async () => {
+      await upsertConsultation({ ...record, status: "sent", updatedAt: new Date().toISOString() })
+      getConsultations().then(setRecords)
+      setRecopyToast(record.id)
+      setTimeout(() => setRecopyToast(null), 2000)
+    })
+  }
+
+  const handleMarkSent = async (record: ConsultationRecord) => {
+    await upsertConsultation({ ...record, status: "sent", updatedAt: new Date().toISOString() })
+    getConsultations().then(setRecords)
+  }
+
+  const handleEditComposed = (record: ConsultationRecord) => {
+    setActiveId(record.id)
+    router.push("/mail")
+  }
+
   const handleRecopy = (record: ConsultationRecord) => {
     if (!record.mail) return
     const text = record.mail.format === "email" && record.mail.subject
@@ -137,7 +160,8 @@ export default function Home() {
     return `${d.getMonth() + 1}月${d.getDate()}日`
   }
 
-  const active = records.filter((r) => !["sent", "waiting", "confirmed", "rescheduling"].includes(r.status))
+  const active = records.filter((r) => !["sent", "waiting", "confirmed", "rescheduling", "composed"].includes(r.status))
+  const readyToSend = records.filter((r) => r.status === "composed")
   const rescheduling = records.filter((r) => r.status === "rescheduling")
   const waiting = records.filter((r) => r.status === "waiting")
   const confirmed = records.filter((r) => r.status === "confirmed").slice(0, 5)
@@ -242,6 +266,106 @@ export default function Home() {
                     <button className={styles.btnResume} onClick={() => handleResume(record)}>
                       {meta.actionLabel}
                       <ArrowRight size={15} />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* 送信準備完了 */}
+      {readyToSend.length > 0 && (
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>
+            <Bookmark size={16} />
+            送信準備完了
+          </h2>
+          <div className={styles.cardList}>
+            {readyToSend.map((record) => {
+              const targetName = getTargetName(record)
+              const targetEmail = getTargetEmail(record)
+              return (
+                <div key={record.id} className={`${styles.consultCard} ${styles.composedCard}`}>
+                  <div className={styles.consultCardTop}>
+                    <span className={`${styles.statusBadge} ${styles.composed}`}>準備完了</span>
+                    <button className={styles.btnDelete} onClick={() => setDeleteConfirm(record.id)} title="削除">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                  <div className={styles.consultCardBody}>
+                    <h3 className={styles.consultTitle}>{record.request?.title || "（タイトルなし）"}</h3>
+                    <div className={styles.consultMeta}>
+                      {targetName && (
+                        <span className={styles.consultMetaItem}>
+                          <User size={13} />
+                          {targetName}
+                        </span>
+                      )}
+                      {targetEmail && (
+                        <a href={`mailto:${targetEmail}`} className={styles.consultMetaItem} style={{ textDecoration: "none" }}>
+                          <Mail size={13} />
+                          {targetEmail}
+                        </a>
+                      )}
+                      <span className={styles.consultMetaItem}>
+                        <CalendarDays size={13} />
+                        {formatDate(record.updatedAt)}保存
+                      </span>
+                    </div>
+                    {record.mail && (() => {
+                      const isExpanded = expandedMail.has(record.id)
+                      const lines = record.mail.body.split("\n").filter(l => l.trim())
+                      const preview = lines.slice(0, 3).join("\n")
+                      const hasMore = lines.length > 3
+                      return (
+                        <div className={styles.mailPreview}>
+                          {record.mail.format === "email" && record.mail.subject && (
+                            <div className={styles.mailPreviewSubject}>件名: {record.mail.subject}</div>
+                          )}
+                          <div className={isExpanded ? styles.mailPreviewBodyFull : styles.mailPreviewBody}>
+                            {isExpanded ? record.mail.body : preview}
+                          </div>
+                          {hasMore && (
+                            <div className={styles.mailPreviewActions}>
+                              <button
+                                className={styles.btnExpandMail}
+                                onClick={() => setExpandedMail(prev => {
+                                  const next = new Set(prev)
+                                  isExpanded ? next.delete(record.id) : next.add(record.id)
+                                  return next
+                                })}
+                              >
+                                {isExpanded ? "閉じる ▲" : "全文を見る ▼"}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
+                  </div>
+                  <div className={styles.composedCardFooter}>
+                    <button
+                      className={`${styles.btnSendNow} ${recopyToast === record.id ? styles.btnRecopyDone : ""}`}
+                      onClick={() => handleCopyAndSend(record)}
+                    >
+                      <Copy size={13} />
+                      {recopyToast === record.id ? "コピーしました！" : "コピーして送信"}
+                    </button>
+                    {targetEmail && record.mail && (
+                      <a
+                        href={`mailto:${targetEmail}?subject=${encodeURIComponent(record.mail.subject ?? "")}&body=${encodeURIComponent(record.mail.body)}`}
+                        className={styles.btnMailOpen}
+                        onClick={() => handleMarkSent(record)}
+                      >
+                        <Mail size={13} />
+                        メールで送る
+                      </a>
+                    )}
+                    <button className={styles.btnEdit} onClick={() => handleEditComposed(record)}>
+                      <Pencil size={13} />
+                      編集
                     </button>
                   </div>
                 </div>

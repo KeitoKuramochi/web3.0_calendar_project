@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
@@ -62,12 +62,33 @@ export default function RequestPage() {
   const [errors, setErrors] = useState<{ title?: string; slots?: string }>({})
   const [activeCount, setActiveCount] = useState(0)
   const [saveDraftToast, setSaveDraftToast] = useState(false)
+  const [autoSaveLabel, setAutoSaveLabel] = useState<string | null>(null)
+  const autoSaveDraftRef = useRef<{ id: string; createdAt: string } | null>(null)
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     getConsultations().then((list) => {
       setActiveCount(list.filter((r) => r.status !== "sent").length)
     })
   }, [])
+
+  // 自動保存（3秒デバウンス）
+  useEffect(() => {
+    const hasEnoughData = (title.trim() !== "" || selectedTopics.length > 0) && availableTimes.length > 0
+    if (!hasEnoughData) return
+    setAutoSaveLabel("変更あり")
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    autoSaveTimerRef.current = setTimeout(async () => {
+      const isFirst = !autoSaveDraftRef.current
+      const now = new Date().toISOString()
+      if (isFirst) autoSaveDraftRef.current = { id: `req_${Date.now()}`, createdAt: now }
+      const { id, createdAt } = autoSaveDraftRef.current!
+      await upsertConsultation({ id, status: "draft", createdAt, updatedAt: now, request: buildRequestData(id) })
+      setActiveId(id)
+      setAutoSaveLabel("自動保存済み")
+    }, 3000)
+    return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current) }
+  }, [title, recipientName, recipientEmail, recipientRole, recipientDept, availableTimes, duration, format, urgency, freeText, selectedTopics])
 
   const handleFreeTextBlur = () => {
     if (!freeText.trim()) return
@@ -178,9 +199,10 @@ export default function RequestPage() {
     if (Object.keys(errs).length > 0) { setErrors(errs); return }
     setErrors({})
 
-    const id = `req_${Date.now()}`
     const now = new Date().toISOString()
-    await upsertConsultation({ id, status: "draft", createdAt: now, updatedAt: now, request: buildRequestData(id) })
+    const id = autoSaveDraftRef.current?.id ?? `req_${Date.now()}`
+    const createdAt = autoSaveDraftRef.current?.createdAt ?? now
+    await upsertConsultation({ id, status: "draft", createdAt, updatedAt: now, request: buildRequestData(id) })
     setActiveId(id)
     router.push("/match")
   }
@@ -212,7 +234,12 @@ export default function RequestPage() {
         </div>
       )}
 
-      <div style={{ textAlign: "right" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        {autoSaveLabel ? (
+          <span style={{ fontSize: "0.78rem", fontWeight: 600, color: autoSaveLabel === "自動保存済み" ? "var(--color-excellent)" : "var(--text-muted)" }}>
+            {autoSaveLabel === "自動保存済み" ? "✓ 自動保存済み" : "・・・"}
+          </span>
+        ) : <span />}
         <button type="button" onClick={loadPreset} className={styles.btnDemoText}>
           サンプルを入力してみる
         </button>

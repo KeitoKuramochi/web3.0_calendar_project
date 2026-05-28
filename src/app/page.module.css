@@ -683,3 +683,80 @@
     justify-content: center;
   }
 }
+
+.composedCard {
+  border-color: rgba(78, 191, 173, 0.3);
+  background: rgba(78, 191, 173, 0.03);
+}
+
+.composedCardFooter {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.btnSendNow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--color-primary);
+  border: none;
+  border-radius: 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: white;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+  box-shadow: 0 3px 8px rgba(112, 185, 126, 0.25);
+}
+
+.btnSendNow:hover {
+  background: #5da36b;
+  transform: translateY(-1px);
+}
+
+.btnMailOpen {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: none;
+  border: 1.5px solid var(--color-primary);
+  border-radius: 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: none;
+  transition: all var(--transition-fast);
+}
+
+.btnMailOpen:hover {
+  background: var(--color-primary-bg);
+}
+
+.btnEdit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: none;
+  border: 1.5px solid var(--border-color);
+  border-radius: 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+  margin-left: auto;
+}
+
+.btnEdit:hover {
+  border-color: var(--border-color-hover);
+  color: var(--text-primary);
+}

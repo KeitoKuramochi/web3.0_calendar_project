@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Mail, MessageSquare, ShieldCheck, AlertCircle, CheckCircle2, Copy, PartyPopper, Check, HelpCircle, ArrowLeft, UserX, Share2 } from "lucide-react"
+import { Mail, MessageSquare, ShieldCheck, AlertCircle, CheckCircle2, Copy, PartyPopper, Check, HelpCircle, ArrowLeft, UserX, Share2, Bookmark } from "lucide-react"
 import styles from "./mail.module.css"
 import { generateEmail, checkEmail } from "@/lib/ai"
 import { ConsultRequest, UserProfile, MailCheckResult, MailIssue, OutputFormat } from "@/types"
@@ -38,6 +38,8 @@ export default function MailPage() {
   const [checkResult, setCheckResult] = useState<MailCheckResult>({ passed: true, issues: [] })
 
   const [showToast, setShowToast] = useState(false)
+  const [showSaveLaterToast, setShowSaveLaterToast] = useState(false)
+  const [mailRestored, setMailRestored] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [activeIssueIdx, setActiveIssueIdx] = useState<number | null>(null)
   const [flashTextarea, setFlashTextarea] = useState(false)
@@ -87,7 +89,18 @@ export default function MailPage() {
       }
       setIsFirstContact(firstContact)
 
-      await upsertConsultation({ ...active, status: "composed" })
+      // 保存済みの文面があれば復元（"保存して後で送る"で保存した場合）
+      if (active.mail?.body) {
+        setOutputFormat(active.mail.format)
+        setSubject(active.mail.subject ?? "")
+        setBody(active.mail.body)
+        setCheckResult(
+          active.mail.format === "email"
+            ? checkEmail(active.mail.body, target)
+            : { passed: true, issues: [] }
+        )
+        setMailRestored(true)
+      }
     })()
   }, [])
 
@@ -183,6 +196,23 @@ export default function MailPage() {
         setShowSuccessModal(true)
       }, 1500)
     })
+  }
+
+  const handleSaveLater = async () => {
+    if (!outputFormat || !body.trim()) return
+    const active = await getActiveConsultation()
+    if (!active) return
+    await upsertConsultation({
+      ...active,
+      status: "composed",
+      mail: { subject, body, format: outputFormat },
+    })
+    setShowSaveLaterToast(true)
+    setTimeout(() => {
+      setShowSaveLaterToast(false)
+      clearActiveId()
+      router.push("/")
+    }, 1200)
   }
 
   const handleGoDashboard = async () => {
@@ -387,6 +417,23 @@ export default function MailPage() {
               </div>
             ) : (
               <>
+                {mailRestored && (
+                  <div className={styles.restoreBanner}>
+                    <span>保存済みの文面を読み込みました</span>
+                    <button
+                      type="button"
+                      className={styles.restoreBannerBtn}
+                      onClick={() => {
+                        setMailRestored(false)
+                        if (requester && targetUser && request && matchData && outputFormat) {
+                          regenerate(requester, targetUser, request, matchData, outputFormat, undefined, isFirstContact, isRescheduling, recipientNote)
+                        }
+                      }}
+                    >
+                      再生成する
+                    </button>
+                  </div>
+                )}
                 {isEmailFormat && (
                   <input
                     type="text"
@@ -407,13 +454,15 @@ export default function MailPage() {
             )}
 
             <div className={styles.editorFooter}>
-              <span style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>
-                {!outputFormat
-                  ? "フォーマットを選ぶとメッセージが生成されます"
-                  : isEmailFormat
-                    ? "コピーしてメーラーに貼り付けて送信してください。"
-                    : "コピーして各アプリに貼り付けてください。"}
-              </span>
+              <button
+                onClick={handleSaveLater}
+                disabled={!outputFormat || !body.trim()}
+                className={styles.btnSaveLater}
+                title="文面を保存してダッシュボードへ戻る"
+              >
+                <Bookmark size={15} />
+                後で送る
+              </button>
               <button
                 onClick={handleCopy}
                 disabled={!outputFormat}
@@ -538,6 +587,13 @@ export default function MailPage() {
         </div>
       )}
 
+      {showSaveLaterToast && (
+        <div className={styles.saveLaterToast}>
+          <Bookmark size={16} />
+          <span>文面を保存しました。ダッシュボードからいつでも送れます。</span>
+        </div>
+      )}
+
       {showSuccessModal && (
         <div className={styles.successOverlay}>
           <div className={`${styles.successCard} glass-card`}>
@@ -588,6 +644,14 @@ export default function MailPage() {
               </div>
             )}
 
+            <a
+              href={`mailto:${recipientEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`}
+              className={styles.btnMailDirect}
+              onClick={handleGoDashboard}
+            >
+              <Mail size={15} />
+              メールアプリで開いて送る
+            </a>
             <button onClick={handleGoDashboard} className={styles.btnDashboard}>
               ダッシュボードへ戻る
             </button>
