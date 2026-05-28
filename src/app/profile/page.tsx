@@ -54,6 +54,12 @@ export default function ProfilePage() {
   const [newContactLabel, setNewContactLabel] = useState("")
   const [newContactValue, setNewContactValue] = useState("")
 
+  // 連絡先編集フォームの state
+  const [editingContactIndex, setEditingContactIndex] = useState<number | null>(null)
+  const [editContactType, setEditContactType] = useState<ContactType>("discord")
+  const [editContactLabel, setEditContactLabel] = useState("")
+  const [editContactValue, setEditContactValue] = useState("")
+
   useEffect(() => {
     fetch("/api/profile").then(async (res) => {
       if (res.ok) {
@@ -175,6 +181,35 @@ export default function ProfilePage() {
     }))
   }
 
+  const startEditContact = (index: number) => {
+    const m = (profile.contactMethods ?? [])[index]
+    if (!m) return
+    setEditingContactIndex(index)
+    setEditContactType(m.type)
+    setEditContactLabel(m.label)
+    setEditContactValue(m.value)
+    setShowContactForm(false)
+  }
+
+  const saveEditContact = () => {
+    if (editingContactIndex === null || !editContactValue.trim()) return
+    markEdited()
+    const defaultLabel = CONTACT_TYPE_OPTIONS.find((o) => o.value === editContactType)?.label ?? editContactType
+    const updated: ContactMethod = {
+      type: editContactType,
+      label: editContactLabel.trim() || defaultLabel,
+      value: editContactValue.trim(),
+    }
+    setProfile((prev) => {
+      const methods = [...(prev.contactMethods ?? [])]
+      methods[editingContactIndex] = updated
+      return { ...prev, contactMethods: methods }
+    })
+    setEditingContactIndex(null)
+  }
+
+  const cancelEditContact = () => setEditingContactIndex(null)
+
   const loadPreset = () => {
     markEdited()
     setProfile((prev) => ({
@@ -266,13 +301,47 @@ export default function ProfilePage() {
             {/* 登録済み連絡先 */}
             {(profile.contactMethods ?? []).length > 0 && (
               <div className={styles.contactChipList}>
-                {(profile.contactMethods ?? []).map((m, i) => (
-                  <span key={i} className={styles.contactChip}>
-                    <span className={styles.contactChipLabel}>{m.label}</span>
-                    <span className={styles.contactChipValue}>{m.value}</span>
-                    <button type="button" onClick={() => removeContactMethod(i)} className={styles.removeBtn}><X size={11} /></button>
-                  </span>
-                ))}
+                {(profile.contactMethods ?? []).map((m, i) =>
+                  editingContactIndex === i ? (
+                    <div key={i} className={styles.contactEditForm}>
+                      <select
+                        value={editContactType}
+                        onChange={(e) => { setEditContactType(e.target.value as ContactType); setEditContactLabel("") }}
+                        className={styles.contactTypeSelect}
+                      >
+                        {CONTACT_TYPE_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        value={editContactLabel}
+                        onChange={(e) => setEditContactLabel(e.target.value)}
+                        className={styles.input}
+                        placeholder={`表示名（省略可）`}
+                        style={{ flex: "1", minWidth: 80 }}
+                      />
+                      <input
+                        type="text"
+                        value={editContactValue}
+                        onChange={(e) => setEditContactValue(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveEditContact() } }}
+                        className={styles.input}
+                        placeholder={CONTACT_TYPE_OPTIONS.find((o) => o.value === editContactType)?.placeholder}
+                        style={{ flex: "2", minWidth: 120 }}
+                        autoFocus
+                      />
+                      <button type="button" onClick={saveEditContact} className={styles.btnAddFree}>保存</button>
+                      <button type="button" onClick={cancelEditContact} className={styles.btnCancelContact}><X size={14} /></button>
+                    </div>
+                  ) : (
+                    <span key={i} className={styles.contactChip} onClick={() => startEditContact(i)} title="タップして編集" style={{ cursor: "pointer" }}>
+                      <span className={styles.contactChipLabel}>{m.label}</span>
+                      <span className={styles.contactChipValue}>{m.value}</span>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); removeContactMethod(i) }} className={styles.removeBtn}><X size={11} /></button>
+                    </span>
+                  )
+                )}
               </div>
             )}
 
