@@ -785,3 +785,57 @@
 .btnMailDirect:hover {
   background: var(--color-primary-bg);
 }
+
+/* プロンプト指示で再生成 */
+.instructionRow {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.instructionInput {
+  flex: 1;
+  padding: 9px 14px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-color);
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-size: 0.83rem;
+  font-family: inherit;
+  transition: border-color var(--transition-fast);
+  outline: none;
+}
+
+.instructionInput:focus {
+  border-color: var(--color-secondary);
+}
+
+.instructionInput::placeholder {
+  color: var(--text-muted);
+}
+
+.btnInstruction {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  background: var(--bg-primary);
+  border: 1.5px solid var(--color-secondary);
+  border-radius: 12px;
+  color: var(--color-secondary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+
+.btnInstruction:hover {
+  background: var(--color-secondary-bg);
+}
+
+.btnInstruction:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

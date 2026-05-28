@@ -12,14 +12,12 @@ export function generateEmail(
   format: "offline" | "online" | "hybrid",
   extraText: string,
   outputFormat: OutputFormat = "email",
-  scheduleToken?: string,
+  scheduleUrl?: string,
   isFirstContact: boolean = true,
   isRescheduling: boolean = false,
   recipientNote?: string
 ): MailOutput {
   const slots = Array.isArray(selectedTimeSlots) ? selectedTimeSlots : [selectedTimeSlots]
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ""
-  const scheduleUrl = scheduleToken ? `${appUrl}/schedule/${scheduleToken}` : undefined
 
   switch (outputFormat) {
     case "slack":
@@ -87,21 +85,33 @@ function generateFormalEmail(
     body += `つきましては、お忙しいところ大変恐縮ですが、個別にお時間をいただくことは可能でしょうか。\n\n`
   }
 
-  body += `以下の日時にてご都合はいかがでしょうか。\n\n`
-  body += `--------------------------------------------------\n`
-  if (slots.length === 1) {
-    body += `【希望日時】 ${slots[0]}\n`
+  if (scheduleUrl) {
+    body += `下記のリンクよりご都合の良い日時をお選びいただけます（アカウント登録不要）。\n\n`
+    body += `--------------------------------------------------\n`
+    body += `【希望形式】 ${formatJa}\n`
+    if (format === "offline" && targetUser.generalNotes?.includes("研究室")) {
+      body += `【面談場所】 ${targetUser.name.replace(/\s*(教授|准教授)/, "")}先生の研究室\n`
+    }
+    body += `■ 日程確定リンク\n`
+    body += `${scheduleUrl}\n`
+    body += `--------------------------------------------------\n\n`
   } else {
-    body += `【候補日時】（いずれかご都合の良い日時をお知らせください）\n`
-    slots.forEach((s, i) => {
-      body += `  第${i + 1}希望: ${s}\n`
-    })
+    body += `以下の日時にてご都合はいかがでしょうか。\n\n`
+    body += `--------------------------------------------------\n`
+    if (slots.length === 1) {
+      body += `【希望日時】 ${slots[0]}\n`
+    } else {
+      body += `【候補日時】（いずれかご都合の良い日時をお知らせください）\n`
+      slots.forEach((s, i) => {
+        body += `  第${i + 1}希望: ${s}\n`
+      })
+    }
+    body += `【希望形式】 ${formatJa}\n`
+    if (format === "offline" && targetUser.generalNotes?.includes("研究室")) {
+      body += `【面談場所】 ${targetUser.name.replace(/\s*(教授|准教授)/, "")}先生の研究室\n`
+    }
+    body += `--------------------------------------------------\n\n`
   }
-  body += `【希望形式】 ${formatJa}\n`
-  if (format === "offline" && targetUser.generalNotes?.includes("研究室")) {
-    body += `【面談場所】 ${targetUser.name.replace(/\s*(教授|准教授)/, "")}先生の研究室\n`
-  }
-  body += `--------------------------------------------------\n\n`
 
   if (targetUser.mailRequiredInfo.length > 0) {
     body += `ご指定のありました必要情報を以下に記載いたします。\n`
@@ -120,15 +130,7 @@ function generateFormalEmail(
     body += `--------------------------------------------------\n\n`
   }
 
-  if (scheduleUrl) {
-    body += `--------------------------------------------------\n`
-    body += `■ ワンクリック日程確定リンク\n`
-    body += `${scheduleUrl}\n`
-    body += `上記リンクよりご都合の良い日時をお選びいただけます（アカウント登録不要）。\n`
-    body += `--------------------------------------------------\n\n`
-  }
-
-  body += `上記日程でご都合が悪い場合は、大変お手数ですが、折り返しご都合の良い日時をご教示いただけますと幸いです。\n\n`
+  body += `${scheduleUrl ? "ご都合が悪い場合は" : "上記日程でご都合が悪い場合は"}、大変お手数ですが、折り返しご都合の良い日時をご教示いただけますと幸いです。\n\n`
   body += `お忙しいところお手数をおかけいたしますが、ご検討のほどよろしくお願い申し上げます。\n\n`
   body += `--------------------------------------------------\n`
   body += `${requester.name}（${requester.email}）\n`

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { CalendarDays, ShieldCheck, Mail, AlertCircle, Search } from "lucide-react"
+import { CalendarDays, ShieldCheck, Mail, AlertCircle, Search, Plus, X } from "lucide-react"
 import styles from "./match.module.css"
 import { inferProfileFromRole } from "@/lib/ai"
 import { ConsultRequest, TimeSlotScore } from "@/types"
@@ -21,6 +21,9 @@ export default function MatchPage() {
   const [inferredUserId, setInferredUserId] = useState<string>("")
   const [recipientNote, setRecipientNote] = useState<string | null>(null)
   const [analyzing, setAnalyzing] = useState(true)
+  const [editableSlots, setEditableSlots] = useState<string[]>([])
+  const [addDate, setAddDate] = useState("")
+  const [addTime, setAddTime] = useState("10:00")
 
   useEffect(() => {
     getActiveConsultation().then(async (active) => {
@@ -30,14 +33,16 @@ export default function MatchPage() {
       if (active.recipientNote) setRecipientNote(active.recipientNote)
 
       const r = req.recipient ?? {}
+      const slots = req.myAvailableTimes
+      setEditableSlots(slots)
       setAnalyzing(true)
       try {
-        const { profile, scores } = await analyzeRecipient(
+        const { profile, scores, reasoningFactors, workPattern, aiComment } = await analyzeRecipient(
           r.name ?? "",
           r.role ?? "",
           r.department ?? "",
           r.notes ?? "",
-          req.myAvailableTimes,
+          slots,
           req.duration ?? 30
         )
         setInferredUserId(profile.id)
@@ -49,10 +54,12 @@ export default function MatchPage() {
             ? profile.avoidTimesFreeText.split("。").filter(Boolean)
             : [],
           requiredInfos: profile.mailRequiredInfo,
+          reasoningFactors: reasoningFactors ?? [],
+          workPattern: workPattern ?? "",
+          aiComment: aiComment ?? "",
         })
         setScoredSlots(scores)
       } catch {
-        // フォールバック（analyzeRecipient 内でも処理されるが念のため）
         const inferred = inferProfileFromRole(r.name ?? "", r.role ?? "", r.department ?? "", r.notes ?? "")
         setInferredUserId(inferred.id)
       } finally {
@@ -60,6 +67,75 @@ export default function MatchPage() {
       }
     })
   }, [])
+
+  // 15分単位の時刻オプション
+  const TIME_OPTIONS = React.useMemo(() => {
+    const opts: string[] = []
+    for (let h = 8; h <= 21; h++) {
+      for (const m of [0, 15, 30, 45]) {
+        if (h === 21 && m > 0) break
+        opts.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`)
+      }
+    }
+    return opts
+  }, [])
+
+  const addSlotAndRescore = async () => {
+    if (!addDate || !addTime || !request) return
+    const newSlot = `${addDate}T${addTime}`
+    if (editableSlots.includes(newSlot)) return
+    const next = [...editableSlots, newSlot].sort()
+    setEditableSlots(next)
+    setAddDate("")
+    setAddTime("10:00")
+    const r = request.recipient ?? {}
+    setAnalyzing(true)
+    try {
+      const { profile, scores, reasoningFactors, workPattern, aiComment } = await analyzeRecipient(
+        r.name ?? "", r.role ?? "", r.department ?? "", r.notes ?? "",
+        next, request.duration ?? 30
+      )
+      setInferredUserId(profile.id)
+      setAnalyzedProfile({
+        preferredTimeHints: profile.availableTimesFreeText?.split("。").filter(Boolean) ?? [],
+        avoidedTimeHints: profile.avoidTimesFreeText?.split("。").filter(Boolean) ?? [],
+        requiredInfos: profile.mailRequiredInfo,
+        reasoningFactors: reasoningFactors ?? [],
+        workPattern: workPattern ?? "",
+        aiComment: aiComment ?? "",
+      })
+      setScoredSlots(scores)
+    } finally {
+      setAnalyzing(false)
+    }
+  }
+
+  const removeSlotAndRescore = async (slot: string) => {
+    const next = editableSlots.filter((s) => s !== slot)
+    setEditableSlots(next)
+    setSelectedSlots((prev) => prev.filter((s) => s !== slot))
+    if (!request || next.length === 0) { setScoredSlots([]); return }
+    const r = request.recipient ?? {}
+    setAnalyzing(true)
+    try {
+      const { profile, scores, reasoningFactors, workPattern, aiComment } = await analyzeRecipient(
+        r.name ?? "", r.role ?? "", r.department ?? "", r.notes ?? "",
+        next, request.duration ?? 30
+      )
+      setInferredUserId(profile.id)
+      setAnalyzedProfile({
+        preferredTimeHints: profile.availableTimesFreeText?.split("。").filter(Boolean) ?? [],
+        avoidedTimeHints: profile.avoidTimesFreeText?.split("。").filter(Boolean) ?? [],
+        requiredInfos: profile.mailRequiredInfo,
+        reasoningFactors: reasoningFactors ?? [],
+        workPattern: workPattern ?? "",
+        aiComment: aiComment ?? "",
+      })
+      setScoredSlots(scores)
+    } finally {
+      setAnalyzing(false)
+    }
+  }
 
   const toggleSlot = (timeSlot: string) => {
     setSelectedSlots((prev) =>
@@ -101,7 +177,12 @@ export default function MatchPage() {
         mailRequiredInfo: analyzedProfile?.requiredInfos ?? inferred.mailRequiredInfo,
       },
     }
-    await upsertConsultation({ ...active, status: "matched", match: matchData })
+    await upsertConsultation({
+      ...active,
+      status: "matched",
+      match: matchData,
+      request: { ...active.request!, myAvailableTimes: editableSlots },
+    })
     router.push("/mail")
   }
 
@@ -212,6 +293,49 @@ export default function MatchPage() {
               <span>推測された予定傾向</span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {/* 推論根拠チップ */}
+              {analyzedProfile.reasoningFactors?.length > 0 && (
+                <div style={{ marginBottom: 4 }}>
+                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", fontWeight: 600, marginBottom: 6 }}>推測の根拠:</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {analyzedProfile.reasoningFactors.map((f: string) => (
+                      <span key={f} style={{
+                        padding: "3px 10px",
+                        background: "var(--bg-primary)",
+                        border: "1.5px solid var(--border-color)",
+                        borderRadius: 20,
+                        fontSize: "0.75rem",
+                        fontWeight: 600,
+                        color: "var(--text-secondary)",
+                      }}>📌 {f}</span>
+                    ))}
+                  </div>
+                  <div style={{ height: 1, background: "var(--border-color)", margin: "10px 0 6px" }} />
+                </div>
+              )}
+              {/* 勤務パターン */}
+              {analyzedProfile.workPattern && (
+                <div style={{
+                  fontSize: "0.8rem", padding: "7px 12px",
+                  background: "var(--color-excellent-bg)",
+                  border: "1px solid rgba(78,191,173,0.3)",
+                  borderRadius: 10, color: "var(--text-primary)",
+                }}>
+                  <span style={{ fontWeight: 700, color: "var(--color-excellent)", marginRight: 6 }}>🗓 勤務パターン:</span>
+                  {analyzedProfile.workPattern}
+                </div>
+              )}
+              {/* AIコメント（不確かな場合） */}
+              {analyzedProfile.aiComment && (
+                <div style={{
+                  fontSize: "0.78rem", padding: "6px 12px",
+                  background: "rgba(232,146,78,0.06)",
+                  border: "1px solid rgba(232,146,78,0.25)",
+                  borderRadius: 10, color: "var(--color-fair)",
+                }}>
+                  💬 {analyzedProfile.aiComment}
+                </div>
+              )}
               <div>
                 <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: 600, marginBottom: 4 }}>対応しやすい時間帯（推測）:</div>
                 <div className={styles.timeTagGroup}>
@@ -248,9 +372,53 @@ export default function MatchPage() {
             <CalendarDays size={16} />
             <span>調整可能性スコア（複数選択可）</span>
           </div>
-          <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginBottom: "14px" }}>
-            ◎・○の日時を複数選択すると、相手に複数の候補を提示するメッセージを作成します。
+          <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginBottom: "10px" }}>
+            日時を複数選択すると、相手に複数の候補を提示するメッセージを作成します。×のスロットも選択できますが、相手にとって都合が悪い可能性があります。
           </p>
+
+          {/* スロット追加フォーム */}
+          <div style={{ display: "flex", gap: 7, alignItems: "center", marginBottom: 14, flexWrap: "wrap" }}>
+            <input
+              type="date"
+              value={addDate}
+              onChange={(e) => setAddDate(e.target.value)}
+              style={{
+                flex: 1, minWidth: 130, padding: "8px 12px",
+                background: "var(--bg-primary)", border: "1.5px solid var(--border-color)",
+                borderRadius: 12, fontSize: "0.85rem", color: "var(--text-primary)",
+                fontFamily: "inherit", outline: "none",
+              }}
+            />
+            <select
+              value={addTime}
+              onChange={(e) => setAddTime(e.target.value)}
+              style={{
+                width: 100, padding: "8px 12px",
+                background: "var(--bg-primary)", border: "1.5px solid var(--border-color)",
+                borderRadius: 12, fontSize: "0.85rem", color: "var(--text-primary)",
+                fontFamily: "inherit", outline: "none",
+              }}
+            >
+              {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <button
+              type="button"
+              onClick={addSlotAndRescore}
+              disabled={!addDate || analyzing}
+              style={{
+                display: "flex", alignItems: "center", gap: 5,
+                padding: "8px 14px",
+                background: addDate ? "var(--color-primary-bg)" : "var(--bg-primary)",
+                border: "1.5px solid var(--border-color)", borderRadius: 12,
+                fontSize: "0.82rem", fontWeight: 700, color: "var(--color-primary)",
+                cursor: addDate ? "pointer" : "not-allowed", fontFamily: "inherit",
+                opacity: addDate ? 1 : 0.5,
+              }}
+            >
+              <Plus size={14} />
+              追加してスコア再計算
+            </button>
+          </div>
 
           <div className={styles.slotList}>
             {scoredSlots.map((slot) => {
@@ -260,14 +428,13 @@ export default function MatchPage() {
                 <div
                   key={slot.timeSlot}
                   className={`${styles.slotItem} ${isChecked ? styles.slotItemActive : ""}`}
-                  style={{ cursor: isPoor ? "not-allowed" : "pointer", opacity: isPoor ? 0.5 : 1 }}
-                  onClick={() => { if (!isPoor) toggleSlot(slot.timeSlot) }}
+                  style={{ cursor: "pointer", opacity: isPoor && !isChecked ? 0.65 : 1 }}
+                  onClick={() => toggleSlot(slot.timeSlot)}
                 >
                   <input
                     type="checkbox"
                     checked={isChecked}
                     readOnly
-                    disabled={isPoor}
                     className={styles.slotCheckbox}
                     style={{ pointerEvents: "none" }}
                   />
@@ -278,6 +445,19 @@ export default function MatchPage() {
                     <div className={styles.slotTime}>{formatJaWithEnd(slot.timeSlot, request?.duration ?? 30)}</div>
                     <div className={styles.slotReason}>{slot.privacyReason}</div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); removeSlotAndRescore(slot.timeSlot) }}
+                    style={{
+                      background: "none", border: "none", padding: "4px 6px",
+                      cursor: "pointer", color: "var(--text-muted)",
+                      borderRadius: 8, display: "flex", alignItems: "center",
+                      flexShrink: 0,
+                    }}
+                    title="この候補を削除"
+                  >
+                    <X size={14} />
+                  </button>
                 </div>
               )
             })}

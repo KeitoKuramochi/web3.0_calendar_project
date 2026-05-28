@@ -40,6 +40,7 @@ export default function MailPage() {
 
   const [generating, setGenerating] = useState(false)
   const [checkingAI, setCheckingAI] = useState(false)
+  const [userInstruction, setUserInstruction] = useState("")
   const [showToast, setShowToast] = useState(false)
   const [showSaveLaterToast, setShowSaveLaterToast] = useState(false)
   const [mailRestored, setMailRestored] = useState(false)
@@ -132,16 +133,18 @@ export default function MailPage() {
     token?: string,
     firstContact: boolean = true,
     rescheduling: boolean = false,
-    rNote?: string
+    rNote?: string,
+    instruction?: string
   ) => {
     if (!fmt) return
     const slots: string[] = match.selectedTimeSlots ?? [match.selectedTimeSlot ?? "候補日時"]
+    const scheduleUrl = token ? `${window.location.origin}/schedule/${token}` : undefined
     setGenerating(true)
     try {
       const generated = await generateMail(
         sender, target, req.title || "ご相談", slots,
         req.format || "offline", req.freeTextInput || "",
-        fmt, token, firstContact, rescheduling, rNote
+        fmt, scheduleUrl, firstContact, rescheduling, rNote, instruction
       )
       setSubject(generated.subject)
       setBody(generated.body)
@@ -208,6 +211,12 @@ export default function MailPage() {
         setShowSuccessModal(true)
       }, 1500)
     })
+  }
+
+  const handleInstructionRegenerate = async () => {
+    if (!outputFormat || !userInstruction.trim() || !requester || !targetUser || !request || !matchData) return
+    await regenerate(requester, targetUser, request, matchData, outputFormat, undefined, isFirstContact, isRescheduling, recipientNote, userInstruction.trim())
+    setUserInstruction("")
   }
 
   const handleAICheck = async () => {
@@ -491,6 +500,27 @@ export default function MailPage() {
                   )}
                 </div>
               </>
+            )}
+
+            {outputFormat && (
+              <div className={styles.instructionRow}>
+                <input
+                  type="text"
+                  value={userInstruction}
+                  onChange={(e) => setUserInstruction(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && userInstruction.trim()) handleInstructionRegenerate() }}
+                  placeholder="例: もっと簡潔に / 学籍番号を追加して / 敬語をやわらかくして"
+                  className={styles.instructionInput}
+                  disabled={generating}
+                />
+                <button
+                  onClick={handleInstructionRegenerate}
+                  disabled={!userInstruction.trim() || generating}
+                  className={styles.btnInstruction}
+                >
+                  ✦ この指示で再生成
+                </button>
+              </div>
             )}
 
             <div className={styles.editorFooter}>

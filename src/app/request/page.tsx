@@ -9,7 +9,7 @@ import styles from "./request.module.css"
 import { parseFreeText } from "@/lib/ai"
 import { ConsultRequest, RecipientInfo } from "@/types"
 import { POPULAR_TOPICS, POPULAR_ROLES } from "@/lib/dummyData"
-import { upsertConsultation, setActiveId, getConsultations } from "@/lib/storage"
+import { upsertConsultation, setActiveId } from "@/lib/storage"
 import StepIndicator from "@/components/StepIndicator/StepIndicator"
 
 // 15分単位の時刻オプション生成 (8:00〜21:00)
@@ -60,17 +60,13 @@ export default function RequestPage() {
 
   const [aiNotice, setAiNotice] = useState<string | null>(null)
   const [errors, setErrors] = useState<{ title?: string; slots?: string }>({})
-  const [activeCount, setActiveCount] = useState(0)
   const [saveDraftToast, setSaveDraftToast] = useState(false)
+  const [addMode, setAddMode] = useState<"single" | "range">("single")
+  const [rangeEndTime, setRangeEndTime] = useState("12:00")
+  const [rangeAddedMsg, setRangeAddedMsg] = useState<string | null>(null)
   const [autoSaveLabel, setAutoSaveLabel] = useState<string | null>(null)
   const autoSaveDraftRef = useRef<{ id: string; createdAt: string } | null>(null)
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    getConsultations().then((list) => {
-      setActiveCount(list.filter((r) => r.status !== "sent").length)
-    })
-  }, [])
 
   // 自動保存（3秒デバウンス）
   useEffect(() => {
@@ -123,6 +119,26 @@ export default function RequestPage() {
     }
     setTempDate("")
     setTempTime("10:00")
+  }
+
+  const addTimeRange = () => {
+    if (!tempDate || !tempTime || !rangeEndTime) return
+    const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m }
+    const toStr = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`
+    const start = toMin(tempTime)
+    const end = toMin(rangeEndTime)
+    if (end <= start) return
+    const slots: string[] = []
+    let cur = start
+    while (cur + duration <= end) {
+      slots.push(`${tempDate}T${toStr(cur)}`)
+      cur += duration
+    }
+    if (slots.length === 0) return
+    setAvailableTimes((prev) => [...new Set([...prev, ...slots])].sort())
+    setRangeAddedMsg(`${tempTime}〜${rangeEndTime} の範囲から ${slots.length} 件追加しました`)
+    setTimeout(() => setRangeAddedMsg(null), 3000)
+    setTempDate("")
   }
 
   const removeTimeSlot = (slot: string) => {
@@ -219,20 +235,6 @@ export default function RequestPage() {
         <h1>相談リクエスト作成</h1>
         <p>相談内容や希望形式、空き時間を入力してください。ざっくりした文章でもAIが読み取ります。</p>
       </div>
-
-      {activeCount > 0 && (
-        <div style={{
-          padding: "10px 16px", background: "var(--color-secondary-bg)",
-          border: "2px solid rgba(245, 200, 74, 0.35)", borderRadius: 14,
-          fontSize: "0.84rem", fontWeight: 600, color: "var(--text-secondary)",
-          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
-        }}>
-          <span>進行中の相談が {activeCount} 件あります</span>
-          <Link href="/" style={{ color: "var(--color-fair)", textDecoration: "underline", whiteSpace: "nowrap" }}>
-            ダッシュボードで確認 →
-          </Link>
-        </div>
-      )}
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         {autoSaveLabel ? (
@@ -449,10 +451,43 @@ export default function RequestPage() {
         {/* 5. 空き時間 */}
         <div className={styles.sectionTitle}>
           <Clock size={16} />
-          <span>5. 自分の空き時間（15分単位）</span>
+          <span>5. 自分の空き時間</span>
         </div>
 
         <div className={styles.formGroupFull}>
+          {/* モードトグル */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            {(["single", "range"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setAddMode(m)}
+                style={{
+                  padding: "7px 16px",
+                  background: addMode === m ? "var(--color-primary-bg)" : "var(--bg-primary)",
+                  border: `2px solid ${addMode === m ? "var(--color-primary)" : "var(--border-color)"}`,
+                  borderRadius: 12, fontSize: "0.82rem", fontWeight: 700,
+                  color: addMode === m ? "var(--color-primary)" : "var(--text-secondary)",
+                  cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                {m === "single" ? "時間を指定" : "範囲で追加"}
+              </button>
+            ))}
+          </div>
+
+          {addMode === "range" && (
+            <div style={{
+              padding: "10px 14px", marginBottom: 8,
+              background: "var(--color-primary-bg)",
+              border: "1.5px solid rgba(112,185,126,0.25)", borderRadius: 12,
+              fontSize: "0.78rem", color: "var(--color-primary)", fontWeight: 600, lineHeight: 1.6,
+            }}>
+              指定した範囲の候補日時（{duration}分単位）が自動展開されます。<br />
+              相手は確定リンクから希望の {duration} 分を選べます。
+            </div>
+          )}
+
           <div className={styles.timeSlotInputGroup}>
             <input
               type="date"
@@ -465,18 +500,43 @@ export default function RequestPage() {
               value={tempTime}
               onChange={(e) => setTempTime(e.target.value)}
               className={styles.select}
-              style={{ width: "110px" }}
+              style={{ width: "105px" }}
             >
-              {TIME_OPTIONS.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
+              {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
-            <button type="button" onClick={addTimeSlot} className={styles.btnAddSlot}
-              style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+            {addMode === "range" && (
+              <>
+                <span style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600 }}>〜</span>
+                <select
+                  value={rangeEndTime}
+                  onChange={(e) => setRangeEndTime(e.target.value)}
+                  className={styles.select}
+                  style={{ width: "105px" }}
+                >
+                  {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={addMode === "single" ? addTimeSlot : addTimeRange}
+              className={styles.btnAddSlot}
+              style={{ display: "flex", alignItems: "center", gap: "5px" }}
+            >
               <Plus size={15} />
-              追加
+              {addMode === "single" ? "追加" : "展開して追加"}
             </button>
           </div>
+
+          {rangeAddedMsg && (
+            <div style={{
+              fontSize: "0.8rem", fontWeight: 700, color: "var(--color-primary)",
+              padding: "6px 12px", background: "var(--color-primary-bg)",
+              borderRadius: 10, marginTop: 4,
+            }}>
+              ✓ {rangeAddedMsg}
+            </div>
+          )}
 
           {errors.slots && (
             <span style={{ fontSize: "0.8rem", color: "var(--color-danger)", fontWeight: 600 }}>{errors.slots}</span>
