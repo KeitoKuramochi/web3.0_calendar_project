@@ -20,13 +20,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     senderName: record.senderDisplayName ?? "送信者",
     senderDisplayName: record.senderDisplayName ?? null,
     selectedTimeSlots: record.match?.selectedTimeSlots ?? [],
+    selectedTimeSlotsRaw: record.match?.selectedTimeSlotsRaw ?? [],
+    availableRanges: record.match?.selectedTimeRanges ?? [],
     duration: record.request?.duration ?? 30,
     format: record.request?.format ?? "hybrid",
     status: record.status,
     confirmedSlot: record.confirmedSlot ?? null,
     recipientNote: record.recipientNote ?? null,
-    recipientName: record.recipientName ?? null,
-    recipientContact: record.recipientContact ?? null,
   })
 }
 
@@ -72,15 +72,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     return NextResponse.json({ error: "already_confirmed" }, { status: 409 })
   }
 
-  const { slot, name, contact } = body
+  const { slot, message } = body
   if (!slot) return NextResponse.json({ error: "slot required" }, { status: 400 })
 
   const updated: ConsultationRecord = { ...record, status: "confirmed", confirmedSlot: slot }
-  if (name && typeof name === "string" && name.trim()) {
-    updated.recipientName = name.trim()
-  }
-  if (contact && typeof contact === "string" && contact.trim()) {
-    updated.recipientContact = contact.trim()
+  if (message && typeof message === "string" && message.trim()) {
+    updated.recipientConfirmMessage = message.trim()
   }
   await db.update(consultations)
     .set({ data: updated, status: "confirmed", updatedAt: new Date() })
@@ -92,8 +89,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
       toName: record.senderDisplayName ?? "送信者",
       title: record.request?.title ?? "ご面談",
       confirmedSlot: slot,
-      recipientName: updated.recipientName,
-      recipientContact: updated.recipientContact,
+      recipientNote: updated.recipientConfirmMessage,
     }).catch(console.error)
   }
   return NextResponse.json({ ok: true })

@@ -47,6 +47,13 @@ export interface RecipientInfo {
   notes?: string
 }
 
+// 空き時間の範囲指定（例: 10:00〜12:00）
+export interface TimeRange {
+  date: string   // "2025-06-10"
+  start: string  // "10:00"
+  end: string    // "12:00"
+}
+
 // 相談リクエスト
 export interface ConsultRequest {
   id: string
@@ -55,7 +62,8 @@ export interface ConsultRequest {
   title: string
   duration: number
   format: "offline" | "online" | "hybrid"
-  myAvailableTimes: string[]
+  myAvailableTimes: string[]           // 展開済み個別スロット (ISO8601)
+  myAvailableRanges?: TimeRange[]      // 範囲指定（相手のリンク表示用）
   freeTextInput: string
   urgency: "high" | "normal" | "low"
   consultTopics?: string[]     // 相談トピックタグ
@@ -109,7 +117,8 @@ export interface ConsultationMatch {
   selectedTimeSlots: string[]
   selectedTimeSlotsRaw: string[]
   selectedTimeSlot: string
-  inferredProfile?: UserProfile  // 役職推論で生成したプロフィール
+  selectedTimeRanges?: TimeRange[]  // 元の範囲指定（スケジュールページ表示用）
+  inferredProfile?: UserProfile     // 役職推論で生成したプロフィール
 }
 
 // メール/メッセージ生成結果
@@ -117,6 +126,18 @@ export interface ConsultationMail {
   subject: string
   body: string
   format: OutputFormat
+}
+
+// マッチページのAI分析キャッシュ
+export interface CachedAnalysis {
+  forSlots: string[]          // 分析したスロット一覧（キャッシュ有効性チェック用）
+  scoredSlots: TimeSlotScore[]
+  preferredTimeHints: string[]
+  avoidedTimeHints: string[]
+  requiredInfos: string[]
+  reasoningFactors: string[]
+  workPattern: string
+  aiComment: string
 }
 
 // 相談記録（ダッシュボードで管理する単位）
@@ -128,11 +149,13 @@ export interface ConsultationRecord {
   request?: ConsultRequest
   match?: ConsultationMatch
   mail?: ConsultationMail
+  cachedAnalysis?: CachedAnalysis  // match ページのAI分析キャッシュ
   scheduleToken?: string      // 確定リンク用トークン
   confirmedSlot?: string      // 受信者が選んだ日時
   recipientNote?: string      // 受信者が「全部合わない」時に入力した代替候補
-  recipientName?: string      // 受信者が入力した名前・ニックネーム
-  recipientContact?: string   // 受信者が入力した連絡先（Discord名・メールなど）
+  recipientName?: string      // 受信者が入力した名前・ニックネーム（後方互換）
+  recipientContact?: string   // 受信者が入力した連絡先（後方互換）
+  recipientConfirmMessage?: string  // 受信者が確定時に送ったメッセージ
   senderDisplayName?: string  // 確定リンクで表示する送信者名
   senderEmail?: string        // 通知送信先（Google認証メール）
   scheduleTokenExpiresAt?: string  // ISO8601, scheduleToken有効期限

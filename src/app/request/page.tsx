@@ -7,9 +7,9 @@ import Link from "next/link"
 import { Calendar, Clock, MessageSquare, Plus, Trash2, ArrowRight, ArrowLeft } from "lucide-react"
 import styles from "./request.module.css"
 import { parseFreeText } from "@/lib/ai"
-import { ConsultRequest, RecipientInfo } from "@/types"
+import { ConsultRequest, RecipientInfo, TimeRange } from "@/types"
 import { POPULAR_TOPICS, POPULAR_ROLES } from "@/lib/dummyData"
-import { upsertConsultation, setActiveId } from "@/lib/storage"
+import { upsertConsultation, setActiveId, getActiveConsultation } from "@/lib/storage"
 import StepIndicator from "@/components/StepIndicator/StepIndicator"
 
 // 15分単位の時刻オプション生成 (8:00〜21:00)
@@ -38,19 +38,8 @@ export default function RequestPage() {
 
   const [tempDate, setTempDate] = useState("")
   const [tempTime, setTempTime] = useState("10:00")
-  const [availableTimes, setAvailableTimes] = useState<string[]>(() => {
-    const base = new Date()
-    base.setHours(0, 0, 0, 0)
-    const fmt = (d: Date, h: number, m: number) => {
-      const dd = new Date(d)
-      dd.setHours(h, m, 0, 0)
-      return dd.toISOString().slice(0, 16)
-    }
-    const d7 = new Date(base); d7.setDate(base.getDate() + 7)
-    const d8 = new Date(base); d8.setDate(base.getDate() + 8)
-    const d9 = new Date(base); d9.setDate(base.getDate() + 9)
-    return [fmt(d7, 10, 0), fmt(d7, 11, 0), fmt(d8, 14, 0), fmt(d9, 15, 0)]
-  })
+  const [availableTimes, setAvailableTimes] = useState<string[]>([])
+  const [availableRanges, setAvailableRanges] = useState<TimeRange[]>([])
 
   const [recipientName, setRecipientName] = useState("")
   const [recipientEmail, setRecipientEmail] = useState("")
@@ -68,6 +57,43 @@ export default function RequestPage() {
   const autoSaveDraftRef = useRef<{ id: string; createdAt: string } | null>(null)
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // 既存ドラフトの読み込み（ダッシュボードから再開した場合）
+  useEffect(() => {
+    getActiveConsultation().then((active) => {
+      if (!active?.request || active.status !== "draft") {
+        // 新規作成: デフォルトの空き時間候補を入れる
+        const base = new Date(); base.setHours(0, 0, 0, 0)
+        const fmtISO = (d: Date, h: number, m: number) => { const dd = new Date(d); dd.setHours(h, m, 0, 0); return dd.toISOString().slice(0, 16) }
+        const d7 = new Date(base); d7.setDate(base.getDate() + 7)
+        const d8 = new Date(base); d8.setDate(base.getDate() + 8)
+        const d9 = new Date(base); d9.setDate(base.getDate() + 9)
+        setAvailableTimes([fmtISO(d7, 10, 0), fmtISO(d7, 11, 0), fmtISO(d8, 14, 0), fmtISO(d9, 15, 0)])
+        return
+      }
+      const req = active.request
+      // フォームを復元
+      if (req.freeTextInput) setFreeText(req.freeTextInput)
+      if (req.title && req.title !== "（タイトルなし）") setTitle(req.title)
+      setDuration(req.duration ?? 30)
+      setFormat(req.format ?? "hybrid")
+      setUrgency(req.urgency ?? "normal")
+      if (req.consultTopics?.length) setSelectedTopics(req.consultTopics)
+      setAvailableTimes(req.myAvailableTimes ?? [])
+      setAvailableRanges(req.myAvailableRanges ?? [])
+      if (req.recipient) {
+        setRecipientName(req.recipient.name ?? "")
+        setRecipientEmail(req.recipient.email ?? "")
+        setRecipientRole(req.recipient.role ?? "")
+        setRecipientDept(req.recipient.department ?? "")
+        setRecipientNotes(req.recipient.notes ?? "")
+      }
+      // 同一IDで保存するようにrefを更新
+      autoSaveDraftRef.current = { id: active.id, createdAt: active.createdAt }
+      setAutoSaveLabel("自動保存済み")
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // 自動保存（3秒デバウンス）
   useEffect(() => {
     const hasEnoughData = (title.trim() !== "" || selectedTopics.length > 0) && availableTimes.length > 0
@@ -84,7 +110,7 @@ export default function RequestPage() {
       setAutoSaveLabel("自動保存済み")
     }, 3000)
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current) }
-  }, [title, recipientName, recipientEmail, recipientRole, recipientDept, availableTimes, duration, format, urgency, freeText, selectedTopics])
+  }, [title, recipientName, recipientEmail, recipientRole, recipientDept, availableTimes, availableRanges, duration, format, urgency, freeText, selectedTopics])
 
   const handleFreeTextBlur = () => {
     if (!freeText.trim()) return
@@ -128,6 +154,8 @@ export default function RequestPage() {
     const start = toMin(tempTime)
     const end = toMin(rangeEndTime)
     if (end <= start) return
+    const newRange: TimeRange = { date: tempDate, start: tempTime, end: rangeEndTime }
+    setAvailableRanges((prev) => [...prev, newRange])
     const slots: string[] = []
     let cur = start
     while (cur + duration <= end) {
@@ -139,6 +167,18 @@ export default function RequestPage() {
     setRangeAddedMsg(`${tempTime}〜${rangeEndTime} の範囲から ${slots.length} 件追加しました`)
     setTimeout(() => setRangeAddedMsg(null), 3000)
     setTempDate("")
+  }
+
+  const removeRange = (range: TimeRange) => {
+    setAvailableRanges((prev) => prev.filter((r) => !(r.date === range.date && r.start === range.start && r.end === range.end)))
+    const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m }
+    const startMin = toMin(range.start); const endMin = toMin(range.end)
+    setAvailableTimes((prev) => prev.filter((s) => {
+      if (!s.startsWith(range.date + "T")) return true
+      const [h, m] = s.split("T")[1].split(":").map(Number)
+      const slotMin = h * 60 + m
+      return slotMin < startMin || slotMin + duration > endMin
+    }))
   }
 
   const removeTimeSlot = (slot: string) => {
@@ -171,6 +211,7 @@ export default function RequestPage() {
     const d8 = new Date(base); d8.setDate(base.getDate() + 8)
     const d9 = new Date(base); d9.setDate(base.getDate() + 9)
     setAvailableTimes([fmt(d7, 10), fmt(d7, 11), fmt(d8, 10), fmt(d9, 14)])
+    setAvailableRanges([])
     setAiNotice(`デモ入力。相手：鈴木 茂（研究室教員）、相談：就職活動、30分・対面。`)
   }
 
@@ -190,6 +231,7 @@ export default function RequestPage() {
       duration,
       format,
       myAvailableTimes: availableTimes,
+      myAvailableRanges: availableRanges.length > 0 ? availableRanges : undefined,
       freeTextInput: freeText,
       urgency,
       consultTopics: [...selectedTopics],
@@ -198,10 +240,13 @@ export default function RequestPage() {
   }
 
   const handleSaveDraft = async () => {
-    const id = `req_${Date.now()}`
     const now = new Date().toISOString()
-    await upsertConsultation({ id, status: "draft", createdAt: now, updatedAt: now, request: buildRequestData(id) })
+    const isFirst = !autoSaveDraftRef.current
+    if (isFirst) autoSaveDraftRef.current = { id: `req_${Date.now()}`, createdAt: now }
+    const { id, createdAt } = autoSaveDraftRef.current!
+    await upsertConsultation({ id, status: "draft", createdAt, updatedAt: now, request: buildRequestData(id) })
     setActiveId(id)
+    setAutoSaveLabel("自動保存済み")
     setSaveDraftToast(true)
     setTimeout(() => setSaveDraftToast(false), 2000)
   }
@@ -542,19 +587,48 @@ export default function RequestPage() {
             <span style={{ fontSize: "0.8rem", color: "var(--color-danger)", fontWeight: 600 }}>{errors.slots}</span>
           )}
           <div className={styles.timeSlotList}>
-            {availableTimes.length === 0 ? (
+            {availableTimes.length === 0 && availableRanges.length === 0 ? (
               <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", padding: "8px 0" }}>
                 空き時間が追加されていません
               </p>
             ) : (
-              availableTimes.map((slot) => (
-                <div key={slot} className={styles.timeSlotItem}>
-                  <span>{formatJa(slot)}</span>
-                  <button type="button" onClick={() => removeTimeSlot(slot)} className={styles.btnRemoveSlot}>
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              ))
+              <>
+                {/* 範囲指定エントリ */}
+                {availableRanges.map((r, i) => {
+                  const d = new Date(r.date)
+                  const days = ["日", "月", "火", "水", "木", "金", "土"]
+                  const label = `${d.getMonth() + 1}月${d.getDate()}日(${days[d.getDay()]}) ${r.start}〜${r.end}`
+                  const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m }
+                  const slots = Math.floor((toMin(r.end) - toMin(r.start)) / duration)
+                  return (
+                    <div key={i} className={styles.timeSlotItem} style={{ background: "var(--color-primary-bg)", borderColor: "rgba(112,185,126,0.3)" }}>
+                      <span style={{ fontWeight: 700 }}>📅 {label}</span>
+                      <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginLeft: 6 }}>（{slots}枠）</span>
+                      <button type="button" onClick={() => removeRange(r)} className={styles.btnRemoveSlot}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  )
+                })}
+                {/* 個別スロット（範囲指定に含まれないもの） */}
+                {availableTimes
+                  .filter((slot) => {
+                    const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m }
+                    return !availableRanges.some((r) => {
+                      if (!slot.startsWith(r.date + "T")) return false
+                      const slotMin = toMin(slot.split("T")[1].slice(0, 5))
+                      return slotMin >= toMin(r.start) && slotMin + duration <= toMin(r.end)
+                    })
+                  })
+                  .map((slot) => (
+                    <div key={slot} className={styles.timeSlotItem}>
+                      <span>{formatJa(slot)}</span>
+                      <button type="button" onClick={() => removeTimeSlot(slot)} className={styles.btnRemoveSlot}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+              </>
             )}
           </div>
         </div>

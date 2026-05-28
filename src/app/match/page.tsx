@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { CalendarDays, ShieldCheck, Mail, AlertCircle, Search, Plus, X } from "lucide-react"
 import styles from "./match.module.css"
 import { inferProfileFromRole } from "@/lib/ai"
-import { ConsultRequest, TimeSlotScore } from "@/types"
+import { ConsultRequest, TimeSlotScore, CachedAnalysis } from "@/types"
 import { formatJaWithEnd } from "@/lib/formatDate"
 import StepIndicator from "@/components/StepIndicator/StepIndicator"
 import { getActiveConsultation, upsertConsultation } from "@/lib/storage"
@@ -25,6 +25,17 @@ export default function MatchPage() {
   const [addDate, setAddDate] = useState("")
   const [addTime, setAddTime] = useState("10:00")
 
+  const applyAnalysis = (scores: TimeSlotScore[], profile: { preferredTimeHints: string[]; avoidedTimeHints: string[]; requiredInfos: string[]; reasoningFactors: string[]; workPattern: string; aiComment: string }) => {
+    setAnalyzedProfile(profile)
+    setScoredSlots(scores)
+  }
+
+  const saveAnalysisCache = async (active: Awaited<ReturnType<typeof getActiveConsultation>>, slots: string[], scores: TimeSlotScore[], profile: { preferredTimeHints: string[]; avoidedTimeHints: string[]; requiredInfos: string[]; reasoningFactors: string[]; workPattern: string; aiComment: string }) => {
+    if (!active) return
+    const cache: CachedAnalysis = { forSlots: [...slots].sort(), scoredSlots: scores, ...profile }
+    await upsertConsultation({ ...active, cachedAnalysis: cache })
+  }
+
   useEffect(() => {
     getActiveConsultation().then(async (active) => {
       if (!active?.request) { router.replace("/request"); return }
@@ -35,6 +46,25 @@ export default function MatchPage() {
       const r = req.recipient ?? {}
       const slots = req.myAvailableTimes
       setEditableSlots(slots)
+
+      // キャッシュチェック: 同じスロット一覧でAI分析済みなら復元してスキップ
+      const cache = active.cachedAnalysis
+      const sortedSlots = [...slots].sort().join(",")
+      const cacheHit = cache && [...(cache.forSlots ?? [])].sort().join(",") === sortedSlots
+      if (cacheHit && cache) {
+        setInferredUserId("")
+        applyAnalysis(cache.scoredSlots, {
+          preferredTimeHints: cache.preferredTimeHints,
+          avoidedTimeHints: cache.avoidedTimeHints,
+          requiredInfos: cache.requiredInfos,
+          reasoningFactors: cache.reasoningFactors,
+          workPattern: cache.workPattern,
+          aiComment: cache.aiComment,
+        })
+        setAnalyzing(false)
+        return
+      }
+
       setAnalyzing(true)
       try {
         const { profile, scores, reasoningFactors, workPattern, aiComment } = await analyzeRecipient(
@@ -46,7 +76,7 @@ export default function MatchPage() {
           req.duration ?? 30
         )
         setInferredUserId(profile.id)
-        setAnalyzedProfile({
+        const profileData = {
           preferredTimeHints: profile.availableTimesFreeText
             ? profile.availableTimesFreeText.split("。").filter(Boolean)
             : [],
@@ -57,8 +87,9 @@ export default function MatchPage() {
           reasoningFactors: reasoningFactors ?? [],
           workPattern: workPattern ?? "",
           aiComment: aiComment ?? "",
-        })
-        setScoredSlots(scores)
+        }
+        applyAnalysis(scores, profileData)
+        saveAnalysisCache(active, slots, scores, profileData)
       } catch {
         const inferred = inferProfileFromRole(r.name ?? "", r.role ?? "", r.department ?? "", r.notes ?? "")
         setInferredUserId(inferred.id)
@@ -164,11 +195,22 @@ export default function MatchPage() {
     const r = request?.recipient ?? {}
     // analyzeRecipient で取得した profile を再利用（フォールバックとして inferProfileFromRole も保持）
     const inferred = inferProfileFromRole(r.name ?? "", r.role ?? "", r.department ?? "", r.notes ?? "")
+    // 選択スロットに対応する元の範囲を算出（スケジュールページ用）
+    const ranges = request?.myAvailableRanges
+    const selectedTimeRanges = ranges?.filter((r) => {
+      const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m }
+      return selectedSlots.some((s) => {
+        if (!s.startsWith(r.date + "T")) return false
+        const slotMin = toMin(s.split("T")[1].slice(0, 5))
+        return slotMin >= toMin(r.start) && slotMin + duration <= toMin(r.end)
+      })
+    })
     const matchData = {
       targetUserId: inferredUserId || inferred.id,
       selectedTimeSlots: selectedSlots.map((s) => formatJaWithEnd(s, duration)),
       selectedTimeSlotsRaw: selectedSlots,
       selectedTimeSlot: formatJaWithEnd(selectedSlots[0], duration),
+      selectedTimeRanges: selectedTimeRanges && selectedTimeRanges.length > 0 ? selectedTimeRanges : undefined,
       inferredProfile: {
         ...inferred,
         id: inferredUserId || inferred.id,

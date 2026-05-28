@@ -14,20 +14,16 @@ export async function sendConfirmedNotification({
   toName,
   title,
   confirmedSlot,
-  recipientName,
-  recipientContact,
+  recipientNote,
 }: {
   toEmail: string
   toName: string
   title: string
   confirmedSlot: string
-  recipientName?: string
-  recipientContact?: string
+  recipientNote?: string
 }) {
   const resend = getResend()
   if (!resend) return
-
-  const contactLine = [recipientName, recipientContact].filter(Boolean).join(" / ")
 
   await resend.emails.send({
     from: FROM,
@@ -41,7 +37,7 @@ export async function sendConfirmedNotification({
       `■ 確定日時`,
       confirmedSlot,
       "",
-      contactLine ? `■ 相手の情報\n${contactLine}` : "",
+      recipientNote ? `■ 相手からのメッセージ\n${recipientNote}` : "",
       "",
       `ダッシュボードで確認: ${APP_URL}/`,
     ].filter(l => l !== undefined).join("\n"),
