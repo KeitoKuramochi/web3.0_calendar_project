@@ -13,7 +13,9 @@ export function generateEmail(
   extraText: string,
   outputFormat: OutputFormat = "email",
   scheduleToken?: string,
-  isFirstContact: boolean = true
+  isFirstContact: boolean = true,
+  isRescheduling: boolean = false,
+  recipientNote?: string
 ): MailOutput {
   const slots = Array.isArray(selectedTimeSlots) ? selectedTimeSlots : [selectedTimeSlots]
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ""
@@ -21,15 +23,15 @@ export function generateEmail(
 
   switch (outputFormat) {
     case "slack":
-      return generateSlack(requester, targetUser, title, slots, format, scheduleUrl, isFirstContact)
+      return generateSlack(requester, targetUser, title, slots, format, scheduleUrl, isFirstContact, isRescheduling, recipientNote)
     case "discord":
-      return generateDiscord(requester, targetUser, title, slots, format, scheduleUrl, isFirstContact)
+      return generateDiscord(requester, targetUser, title, slots, format, scheduleUrl, isFirstContact, isRescheduling, recipientNote)
     case "line":
-      return generateLine(requester, targetUser, title, slots, scheduleUrl, isFirstContact)
+      return generateLine(requester, targetUser, title, slots, scheduleUrl, isFirstContact, isRescheduling, recipientNote)
     case "short":
-      return generateShort(requester, targetUser, title, slots, scheduleUrl, isFirstContact)
+      return generateShort(requester, targetUser, title, slots, scheduleUrl, isFirstContact, isRescheduling)
     default:
-      return generateFormalEmail(requester, targetUser, title, slots, format, extraText, scheduleUrl, isFirstContact)
+      return generateFormalEmail(requester, targetUser, title, slots, format, extraText, scheduleUrl, isFirstContact, isRescheduling, recipientNote)
   }
 }
 
@@ -41,7 +43,9 @@ function generateFormalEmail(
   format: "offline" | "online" | "hybrid",
   extraText: string,
   scheduleUrl?: string,
-  isFirstContact: boolean = true
+  isFirstContact: boolean = true,
+  isRescheduling: boolean = false,
+  recipientNote?: string
 ): MailOutput {
   const formatJa =
     format === "offline"
@@ -53,12 +57,23 @@ function generateFormalEmail(
   const honorific = targetUser.role.includes("教員") || targetUser.role.includes("准教授") || targetUser.role.includes("教授") ? "先生" : "様"
   const targetNameWithTitle = `${targetUser.name}${honorific}`
 
-  const subject = `【面談依頼】${title}について（${requester.department} ${requester.name}）`
+  const subject = isRescheduling
+    ? `【再調整】${title}について（${requester.department} ${requester.name}）`
+    : `【面談依頼】${title}について（${requester.department} ${requester.name}）`
 
   let body = ""
   body += `${targetUser.department}\n`
   body += `${targetNameWithTitle}\n\n`
-  if (isFirstContact) {
+  if (isRescheduling) {
+    body += `お世話になっております。\n`
+    body += `${requester.department}の${requester.name}です。\n\n`
+    body += `先日は日程のご都合が合わず、大変失礼いたしました。\n`
+    if (recipientNote) {
+      body += `ご返信いただいた内容（「${recipientNote}」）を確認の上、改めて日程をご提案させていただきます。\n\n`
+    } else {
+      body += `改めて日程をご提案させていただきます。\n\n`
+    }
+  } else if (isFirstContact) {
     body += `突然のご連絡にて失礼いたします。\n`
     body += `${requester.department}の${requester.name}と申します。\n\n`
   } else {
@@ -130,7 +145,9 @@ function generateSlack(
   slots: string[],
   format: "offline" | "online" | "hybrid",
   scheduleUrl?: string,
-  isFirstContact: boolean = true
+  isFirstContact: boolean = true,
+  isRescheduling: boolean = false,
+  recipientNote?: string
 ): MailOutput {
   const formatJa = format === "offline" ? "対面" : format === "online" ? "オンライン" : "対面/オンライン"
   const slotsText =
@@ -138,9 +155,14 @@ function generateSlack(
       ? slots[0]
       : slots.map((s, i) => `第${i + 1}希望: ${s}`).join("\n")
 
-  const greeting = isFirstContact
-    ? `${targetUser.name}さん、はじめまして。${requester.name}（${requester.department}）です。\n\n`
-    : `${targetUser.name}さん、お疲れ様です。${requester.name}（${requester.department}）です。\n\n`
+  let greeting = ""
+  if (isRescheduling) {
+    greeting = `${targetUser.name}さん、お疲れ様です。${requester.name}（${requester.department}）です。\n先日は日程が合わず失礼しました。改めて候補をご提案します。${recipientNote ? `\n（ご返信内容：「${recipientNote}」を踏まえて調整しました）` : ""}\n\n`
+  } else {
+    greeting = isFirstContact
+      ? `${targetUser.name}さん、はじめまして。${requester.name}（${requester.department}）です。\n\n`
+      : `${targetUser.name}さん、お疲れ様です。${requester.name}（${requester.department}）です。\n\n`
+  }
 
   let body =
     greeting +
@@ -160,14 +182,21 @@ function generateDiscord(
   slots: string[],
   format: "offline" | "online" | "hybrid",
   scheduleUrl?: string,
-  isFirstContact: boolean = true
+  isFirstContact: boolean = true,
+  isRescheduling: boolean = false,
+  recipientNote?: string
 ): MailOutput {
   const formatJa = format === "offline" ? "対面" : format === "online" ? "オンライン" : "どちらでも"
   const slotsText = slots.map((s, i) => `> ${i + 1}. ${s}`).join("\n")
 
-  const greeting = isFirstContact
-    ? `@${targetUser.name} はじめまして！${requester.name}です🙌\n\n`
-    : `@${targetUser.name} お疲れ様です！${requester.name}です🙌\n\n`
+  let greeting = ""
+  if (isRescheduling) {
+    greeting = `@${targetUser.name} お疲れ様です！${requester.name}です🙌\n先日は日程が合わずごめんなさい🙏 改めて候補を出します！${recipientNote ? `\n（「${recipientNote}」とのこと、参考にしました）` : ""}\n\n`
+  } else {
+    greeting = isFirstContact
+      ? `@${targetUser.name} はじめまして！${requester.name}です🙌\n\n`
+      : `@${targetUser.name} お疲れ様です！${requester.name}です🙌\n\n`
+  }
 
   let body =
     greeting +
@@ -186,16 +215,23 @@ function generateLine(
   title: string,
   slots: string[],
   scheduleUrl?: string,
-  isFirstContact: boolean = true
+  isFirstContact: boolean = true,
+  isRescheduling: boolean = false,
+  recipientNote?: string
 ): MailOutput {
   const slotsText =
     slots.length === 1
       ? slots[0]
       : slots.map((s, i) => `・${s}`).join("\n")
 
-  const intro = isFirstContact
-    ? `${targetUser.name}さん、はじめまして！\n${requester.name}といいます。\n\n`
-    : `${targetUser.name}さん、こんにちは！\n${requester.name}です。\n\n`
+  let intro = ""
+  if (isRescheduling) {
+    intro = `${targetUser.name}さん、こんにちは！\n${requester.name}です。\n\n先日は日程が合わず申し訳ありませんでした🙏${recipientNote ? `\n「${recipientNote}」とのご返信、ありがとうございます。` : ""}\n改めて候補日時をお伝えします。\n\n`
+  } else {
+    intro = isFirstContact
+      ? `${targetUser.name}さん、はじめまして！\n${requester.name}といいます。\n\n`
+      : `${targetUser.name}さん、こんにちは！\n${requester.name}です。\n\n`
+  }
 
   let body =
     intro +
@@ -214,17 +250,18 @@ function generateShort(
   title: string,
   slots: string[],
   scheduleUrl?: string,
-  isFirstContact: boolean = true
+  isFirstContact: boolean = true,
+  isRescheduling: boolean = false
 ): MailOutput {
   const slotsText =
     slots.length === 1
       ? slots[0]
       : slots.map((s) => s).join(" / ")
 
-  let body =
-    `${requester.name}（${requester.department}）です。` +
-    `「${title}」の件でご相談があります。` +
-    `【候補】${slotsText} はご都合いかがでしょうか？`
+  let body = isRescheduling
+    ? `${requester.name}（${requester.department}）です。先日は日程が合わず失礼しました。「${title}」の件で改めてご提案です。`
+    : `${requester.name}（${requester.department}）です。「${title}」の件でご相談があります。`
+  body += `【候補】${slotsText} はご都合いかがでしょうか？`
   if (scheduleUrl) body += ` 日程確定: ${scheduleUrl}`
 
   return { subject: "", body }

@@ -27,6 +27,8 @@ export default function MailPage() {
 
   const [outputFormat, setOutputFormat] = useState<OutputFormat | null>(null)
   const [isFirstContact, setIsFirstContact] = useState(true)
+  const [isRescheduling, setIsRescheduling] = useState(false)
+  const [recipientNote, setRecipientNote] = useState<string | undefined>(undefined)
   const [recipientEmail, setRecipientEmail] = useState("")
   const [scheduleUrlForShare, setScheduleUrlForShare] = useState<string | null>(null)
   const [linkCopied, setLinkCopied] = useState(false)
@@ -64,6 +66,12 @@ export default function MailPage() {
       setTargetUser(target)
       setRecipientEmail(req.recipient?.email ?? target.email ?? "")
 
+      if (active.recipientNote) {
+        setIsRescheduling(true)
+        setRecipientNote(active.recipientNote)
+        setIsFirstContact(false)
+      }
+
       // 同一相手への過去の連絡件数を集計して初回判定
       const allConsults = await getConsultations()
       const recipientName = req.recipient?.name
@@ -87,7 +95,7 @@ export default function MailPage() {
   const handleFormatChange = (fmt: OutputFormat) => {
     setOutputFormat(fmt)
     if (requester && targetUser && request && matchData) {
-      regenerate(requester, targetUser, request, matchData, fmt, undefined, isFirstContact)
+      regenerate(requester, targetUser, request, matchData, fmt, undefined, isFirstContact, isRescheduling, recipientNote)
     }
   }
 
@@ -95,7 +103,7 @@ export default function MailPage() {
   const handleFirstContactToggle = (val: boolean) => {
     setIsFirstContact(val)
     if (outputFormat && requester && targetUser && request && matchData) {
-      regenerate(requester, targetUser, request, matchData, outputFormat, undefined, val)
+      regenerate(requester, targetUser, request, matchData, outputFormat, undefined, val, isRescheduling, recipientNote)
     }
   }
 
@@ -106,11 +114,13 @@ export default function MailPage() {
     match: any,
     fmt: OutputFormat | null,
     token?: string,
-    firstContact: boolean = true
+    firstContact: boolean = true,
+    rescheduling: boolean = false,
+    rNote?: string
   ) => {
     if (!fmt) return
     const slots: string[] = match.selectedTimeSlots ?? [match.selectedTimeSlot ?? "候補日時"]
-    const generated = generateEmail(sender, target, req.title || "ご相談", slots, req.format || "offline", req.freeTextInput || "", fmt, token, firstContact)
+    const generated = generateEmail(sender, target, req.title || "ご相談", slots, req.format || "offline", req.freeTextInput || "", fmt, token, firstContact, rescheduling, rNote)
     setSubject(generated.subject)
     setBody(generated.body)
     if (fmt === "email") {
@@ -158,7 +168,7 @@ export default function MailPage() {
     const active = await getActiveConsultation()
     if (active && requester && targetUser && request && matchData) {
       await upsertConsultation({ ...active, status: "waiting", scheduleToken: token, senderDisplayName: requester.name, scheduleTokenExpiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() })
-      regenerate(requester, targetUser, request, matchData, outputFormat, token, isFirstContact)
+      regenerate(requester, targetUser, request, matchData, outputFormat, token, isFirstContact, isRescheduling, recipientNote)
       const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin
       setScheduleUrlForShare(`${appUrl}/schedule/${token}`)
       // URL挿入後の文面で少し待ってからコピー（state更新を待つ）
@@ -269,6 +279,24 @@ export default function MailPage() {
           <a href="/profile" style={{ marginLeft: "auto", color: "var(--color-fair)", textDecoration: "underline", whiteSpace: "nowrap" }}>
             プロフィールを設定 →
           </a>
+        </div>
+      )}
+
+      {/* 再調整バナー */}
+      {isRescheduling && recipientNote && (
+        <div style={{
+          padding: "12px 16px",
+          background: "rgba(232, 146, 78, 0.08)",
+          border: "2px solid rgba(232, 146, 78, 0.35)",
+          borderRadius: 14,
+          fontSize: "0.85rem",
+          marginBottom: 8,
+          display: "flex", flexDirection: "column", gap: 4,
+        }}>
+          <div style={{ fontWeight: 700, color: "var(--color-fair)" }}>🔄 再調整モード — 文面が再調整用に切り替わります</div>
+          <div style={{ color: "var(--text-secondary)" }}>
+            相手からの返信: <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>「{recipientNote}」</span>
+          </div>
         </div>
       )}
 

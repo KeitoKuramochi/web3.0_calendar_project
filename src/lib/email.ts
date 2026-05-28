@@ -1,6 +1,6 @@
 import { Resend } from "resend"
 
-const FROM = "TaskelTaskal <onboarding@resend.dev>"
+const FROM = process.env.RESEND_FROM ?? "SyncMatch AI <onboarding@resend.dev>"
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
 
 function getResend() {

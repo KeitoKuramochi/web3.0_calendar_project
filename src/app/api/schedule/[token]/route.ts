@@ -3,12 +3,17 @@ import { consultations } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { sendConfirmedNotification, sendReschedulingNotification } from "@/lib/email"
+import type { ConsultationRecord } from "@/types"
 
 export async function GET(_req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
   const rows = await db.select().from(consultations).where(eq(consultations.scheduleToken, token))
-  const record = rows[0]?.data as any
+  const record = rows[0]?.data as ConsultationRecord
   if (!record) return NextResponse.json(null, { status: 404 })
+
+  if (record.scheduleTokenExpiresAt && new Date(record.scheduleTokenExpiresAt) < new Date()) {
+    return NextResponse.json({ error: "link_expired" }, { status: 410 })
+  }
 
   return NextResponse.json({
     title: record.request?.title ?? "ご面談のご依頼",
@@ -33,7 +38,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
   const row = rows[0]
   if (!row) return NextResponse.json(null, { status: 404 })
 
-  const record = row.data as any
+  const record = row.data as ConsultationRecord
+
+  if (record.scheduleTokenExpiresAt && new Date(record.scheduleTokenExpiresAt) < new Date()) {
+    return NextResponse.json({ error: "link_expired" }, { status: 410 })
+  }
 
   // 「全部合わない」または「確定後に変更したい」— 再調整済みの場合のみブロック
   if (body.action === "reschedule") {
@@ -53,7 +62,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         toName: record.senderDisplayName ?? "送信者",
         title: record.request?.title ?? "ご面談",
         recipientNote: note,
-      }).catch(() => {})
+      }).catch(console.error)
     }
     return NextResponse.json({ ok: true })
   }
@@ -66,7 +75,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
   const { slot, name, contact } = body
   if (!slot) return NextResponse.json({ error: "slot required" }, { status: 400 })
 
-  const updated: any = { ...record, status: "confirmed", confirmedSlot: slot }
+  const updated: ConsultationRecord = { ...record, status: "confirmed", confirmedSlot: slot }
   if (name && typeof name === "string" && name.trim()) {
     updated.recipientName = name.trim()
   }
@@ -85,7 +94,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
       confirmedSlot: slot,
       recipientName: updated.recipientName,
       recipientContact: updated.recipientContact,
-    }).catch(() => {})
+    }).catch(console.error)
   }
   return NextResponse.json({ ok: true })
 }

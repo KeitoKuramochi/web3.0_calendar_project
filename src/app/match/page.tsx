@@ -18,12 +18,14 @@ export default function MatchPage() {
   const [scoredSlots, setScoredSlots] = useState<TimeSlotScore[]>([])
   const [selectedSlots, setSelectedSlots] = useState<string[]>([])
   const [inferredUserId, setInferredUserId] = useState<string>("")
+  const [recipientNote, setRecipientNote] = useState<string | null>(null)
 
   useEffect(() => {
     getActiveConsultation().then((active) => {
       if (!active?.request) { router.replace("/request"); return }
       const req = active.request
       setRequest(req)
+      if (active.recipientNote) setRecipientNote(active.recipientNote)
 
       const r = req.recipient ?? {}
       const inferred = inferProfileFromRole(
@@ -99,6 +101,26 @@ export default function MatchPage() {
         <h1>日程スコアリング</h1>
         <p>入力された相手の役職・情報から、各候補日時の調整しやすさを推測しました。複数選択できます。</p>
       </div>
+
+      {/* 再調整バナー */}
+      {recipientNote && (
+        <div style={{
+          padding: "12px 16px",
+          background: "rgba(232, 146, 78, 0.08)",
+          border: "2px solid rgba(232, 146, 78, 0.35)",
+          borderRadius: 14,
+          fontSize: "0.85rem",
+          display: "flex", flexDirection: "column", gap: 4,
+        }}>
+          <div style={{ fontWeight: 700, color: "var(--color-fair)" }}>🔄 再調整モード</div>
+          <div style={{ color: "var(--text-secondary)" }}>
+            相手からの返信: <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>「{recipientNote}」</span>
+          </div>
+          <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+            この内容を踏まえて新しい候補日時を選んでください。
+          </div>
+        </div>
+      )}
 
       {/* 分岐選択 */}
       <div className={styles.branchRow}>

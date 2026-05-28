@@ -30,6 +30,8 @@ export default function Home() {
   const [resetConfirm, setResetConfirm] = useState<string | null>(null)
   const [recopyToast, setRecopyToast] = useState<string | null>(null)
   const [expandedMail, setExpandedMail] = useState<Set<string>>(new Set())
+  const [manualConfirmId, setManualConfirmId] = useState<string | null>(null)
+  const [manualConfirmSlot, setManualConfirmSlot] = useState("")
 
   useEffect(() => {
     getConsultations().then(setRecords)
@@ -70,6 +72,40 @@ export default function Home() {
     }
     await upsertConsultation(reset)
     setResetConfirm(null)
+    setActiveId(id)
+    router.push("/match")
+  }
+
+  // 送信済み・確定待ちを手動で確定済みにする
+  const handleManualConfirm = async () => {
+    if (!manualConfirmId || !manualConfirmSlot.trim()) return
+    const record = records.find((r) => r.id === manualConfirmId)
+    if (!record) return
+    await upsertConsultation({
+      ...record,
+      status: "confirmed",
+      confirmedSlot: manualConfirmSlot.trim(),
+      updatedAt: new Date().toISOString(),
+    })
+    getConsultations().then(setRecords)
+    setManualConfirmId(null)
+    setManualConfirmSlot("")
+  }
+
+  // 再調整: request と recipientNote を保持したまま match へ
+  const handleRescheduleRetry = async (id: string) => {
+    const record = records.find((r) => r.id === id)
+    if (!record) return
+    await upsertConsultation({
+      ...record,
+      status: "draft",
+      match: undefined,
+      mail: undefined,
+      scheduleToken: undefined,
+      confirmedSlot: undefined,
+      updatedAt: new Date().toISOString(),
+      // recipientNote は意図的に保持 → match/mail ページで再調整モードを表示
+    })
     setActiveId(id)
     router.push("/match")
   }
@@ -271,8 +307,8 @@ export default function Home() {
                     )}
                   </div>
                   <div className={styles.consultCardFooter}>
-                    <button className={styles.btnResume} onClick={() => handleResume(record)}>
-                      新しい候補で作り直す
+                    <button className={styles.btnResume} onClick={() => handleRescheduleRetry(record.id)}>
+                      新しい日程で返信する
                       <ArrowRight size={15} />
                     </button>
                   </div>
@@ -369,6 +405,15 @@ export default function Home() {
                         </div>
                       )
                     })()}
+                  </div>
+                  <div className={styles.consultCardFooter}>
+                    <button
+                      className={styles.btnChangeSchedule}
+                      onClick={() => { setManualConfirmId(record.id); setManualConfirmSlot("") }}
+                    >
+                      <CheckCircle2 size={14} />
+                      確定済みにする
+                    </button>
                   </div>
                 </div>
               )
@@ -543,6 +588,15 @@ export default function Home() {
                       )
                     })()}
                   </div>
+                  <div className={styles.consultCardFooter}>
+                    <button
+                      className={styles.btnChangeSchedule}
+                      onClick={() => { setManualConfirmId(record.id); setManualConfirmSlot("") }}
+                    >
+                      <CheckCircle2 size={14} />
+                      確定済みにする
+                    </button>
+                  </div>
                 </div>
               )
             })}
@@ -579,6 +633,46 @@ export default function Home() {
                 onClick={() => handleDelete(deleteConfirm)}
               >
                 削除する
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 手動確定ダイアログ */}
+      {manualConfirmId && (
+        <div className={styles.dialogOverlay} onClick={() => setManualConfirmId(null)}>
+          <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
+            <p className={styles.dialogText}>確定した日時を入力してください</p>
+            <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", textAlign: "center", marginBottom: 12 }}>
+              相手と合意した日時を記録します
+            </p>
+            <input
+              type="text"
+              value={manualConfirmSlot}
+              onChange={(e) => setManualConfirmSlot(e.target.value)}
+              placeholder="例: 6月5日(木) 14:00〜14:30"
+              style={{
+                width: "100%", padding: "10px 14px",
+                border: "1.5px solid var(--border-color)",
+                borderRadius: 10, fontSize: "0.9rem",
+                fontFamily: "inherit", outline: "none",
+                background: "var(--bg-primary)", color: "var(--text-primary)",
+                marginBottom: 16, boxSizing: "border-box",
+              }}
+              autoFocus
+              onKeyDown={(e) => { if (e.key === "Enter") handleManualConfirm() }}
+            />
+            <div className={styles.dialogActions}>
+              <button className={styles.btnCancel} onClick={() => setManualConfirmId(null)}>
+                キャンセル
+              </button>
+              <button
+                className={styles.btnConfirmReset}
+                onClick={handleManualConfirm}
+                disabled={!manualConfirmSlot.trim()}
+              >
+                確定する
               </button>
             </div>
           </div>
