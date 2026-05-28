@@ -175,6 +175,25 @@ export default function ProfilePage() {
     }))
   }
 
+  const loadPreset = () => {
+    markEdited()
+    setProfile((prev) => ({
+      ...prev,
+      name: prev.name || "佐藤 拓海",
+      email: prev.email || "sato@example.ac.jp",
+      role: "学部生",
+      department: "情報工学科3年",
+      bio: "情報工学科3年生。プログラミング・就活・研究室選びについて相談できる先輩や先生を探しています。",
+      publicIntro: "情報工学科3年の佐藤拓海です。就活・研究室選び・履修について気軽に相談できる方を探しています。",
+      topics: ["就職活動", "研究室選び", "履修登録", "プログラミング質問"],
+      availableTimesFreeText: "金曜日の午前中は比較的空いています。平日の夕方16:30以降も対応可能です。",
+      avoidTimesFreeText: "水曜日は授業が詰まっているため難しいです。月曜1限は避けてください。",
+      mailPolicy: "メールには相談テーマを明記してください。2〜3営業日以内に返信します。",
+      mailRequiredInfo: ["学籍番号", "氏名", "相談したい具体的なテーマ"],
+      contactMethods: [{ type: "discord", label: "Discord", value: "sato_t#4321" }],
+    }))
+  }
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     clearTimeout(timerRef.current)
@@ -195,6 +214,16 @@ export default function ProfilePage() {
       <div className={styles.header}>
         <h1>プロフィール設定</h1>
         <p>あなたの予定感や連絡方針を登録すると、AIが日程調整とメール作成を最適化します。自由に書けます。</p>
+      </div>
+
+      <div style={{ textAlign: "right", marginBottom: 8 }}>
+        <button type="button" onClick={loadPreset} style={{
+          fontSize: "0.8rem", fontWeight: 600, color: "var(--color-primary)",
+          background: "none", border: "1.5px solid var(--color-primary)",
+          borderRadius: 20, padding: "5px 14px", cursor: "pointer", fontFamily: "inherit",
+        }}>
+          サンプルを入力してみる
+        </button>
       </div>
 
       {!profile.name && saveStatus === "idle" && (
