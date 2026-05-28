@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import { Save, User, Mail, BookOpen, Clock, AlertTriangle, Plus, X, Link as LinkIcon, CheckCircle2, Loader } from "lucide-react"
 import styles from "./profile.module.css"
 import { UserProfile, ContactMethod, ContactType } from "@/types"
@@ -38,6 +39,7 @@ const DEFAULT_PROFILE: UserProfile = {
 
 export default function ProfilePage() {
   const { data: session } = useSession()
+  const router = useRouter()
 
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE)
   const [saveStatus, setSaveStatus] = useState<"idle" | "unsaved" | "saving" | "saved">("idle")
@@ -239,6 +241,7 @@ export default function ProfilePage() {
       body: JSON.stringify(profile),
     })
     setSaveStatus("saved")
+    router.push("/")
   }
 
   // POPULAR_TOPICS に含まれないカスタムトピックのみ表示
