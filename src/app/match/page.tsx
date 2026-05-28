@@ -4,11 +4,12 @@ import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { CalendarDays, ShieldCheck, Mail, AlertCircle, Search } from "lucide-react"
 import styles from "./match.module.css"
-import { analyzeProfile, scoreTimeSlots, inferProfileFromRole } from "@/lib/ai"
+import { inferProfileFromRole } from "@/lib/ai"
 import { ConsultRequest, TimeSlotScore } from "@/types"
 import { formatJaWithEnd } from "@/lib/formatDate"
 import StepIndicator from "@/components/StepIndicator/StepIndicator"
 import { getActiveConsultation, upsertConsultation } from "@/lib/storage"
+import { analyzeRecipient } from "@/app/actions/ai"
 
 export default function MatchPage() {
   const router = useRouter()
@@ -19,24 +20,44 @@ export default function MatchPage() {
   const [selectedSlots, setSelectedSlots] = useState<string[]>([])
   const [inferredUserId, setInferredUserId] = useState<string>("")
   const [recipientNote, setRecipientNote] = useState<string | null>(null)
+  const [analyzing, setAnalyzing] = useState(true)
 
   useEffect(() => {
-    getActiveConsultation().then((active) => {
+    getActiveConsultation().then(async (active) => {
       if (!active?.request) { router.replace("/request"); return }
       const req = active.request
       setRequest(req)
       if (active.recipientNote) setRecipientNote(active.recipientNote)
 
       const r = req.recipient ?? {}
-      const inferred = inferProfileFromRole(
-        r.name ?? "",
-        r.role ?? "",
-        r.department ?? "",
-        r.notes ?? ""
-      )
-      setInferredUserId(inferred.id)
-      setAnalyzedProfile(analyzeProfile(inferred))
-      setScoredSlots(scoreTimeSlots(req.myAvailableTimes, inferred))
+      setAnalyzing(true)
+      try {
+        const { profile, scores } = await analyzeRecipient(
+          r.name ?? "",
+          r.role ?? "",
+          r.department ?? "",
+          r.notes ?? "",
+          req.myAvailableTimes,
+          req.duration ?? 30
+        )
+        setInferredUserId(profile.id)
+        setAnalyzedProfile({
+          preferredTimeHints: profile.availableTimesFreeText
+            ? profile.availableTimesFreeText.split("。").filter(Boolean)
+            : [],
+          avoidedTimeHints: profile.avoidTimesFreeText
+            ? profile.avoidTimesFreeText.split("。").filter(Boolean)
+            : [],
+          requiredInfos: profile.mailRequiredInfo,
+        })
+        setScoredSlots(scores)
+      } catch {
+        // フォールバック（analyzeRecipient 内でも処理されるが念のため）
+        const inferred = inferProfileFromRole(r.name ?? "", r.role ?? "", r.department ?? "", r.notes ?? "")
+        setInferredUserId(inferred.id)
+      } finally {
+        setAnalyzing(false)
+      }
     })
   }, [])
 
@@ -65,13 +86,20 @@ export default function MatchPage() {
     if (!active) return
     const duration = request?.duration ?? 30
     const r = request?.recipient ?? {}
+    // analyzeRecipient で取得した profile を再利用（フォールバックとして inferProfileFromRole も保持）
     const inferred = inferProfileFromRole(r.name ?? "", r.role ?? "", r.department ?? "", r.notes ?? "")
     const matchData = {
-      targetUserId: inferred.id,
+      targetUserId: inferredUserId || inferred.id,
       selectedTimeSlots: selectedSlots.map((s) => formatJaWithEnd(s, duration)),
       selectedTimeSlotsRaw: selectedSlots,
       selectedTimeSlot: formatJaWithEnd(selectedSlots[0], duration),
-      inferredProfile: inferred,
+      inferredProfile: {
+        ...inferred,
+        id: inferredUserId || inferred.id,
+        availableTimesFreeText: analyzedProfile?.preferredTimeHints.join("。") ?? inferred.availableTimesFreeText,
+        avoidTimesFreeText: analyzedProfile?.avoidedTimeHints.join("。") ?? inferred.avoidTimesFreeText,
+        mailRequiredInfo: analyzedProfile?.requiredInfos ?? inferred.mailRequiredInfo,
+      },
     }
     await upsertConsultation({ ...active, status: "matched", match: matchData })
     router.push("/mail")
@@ -139,6 +167,25 @@ export default function MatchPage() {
           </div>
         </div>
       </div>
+
+      {/* AI 分析中のローディング */}
+      {analyzing && (
+        <div style={{
+          padding: "14px 18px",
+          background: "var(--color-excellent-bg)",
+          border: "1.5px solid rgba(78, 191, 173, 0.3)",
+          borderRadius: 14,
+          fontSize: "0.85rem",
+          fontWeight: 600,
+          color: "var(--color-excellent)",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+        }}>
+          <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⟳</span>
+          AIが相手の予定傾向を分析中...
+        </div>
+      )}
 
       {/* 相手情報と推論の説明 */}
       <div className="glass-card fade-in" style={{ padding: "16px 20px" }}>

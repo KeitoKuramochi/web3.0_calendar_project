@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Mail, MessageSquare, ShieldCheck, AlertCircle, CheckCircle2, Copy, PartyPopper, Check, HelpCircle, ArrowLeft, UserX, Share2, Bookmark } from "lucide-react"
 import styles from "./mail.module.css"
 import { generateEmail, checkEmail } from "@/lib/ai"
+import { generateMail, checkMailWithAI } from "@/app/actions/ai"
 import { ConsultRequest, UserProfile, MailCheckResult, MailIssue, OutputFormat } from "@/types"
 import StepIndicator from "@/components/StepIndicator/StepIndicator"
 import { getActiveConsultation, upsertConsultation, clearActiveId, getConsultations } from "@/lib/storage"
@@ -37,6 +38,8 @@ export default function MailPage() {
   const [body, setBody] = useState("")
   const [checkResult, setCheckResult] = useState<MailCheckResult>({ passed: true, issues: [] })
 
+  const [generating, setGenerating] = useState(false)
+  const [checkingAI, setCheckingAI] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [showSaveLaterToast, setShowSaveLaterToast] = useState(false)
   const [mailRestored, setMailRestored] = useState(false)
@@ -105,22 +108,22 @@ export default function MailPage() {
   }, [])
 
   // フォーマット切替時に再生成
-  const handleFormatChange = (fmt: OutputFormat) => {
+  const handleFormatChange = async (fmt: OutputFormat) => {
     setOutputFormat(fmt)
     if (requester && targetUser && request && matchData) {
-      regenerate(requester, targetUser, request, matchData, fmt, undefined, isFirstContact, isRescheduling, recipientNote)
+      await regenerate(requester, targetUser, request, matchData, fmt, undefined, isFirstContact, isRescheduling, recipientNote)
     }
   }
 
   // isFirstContact切替時に再生成
-  const handleFirstContactToggle = (val: boolean) => {
+  const handleFirstContactToggle = async (val: boolean) => {
     setIsFirstContact(val)
     if (outputFormat && requester && targetUser && request && matchData) {
-      regenerate(requester, targetUser, request, matchData, outputFormat, undefined, val, isRescheduling, recipientNote)
+      await regenerate(requester, targetUser, request, matchData, outputFormat, undefined, val, isRescheduling, recipientNote)
     }
   }
 
-  const regenerate = (
+  const regenerate = async (
     sender: UserProfile,
     target: UserProfile,
     req: ConsultRequest,
@@ -133,13 +136,22 @@ export default function MailPage() {
   ) => {
     if (!fmt) return
     const slots: string[] = match.selectedTimeSlots ?? [match.selectedTimeSlot ?? "候補日時"]
-    const generated = generateEmail(sender, target, req.title || "ご相談", slots, req.format || "offline", req.freeTextInput || "", fmt, token, firstContact, rescheduling, rNote)
-    setSubject(generated.subject)
-    setBody(generated.body)
-    if (fmt === "email") {
-      setCheckResult(checkEmail(generated.body, target))
-    } else {
-      setCheckResult({ passed: true, issues: [] })
+    setGenerating(true)
+    try {
+      const generated = await generateMail(
+        sender, target, req.title || "ご相談", slots,
+        req.format || "offline", req.freeTextInput || "",
+        fmt, token, firstContact, rescheduling, rNote
+      )
+      setSubject(generated.subject)
+      setBody(generated.body)
+      if (fmt === "email") {
+        setCheckResult(checkEmail(generated.body, target))
+      } else {
+        setCheckResult({ passed: true, issues: [] })
+      }
+    } finally {
+      setGenerating(false)
     }
   }
 
@@ -196,6 +208,17 @@ export default function MailPage() {
         setShowSuccessModal(true)
       }, 1500)
     })
+  }
+
+  const handleAICheck = async () => {
+    if (!outputFormat || !body.trim() || !targetUser || !requester) return
+    setCheckingAI(true)
+    try {
+      const result = await checkMailWithAI(body, subject, targetUser, requester, outputFormat)
+      setCheckResult(result)
+    } finally {
+      setCheckingAI(false)
+    }
   }
 
   const handleSaveLater = async () => {
@@ -443,13 +466,30 @@ export default function MailPage() {
                     placeholder="件名"
                   />
                 )}
-                <textarea
-                  ref={bodyRef}
-                  value={body}
-                  onChange={handleBodyChange}
-                  className={`${styles.bodyTextarea} ${flashTextarea ? styles.bodyTextareaFlash : ""}`}
-                  placeholder="メッセージ本文"
-                />
+                <div style={{ position: "relative" }}>
+                  <textarea
+                    ref={bodyRef}
+                    value={body}
+                    onChange={handleBodyChange}
+                    className={`${styles.bodyTextarea} ${flashTextarea ? styles.bodyTextareaFlash : ""}`}
+                    placeholder="メッセージ本文"
+                    disabled={generating}
+                  />
+                  {generating && (
+                    <div style={{
+                      position: "absolute", inset: 0,
+                      background: "rgba(250,246,240,0.75)",
+                      backdropFilter: "blur(2px)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      borderRadius: 18,
+                      fontSize: "0.9rem", fontWeight: 700, color: "var(--color-primary)",
+                      gap: 10,
+                    }}>
+                      <span style={{ fontSize: "1.2rem" }}>✦</span>
+                      AIがメッセージを生成中...
+                    </div>
+                  )}
+                </div>
               </>
             )}
 
@@ -509,6 +549,26 @@ export default function MailPage() {
                 <div className={styles.checkStatusHeader} style={{ color: "var(--color-excellent)" }}>
                   <CheckCircle2 size={18} /><span>送信可能な状態です！</span>
                 </div>
+              )}
+
+              {outputFormat && (
+                <button
+                  type="button"
+                  onClick={handleAICheck}
+                  disabled={checkingAI || !body.trim()}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    padding: "7px 14px", marginBottom: 10,
+                    background: checkingAI ? "var(--bg-primary)" : "var(--color-secondary-bg)",
+                    border: "1.5px solid rgba(232,168,124,0.35)",
+                    borderRadius: 12, cursor: checkingAI ? "wait" : "pointer",
+                    fontSize: "0.8rem", fontWeight: 700, color: "var(--color-secondary)",
+                    fontFamily: "inherit", transition: "all var(--transition-fast)",
+                    opacity: !body.trim() ? 0.5 : 1,
+                  }}
+                >
+                  {checkingAI ? "⟳ AI分析中..." : "✦ AIで詳しくチェック"}
+                </button>
               )}
 
               {isEmailFormat && (
