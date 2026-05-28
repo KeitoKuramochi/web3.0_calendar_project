@@ -27,6 +27,7 @@ export default function MailPage() {
 
   const [outputFormat, setOutputFormat] = useState<OutputFormat | null>(null)
   const [isFirstContact, setIsFirstContact] = useState(true)
+  const [recipientEmail, setRecipientEmail] = useState("")
   const [scheduleUrlForShare, setScheduleUrlForShare] = useState<string | null>(null)
   const [linkCopied, setLinkCopied] = useState(false)
   const [pastContactCount, setPastContactCount] = useState(0)
@@ -61,6 +62,7 @@ export default function MailPage() {
 
       const target: UserProfile = match.inferredProfile ?? buildFallbackProfile(req)
       setTargetUser(target)
+      setRecipientEmail(req.recipient?.email ?? target.email ?? "")
 
       // 同一相手への過去の連絡件数を集計して初回判定
       const allConsults = await getConsultations()
@@ -155,7 +157,7 @@ export default function MailPage() {
     const token = crypto.randomUUID()
     const active = await getActiveConsultation()
     if (active && requester && targetUser && request && matchData) {
-      await upsertConsultation({ ...active, status: "waiting", scheduleToken: token, senderDisplayName: requester.name })
+      await upsertConsultation({ ...active, status: "waiting", scheduleToken: token, senderDisplayName: requester.name, scheduleTokenExpiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() })
       regenerate(requester, targetUser, request, matchData, outputFormat, token, isFirstContact)
       const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin
       setScheduleUrlForShare(`${appUrl}/schedule/${token}`)
@@ -269,6 +271,34 @@ export default function MailPage() {
           </a>
         </div>
       )}
+
+      {/* 送信情報サマリー */}
+      <div className={styles.sendSummary}>
+        <div className={styles.sendSummaryRow}>
+          <span className={styles.sendSummaryLabel}>宛先</span>
+          <div className={styles.sendSummaryTo}>
+            <span className={styles.sendSummaryName}>
+              {targetUser?.name || "（相手の名前）"}
+              {targetUser?.role && <span className={styles.sendSummaryMeta}>{targetUser.role}{targetUser.department ? ` / ${targetUser.department}` : ""}</span>}
+            </span>
+            <input
+              type="email"
+              value={recipientEmail}
+              onChange={(e) => setRecipientEmail(e.target.value)}
+              className={styles.sendSummaryEmail}
+              placeholder="メールアドレスを入力"
+            />
+          </div>
+        </div>
+        <div className={styles.sendSummaryRow}>
+          <span className={styles.sendSummaryLabel}>相談内容</span>
+          <span className={styles.sendSummaryValue}>
+            {request?.title || "（タイトルなし）"}
+            {request?.duration && <span className={styles.sendSummaryMeta}>{request.duration}分</span>}
+            {request?.format && <span className={styles.sendSummaryMeta}>{request.format === "offline" ? "対面" : request.format === "online" ? "オンライン" : "どちらでも"}</span>}
+          </span>
+        </div>
+      </div>
 
       {/* 出力フォーマット切り替え */}
       <div className={styles.formatPicker}>
@@ -509,7 +539,7 @@ export default function MailPage() {
                     {linkCopied ? <><Check size={14} />コピー済み</> : <><Copy size={14} />全文をコピー</>}
                   </button>
                   <a
-                    href={`mailto:${targetUser?.email ?? ""}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`}
+                    href={`mailto:${recipientEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`}
                     className={styles.btnShareLink}
                   >
                     <Mail size={14} />

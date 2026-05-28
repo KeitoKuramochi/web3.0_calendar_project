@@ -5,6 +5,90 @@
   animation: fadeIn var(--transition-normal) forwards;
 }
 
+/* 送信情報サマリー */
+.sendSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 18px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-color);
+  border-radius: 16px;
+  margin-bottom: 16px;
+}
+
+.sendSummaryRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.sendSummaryLabel {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 52px;
+  padding-top: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sendSummaryTo {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+}
+
+.sendSummaryName {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sendSummaryValue {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sendSummaryMeta {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 2px 8px;
+}
+
+.sendSummaryEmail {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  border: 1.5px solid var(--border-color);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-family: monospace;
+  max-width: 280px;
+  transition: border-color var(--transition-fast);
+  outline: none;
+}
+
+.sendSummaryEmail:focus {
+  border-color: var(--color-primary);
+  color: var(--text-primary);
+}
+
 .header {
   margin-bottom: 20px;
 }

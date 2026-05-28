@@ -53,6 +53,7 @@ export default function RequestPage() {
   })
 
   const [recipientName, setRecipientName] = useState("")
+  const [recipientEmail, setRecipientEmail] = useState("")
   const [recipientRole, setRecipientRole] = useState("")
   const [recipientDept, setRecipientDept] = useState("")
   const [recipientNotes, setRecipientNotes] = useState("")
@@ -114,27 +115,33 @@ export default function RequestPage() {
   }
 
   const loadPreset = () => {
-    const text = "来週くらいに進路について相談したいです。鈴木先生と対面で30分くらいお話ししたいです。自分は金曜午前が空いています。急ぎではないです。"
+    const text = "就活の進め方についてアドバイスをいただきたいです。"
     setFreeText(text)
     const parsed = parseFreeText(text)
-    setTitle(parsed.extractedTitle)
-    setDuration(parsed.extractedDuration)
-    setFormat(parsed.extractedFormat)
-    setUrgency(parsed.extractedUrgency)
-    setSelectedTopics(["進路相談"])
+    setTitle(parsed.extractedTitle || "就活相談")
+    setDuration(30)
+    setFormat("offline")
+    setUrgency("normal")
+    setSelectedTopics(["就職活動"])
+    setRecipientName("鈴木 茂")
+    setRecipientEmail("suzuki@example.ac.jp")
+    setRecipientRole("研究室教員")
+    setRecipientDept("情報工学科")
+    setRecipientNotes("")
     const base = new Date(); base.setHours(0, 0, 0, 0)
     const fmt = (d: Date, h: number) => { const dd = new Date(d); dd.setHours(h, 0, 0, 0); return dd.toISOString().slice(0, 16) }
     const d7 = new Date(base); d7.setDate(base.getDate() + 7)
     const d8 = new Date(base); d8.setDate(base.getDate() + 8)
     const d9 = new Date(base); d9.setDate(base.getDate() + 9)
     setAvailableTimes([fmt(d7, 10), fmt(d7, 11), fmt(d8, 10), fmt(d9, 14)])
-    setAiNotice(`デモ入力。AIが「${parsed.extractedTitle}」、${parsed.extractedDuration}分、対面を推測しました。`)
+    setAiNotice(`デモ入力。相手：鈴木 茂（研究室教員）、相談：就職活動、30分・対面。`)
   }
 
   const buildRequestData = (id: string): ConsultRequest => {
     const resolvedTitle = title.trim() || selectedTopics[0] || freeText.trim().slice(0, 40) || "（タイトルなし）"
     const recipient: RecipientInfo = {
       name: recipientName.trim() || undefined,
+      email: recipientEmail.trim() || undefined,
       role: recipientRole.trim() || undefined,
       department: recipientDept.trim() || undefined,
       notes: recipientNotes.trim() || undefined,
@@ -224,7 +231,7 @@ export default function RequestPage() {
             value={freeText}
             onChange={(e) => setFreeText(e.target.value)}
             onBlur={handleFreeTextBlur}
-            placeholder="例: 来週くらいに進路について鈴木先生に相談したいです。30分くらいで対面が希望。金曜午前が空いています。"
+            placeholder="例: 就活の進め方についてアドバイスをいただきたい / 研究室選びで迷っていることを相談したい"
             className={styles.textareaMain}
             rows={4}
           />
@@ -363,6 +370,16 @@ export default function RequestPage() {
               onChange={(e) => setRecipientName(e.target.value)}
               className={styles.input}
               placeholder="例: 鈴木 茂"
+            />
+          </div>
+          <div className={styles.formGroup}>
+            <label className={styles.label}>メールアドレス（任意）</label>
+            <input
+              type="email"
+              value={recipientEmail}
+              onChange={(e) => setRecipientEmail(e.target.value)}
+              className={styles.input}
+              placeholder="例: suzuki@example.ac.jp"
             />
           </div>
           <div className={styles.formGroup}>

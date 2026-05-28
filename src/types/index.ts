@@ -41,6 +41,7 @@ export interface UserProfile {
 // 相談相手の情報（役職推論に使用）
 export interface RecipientInfo {
   name?: string
+  email?: string
   role?: string
   department?: string
   notes?: string
@@ -134,4 +135,5 @@ export interface ConsultationRecord {
   recipientContact?: string   // 受信者が入力した連絡先（Discord名・メールなど）
   senderDisplayName?: string  // 確定リンクで表示する送信者名
   senderEmail?: string        // 通知送信先（Google認証メール）
+  scheduleTokenExpiresAt?: string  // ISO8601, scheduleToken有効期限
 }
