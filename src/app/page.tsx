@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
-import { Plus, ArrowRight, Clock, CheckCircle2, Trash2, User, CalendarDays, Send, RefreshCw, Copy, Share2 } from "lucide-react"
+import { Plus, ArrowRight, Clock, CheckCircle2, Trash2, User, CalendarDays, Send, RefreshCw, Copy, Share2, Mail } from "lucide-react"
 import styles from "./page.module.css"
 import { getConsultations, deleteConsultation, upsertConsultation, setActiveId, clearActiveId } from "@/lib/storage"
 import type { ConsultationRecord, ConsultationStatus, UserProfile } from "@/types"
@@ -88,6 +88,9 @@ export default function Home() {
   const getTargetName = (record: ConsultationRecord): string | null =>
     record.match?.inferredProfile?.name ?? record.request?.recipient?.name ?? null
 
+  const getTargetEmail = (record: ConsultationRecord): string | null =>
+    record.request?.recipient?.email ?? null
+
   const formatDate = (iso: string) => {
     const d = new Date(iso)
     const now = new Date()
@@ -154,6 +157,7 @@ export default function Home() {
             {active.map((record) => {
               const meta = STATUS_META[record.status]
               const targetName = getTargetName(record)
+              const targetEmail = getTargetEmail(record)
               return (
                 <div key={record.id} className={styles.consultCard}>
                   <div className={styles.consultCardTop}>
@@ -178,6 +182,12 @@ export default function Home() {
                           <User size={13} />
                           {targetName}
                         </span>
+                      )}
+                      {targetEmail && (
+                        <a href={`mailto:${targetEmail}`} className={styles.consultMetaItem} style={{ textDecoration: "none" }}>
+                          <Mail size={13} />
+                          {targetEmail}
+                        </a>
                       )}
                       <span className={styles.consultMetaItem}>
                         <CalendarDays size={13} />
@@ -228,6 +238,7 @@ export default function Home() {
           <div className={styles.cardList}>
             {rescheduling.map((record) => {
               const targetName = getTargetName(record)
+              const targetEmail = getTargetEmail(record)
               return (
                 <div key={record.id} className={`${styles.consultCard} ${styles.reschedulingCard}`}>
                   <div className={styles.consultCardTop}>
@@ -244,6 +255,12 @@ export default function Home() {
                           <User size={13} />
                           {targetName}
                         </span>
+                      )}
+                      {targetEmail && (
+                        <a href={`mailto:${targetEmail}`} className={styles.consultMetaItem} style={{ textDecoration: "none" }}>
+                          <Mail size={13} />
+                          {targetEmail}
+                        </a>
                       )}
                     </div>
                     {record.recipientNote && (
@@ -291,6 +308,12 @@ export default function Home() {
                           <User size={13} />
                           {record.request.recipient.name}
                         </span>
+                      )}
+                      {record.request?.recipient?.email && (
+                        <a href={`mailto:${record.request.recipient.email}`} className={styles.consultMetaItem} style={{ textDecoration: "none" }}>
+                          <Mail size={13} />
+                          {record.request.recipient.email}
+                        </a>
                       )}
                       <span className={styles.consultMetaItem}>
                         <CalendarDays size={13} />
@@ -372,12 +395,20 @@ export default function Home() {
                 </div>
                 <div className={styles.consultCardBody}>
                   <h3 className={styles.consultTitle}>{record.request?.title || "（タイトルなし）"}</h3>
-                  {record.request?.recipient?.name && (
+                  {(record.request?.recipient?.name || record.request?.recipient?.email) && (
                     <div className={styles.consultMeta}>
-                      <span className={styles.consultMetaItem}>
-                        <User size={13} />
-                        {record.request.recipient.name}
-                      </span>
+                      {record.request.recipient?.name && (
+                        <span className={styles.consultMetaItem}>
+                          <User size={13} />
+                          {record.request.recipient.name}
+                        </span>
+                      )}
+                      {record.request.recipient?.email && (
+                        <a href={`mailto:${record.request.recipient.email}`} className={styles.consultMetaItem} style={{ textDecoration: "none" }}>
+                          <Mail size={13} />
+                          {record.request.recipient.email}
+                        </a>
+                      )}
                     </div>
                   )}
                   {record.confirmedSlot && (
@@ -425,6 +456,7 @@ export default function Home() {
           <div className={styles.cardList}>
             {sent.map((record) => {
               const targetName = getTargetName(record)
+              const targetEmail = getTargetEmail(record)
               return (
                 <div key={record.id} className={`${styles.consultCard} ${styles.sentCard}`}>
                   <div className={styles.consultCardTop}>
@@ -447,6 +479,12 @@ export default function Home() {
                           <User size={13} />
                           {targetName}
                         </span>
+                      )}
+                      {targetEmail && (
+                        <a href={`mailto:${targetEmail}`} className={styles.consultMetaItem} style={{ textDecoration: "none" }}>
+                          <Mail size={13} />
+                          {targetEmail}
+                        </a>
                       )}
                       <span className={styles.consultMetaItem}>
                         <CalendarDays size={13} />
