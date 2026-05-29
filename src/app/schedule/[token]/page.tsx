@@ -19,6 +19,7 @@ interface ScheduleData {
   status: string
   confirmedSlot: string | null
   recipientNote: string | null
+  recipientPostNote: string | null
 }
 
 type View = "selecting" | "confirmed" | "rescheduling_form" | "rescheduled"
@@ -74,6 +75,11 @@ export default function SchedulePage() {
   const [confirmMessage, setConfirmMessage] = useState("")
   const [confirming, setConfirming] = useState(false)
 
+  // 確定後メモ
+  const [postNote, setPostNote] = useState("")
+  const [postNoteSending, setPostNoteSending] = useState(false)
+  const [postNoteSent, setPostNoteSent] = useState(false)
+
   // 範囲の開閉状態
   const [expandedRanges, setExpandedRanges] = useState<Set<string>>(new Set())
 
@@ -90,6 +96,7 @@ export default function SchedulePage() {
         if (d?.status === "confirmed" && d.confirmedSlot) {
           setConfirmedSlot(d.confirmedSlot)
           setView("confirmed")
+          if (d.recipientPostNote) setPostNoteSent(true)
         } else if (d?.status === "rescheduling") {
           setView("rescheduled")
         }
@@ -169,6 +176,18 @@ export default function SchedulePage() {
     setConfirming(false)
   }
 
+  const handlePostNote = async () => {
+    if (!postNote.trim()) return
+    setPostNoteSending(true)
+    const res = await fetch(`/api/schedule/${token}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "post_note", note: postNote.trim() }),
+    })
+    if (res.ok) setPostNoteSent(true)
+    setPostNoteSending(false)
+  }
+
   const openRescheduleForm = (from: "selecting" | "confirmed") => {
     setRescheduleFrom(from)
     setRescheduleNote("")
@@ -230,6 +249,31 @@ export default function SchedulePage() {
               ? "場所の詳細は依頼者よりご連絡します。"
               : "形式・場所の詳細は依頼者よりご連絡します。"}
         </p>
+        {/* 確定後の追加メッセージ */}
+        {!postNoteSent ? (
+          <div className={styles.postNoteBox}>
+            <p className={styles.postNoteLabel}>追加でひとことメッセージを送る（任意）</p>
+            <p className={styles.postNoteHint}>例：この時間でいいですが、1時間でも対応可能です</p>
+            <textarea
+              className={styles.postNoteTextarea}
+              placeholder="例：1時間対応可能です / Zoomで参加します"
+              value={postNote}
+              onChange={(e) => setPostNote(e.target.value)}
+              rows={3}
+              disabled={postNoteSending}
+            />
+            <button
+              className={styles.btnPostNote}
+              onClick={handlePostNote}
+              disabled={postNoteSending || !postNote.trim()}
+            >
+              {postNoteSending ? "送信中..." : "送信する"}
+            </button>
+          </div>
+        ) : (
+          <p className={styles.postNoteSent}>✓ メッセージを送りました</p>
+        )}
+
         <div className={styles.ctaBox}>
           <p>TaskelTaskal を使うと、あなたの予定を登録して<br />次回から日程調整をさらにスムーズにできます。</p>
           <a href="/" className={styles.ctaBtn}>アカウントを作成する（無料）</a>

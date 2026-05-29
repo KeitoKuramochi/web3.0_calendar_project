@@ -2,7 +2,7 @@ import { db } from "@/lib/db"
 import { consultations } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { sendConfirmedNotification, sendReschedulingNotification } from "@/lib/email"
+import { sendConfirmedNotification, sendReschedulingNotification, sendPostNoteNotification } from "@/lib/email"
 import type { ConsultationRecord } from "@/types"
 
 export async function GET(_req: Request, { params }: { params: Promise<{ token: string }> }) {
@@ -27,6 +27,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     status: record.status,
     confirmedSlot: record.confirmedSlot ?? null,
     recipientNote: record.recipientNote ?? null,
+    recipientPostNote: record.recipientPostNote ?? null,
   })
 }
 
@@ -42,6 +43,28 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
 
   if (record.scheduleTokenExpiresAt && new Date(record.scheduleTokenExpiresAt) < new Date()) {
     return NextResponse.json({ error: "link_expired" }, { status: 410 })
+  }
+
+  // 確定後の追加メッセージ
+  if (body.action === "post_note") {
+    if (record.status !== "confirmed") {
+      return NextResponse.json({ error: "not_confirmed" }, { status: 400 })
+    }
+    const note = typeof body.note === "string" ? body.note.trim() : ""
+    if (!note) return NextResponse.json({ error: "note required" }, { status: 400 })
+    const updated = { ...record, recipientPostNote: note }
+    await db.update(consultations)
+      .set({ data: updated, updatedAt: new Date() })
+      .where(eq(consultations.scheduleToken, token))
+    if (record.senderEmail) {
+      sendPostNoteNotification({
+        toEmail: record.senderEmail,
+        toName: record.senderDisplayName ?? "送信者",
+        title: record.request?.title ?? "ご面談",
+        note,
+      }).catch(console.error)
+    }
+    return NextResponse.json({ ok: true })
   }
 
   // 「全部合わない」または「確定後に変更したい」— 再調整済みの場合のみブロック

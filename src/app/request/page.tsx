@@ -59,37 +59,40 @@ export default function RequestPage() {
 
   // 既存ドラフトの読み込み（ダッシュボードから再開した場合）
   useEffect(() => {
+    // 先にIDを確定しておくことで、API応答前に auto-save が走っても新IDが生成されない
+    const now = new Date().toISOString()
+    autoSaveDraftRef.current = { id: `req_${Date.now()}`, createdAt: now }
+
     getActiveConsultation().then((active) => {
-      if (!active?.request || active.status !== "draft") {
-        // 新規作成: デフォルトの空き時間候補を入れる
+      if (active?.request && active.status === "draft") {
+        // 既存ドラフトを復元: IDを上書きして同一レコードに保存
+        autoSaveDraftRef.current = { id: active.id, createdAt: active.createdAt }
+        const req = active.request
+        if (req.freeTextInput) setFreeText(req.freeTextInput)
+        if (req.title && req.title !== "（タイトルなし）") setTitle(req.title)
+        setDuration(req.duration ?? 30)
+        setFormat(req.format ?? "hybrid")
+        setUrgency(req.urgency ?? "normal")
+        if (req.consultTopics?.length) setSelectedTopics(req.consultTopics)
+        setAvailableTimes(req.myAvailableTimes ?? [])
+        setAvailableRanges(req.myAvailableRanges ?? [])
+        if (req.recipient) {
+          setRecipientName(req.recipient.name ?? "")
+          setRecipientEmail(req.recipient.email ?? "")
+          setRecipientRole(req.recipient.role ?? "")
+          setRecipientDept(req.recipient.department ?? "")
+          setRecipientNotes(req.recipient.notes ?? "")
+        }
+        setAutoSaveLabel("自動保存済み")
+      } else {
+        // 新規作成（activeがnull・非draft・確定済み）: デフォルトの空き時間候補を入れる
         const base = new Date(); base.setHours(0, 0, 0, 0)
         const fmtISO = (d: Date, h: number, m: number) => { const dd = new Date(d); dd.setHours(h, m, 0, 0); return dd.toISOString().slice(0, 16) }
         const d7 = new Date(base); d7.setDate(base.getDate() + 7)
         const d8 = new Date(base); d8.setDate(base.getDate() + 8)
         const d9 = new Date(base); d9.setDate(base.getDate() + 9)
         setAvailableTimes([fmtISO(d7, 10, 0), fmtISO(d7, 11, 0), fmtISO(d8, 14, 0), fmtISO(d9, 15, 0)])
-        return
       }
-      const req = active.request
-      // フォームを復元
-      if (req.freeTextInput) setFreeText(req.freeTextInput)
-      if (req.title && req.title !== "（タイトルなし）") setTitle(req.title)
-      setDuration(req.duration ?? 30)
-      setFormat(req.format ?? "hybrid")
-      setUrgency(req.urgency ?? "normal")
-      if (req.consultTopics?.length) setSelectedTopics(req.consultTopics)
-      setAvailableTimes(req.myAvailableTimes ?? [])
-      setAvailableRanges(req.myAvailableRanges ?? [])
-      if (req.recipient) {
-        setRecipientName(req.recipient.name ?? "")
-        setRecipientEmail(req.recipient.email ?? "")
-        setRecipientRole(req.recipient.role ?? "")
-        setRecipientDept(req.recipient.department ?? "")
-        setRecipientNotes(req.recipient.notes ?? "")
-      }
-      // 同一IDで保存するようにrefを更新
-      autoSaveDraftRef.current = { id: active.id, createdAt: active.createdAt }
-      setAutoSaveLabel("自動保存済み")
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -101,12 +104,12 @@ export default function RequestPage() {
     setAutoSaveLabel("変更あり")
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
     autoSaveTimerRef.current = setTimeout(async () => {
-      const isFirst = !autoSaveDraftRef.current
       const now = new Date().toISOString()
-      if (isFirst) autoSaveDraftRef.current = { id: `req_${Date.now()}`, createdAt: now }
-      const { id, createdAt } = autoSaveDraftRef.current!
+      // autoSaveDraftRef は mount 時に必ず確定されるため isFirst=true にはならない
+      if (!autoSaveDraftRef.current) autoSaveDraftRef.current = { id: `req_${Date.now()}`, createdAt: now }
+      const { id, createdAt } = autoSaveDraftRef.current
       await upsertConsultation({ id, status: "draft", createdAt, updatedAt: now, request: buildRequestData(id) })
-      setActiveId(id)
+      // setActiveId はここで呼ばない: handleSaveDraft / handleSubmit で明示的に設定する
       setAutoSaveLabel("自動保存済み")
     }, 3000)
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current) }

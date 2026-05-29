@@ -149,7 +149,12 @@ export default function MailPage() {
       setSubject(generated.subject)
       setBody(generated.body)
       if (fmt === "email") {
+        // 静的チェックを即時実行
         setCheckResult(checkEmail(generated.body, target))
+        // AIチェックを非同期で実行（エラーは無視して静的結果を保持）
+        checkMailWithAI(generated.body, generated.subject, target, sender, fmt)
+          .then((result) => setCheckResult(result))
+          .catch((err) => console.error("[mail/regenerate] AI check failed:", err))
       } else {
         setCheckResult({ passed: true, issues: [] })
       }

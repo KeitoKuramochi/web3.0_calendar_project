@@ -27,10 +27,13 @@ export async function callCloudflareAI(
     throw new Error(`Cloudflare AI error ${res.status}: ${err}`)
   }
 
-  const data = await res.json() as { result?: { response?: string }; success: boolean }
+  const data = await res.json() as { result?: { response?: string | object }; success: boolean }
   if (!data.success || !data.result?.response) {
     throw new Error("Cloudflare AI returned empty response")
   }
 
-  return data.result.response
+  const response = data.result.response
+  // llama-3.3-70b など一部モデルは JSON をオブジェクトのまま返す
+  if (typeof response === "string") return response
+  return JSON.stringify(response)
 }

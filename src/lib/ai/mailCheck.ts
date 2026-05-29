@@ -12,41 +12,72 @@ export function checkEmail(
   const issues: MailIssue[] = [];
 
   // 1. テンプレートプレースホルダーの残存チェック
-  const placeholder1 = body.includes("（ご自身の学籍番号を入力してください）")
-    ? "（ご自身の学籍番号を入力してください）"
-    : body.includes("(ご自身の学籍番号を入力してください)")
-    ? "(ご自身の学籍番号を入力してください)"
-    : null
-  if (placeholder1) {
-    issues.push({
-      type: "error",
-      message: "「学籍番号」がプレースホルダーのままになっています。",
-      suggestion: "ご自身の学籍番号（例: 22JK101）に書き換えてください。",
-      searchText: placeholder1,
-    });
+  const studentIdPlaceholders = [
+    "（あなたの学籍番号）",
+    "（ご自身の学籍番号を入力してください）",
+    "(ご自身の学籍番号を入力してください)",
+    "（学籍番号）",
+  ]
+  for (const p of studentIdPlaceholders) {
+    if (body.includes(p)) {
+      issues.push({
+        type: "error",
+        message: "学籍番号がプレースホルダーのままです。実際の番号に書き換えてください。",
+        suggestion: "例: s2232049vz のようにご自身の学籍番号を入力してください。",
+        searchText: p,
+      })
+      break
+    }
   }
+
+  // 未記入フィールド（＿＿＿＿＿＿）
   if (body.includes("＿＿＿＿＿＿")) {
     issues.push({
       type: "error",
       message: "未記入の必要項目（＿＿＿＿＿＿）が存在します。",
       suggestion: "指定された内容を入力してください。",
       searchText: "＿＿＿＿＿＿",
-    });
+    })
   }
 
-  // 2. 相手が必要とする情報のキーワードチェック (プレースホルダーを消した場合の確認)
+  // 一般的な未記入プレースホルダーのパターン検出
+  const generalPlaceholders = [
+    { text: "（お名前）", label: "お名前" },
+    { text: "（氏名）", label: "氏名" },
+    { text: "（所属）", label: "所属" },
+    { text: "（連絡先）", label: "連絡先" },
+    { text: "（学部名）", label: "学部名" },
+    { text: "（学年）", label: "学年" },
+  ]
+  for (const { text, label } of generalPlaceholders) {
+    if (body.includes(text)) {
+      issues.push({
+        type: "error",
+        message: `「${label}」が未入力のままです。`,
+        suggestion: "実際の情報に書き換えてください。",
+        searchText: text,
+      })
+    }
+  }
+
+  // 2. 相手が必要とする情報のキーワードチェック
   targetUser.mailRequiredInfo.forEach(info => {
     if (info.includes("学籍番号")) {
-      const hasStudentId = /[0-9]{2,4}[A-Za-z]{1,4}[0-9]{3,4}/.test(body) || body.toLowerCase().includes("学籍") || body.includes("番号");
-      if (!hasStudentId) {
-        issues.push({
-          type: "warning",
-          message: "相手が求める「学籍番号」の記載が見当たりません。",
-          suggestion: "署名や本文中に学籍番号を記載することをおすすめします。"
-        });
+      // プレースホルダーが既に検出済みならスキップ（重複を避ける）
+      const alreadyFlagged = issues.some((i) => i.message.includes("学籍番号"))
+      if (!alreadyFlagged) {
+        // 実際の学籍番号パターン（英数字混在）または「学籍」という文字列があるか
+        const hasStudentId = /[A-Za-z][0-9]{6,}[A-Za-z]?/.test(body) || /[0-9]{2,4}[A-Za-z]{1,4}[0-9]{3,4}/.test(body) || body.includes("学籍番号：") || body.includes("学籍番号:")
+        if (!hasStudentId) {
+          issues.push({
+            type: "warning",
+            message: "相手が求める「学籍番号」の記載が見当たりません。",
+            suggestion: "署名や本文中にご自身の学籍番号を記載することをおすすめします。",
+          })
+        }
       }
     }
-  });
+  })
 
   // 3. 不適切なカジュアル表現・失礼な表現のチェック
   const impoliteChecks = [

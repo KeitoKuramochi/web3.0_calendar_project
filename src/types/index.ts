@@ -156,6 +156,7 @@ export interface ConsultationRecord {
   recipientName?: string      // 受信者が入力した名前・ニックネーム（後方互換）
   recipientContact?: string   // 受信者が入力した連絡先（後方互換）
   recipientConfirmMessage?: string  // 受信者が確定時に送ったメッセージ
+  recipientPostNote?: string         // 受信者が確定後に追加したメモ・メッセージ
   senderDisplayName?: string  // 確定リンクで表示する送信者名
   senderEmail?: string        // 通知送信先（Google認証メール）
   scheduleTokenExpiresAt?: string  // ISO8601, scheduleToken有効期限

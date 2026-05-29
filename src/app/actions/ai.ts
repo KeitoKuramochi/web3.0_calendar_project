@@ -23,7 +23,7 @@ export async function analyzeRecipient(
   notes: string,
   timeSlots: string[],
   duration: number
-): Promise<{ profile: UserProfile; scores: TimeSlotScore[]; reasoningFactors: string[]; workPattern: string; aiComment: string }> {
+): Promise<{ profile: UserProfile; scores: TimeSlotScore[]; reasoningFactors: string[]; workPattern: string; aiComment: string; usedMock: boolean }> {
   // フォールバック: 認証情報未設定時はモックを使用
   if (!hasCloudflareAI) {
     const profile = inferProfileFromRole(name, role, dept, notes)
@@ -31,7 +31,7 @@ export async function analyzeRecipient(
     const reasoningFactors = role
       ? [`${role}の傾向を参考に推測`, dept ? `${dept}の業務パターンを参照` : ""].filter(Boolean)
       : ["入力情報から一般的な傾向を推測"]
-    return { profile, scores, reasoningFactors, workPattern: "", aiComment: "" }
+    return { profile, scores, reasoningFactors, workPattern: "", aiComment: "", usedMock: true }
   }
 
   const slotsText = timeSlots
@@ -119,14 +119,15 @@ STRICT LIMITS: preferredTimeHints/avoidedTimeHints max 4 items each, ≤25 chars
       : []
     const workPattern: string = data.workPattern ?? ""
     const aiComment: string = data.aiComment ?? ""
-    return { profile, scores, reasoningFactors, workPattern, aiComment }
-  } catch {
+    return { profile, scores, reasoningFactors, workPattern, aiComment, usedMock: false }
+  } catch (err) {
+    console.error("[analyzeRecipient] AI failed, using mock fallback:", err)
     const profile = inferProfileFromRole(name, role, dept, notes)
     const scores = scoreTimeSlots(timeSlots, profile)
     const reasoningFactors = role
       ? [`${role}の傾向を参考に推測`, dept ? `${dept}の業務パターンを参照` : ""].filter(Boolean)
       : ["入力情報から一般的な傾向を推測"]
-    return { profile, scores, reasoningFactors, workPattern: "", aiComment: "" }
+    return { profile, scores, reasoningFactors, workPattern: "", aiComment: "", usedMock: true }
   }
 }
 
@@ -240,13 +241,20 @@ export async function checkMailWithAI(
 ${subject ? `件名: ${subject}\n` : ""}本文:
 ${body}
 
-チェック項目:
-1. 敬語・丁寧さ（役職に対して失礼な表現がないか）
-2. 必要情報の漏れ: ${targetUser.mailRequiredInfo.length > 0 ? targetUser.mailRequiredInfo.join(", ") : "特になし"}
-3. ${formatJa[outputFormat]}として文体が適切か
-4. 不快感を与える表現がないか
+チェック項目（errorとwarningを区別してください）:
 
-問題がなければ issues を空配列で返す。
+【error：必ず修正が必要なもの】
+- 「（あなたの学籍番号）」「（お名前）」など未入力のプレースホルダーが残っている
+- 必要情報の欠落: ${targetUser.mailRequiredInfo.length > 0 ? targetUser.mailRequiredInfo.join(", ") : "特になし"}
+- 明らかに失礼・不適切な表現
+
+【warning：確認推奨だが必須ではないもの】
+- 敬語が若干カジュアルすぎる・堅すぎる
+- ${formatJa[outputFormat]}としてやや文体が合っていない
+- 曖昧な表現で誤解を招く可能性がある
+- 確認したほうが安心な箇所（例：日時表記の曖昧さ、形式の指定）
+
+問題がなければ issues を空配列で返す。searchText は本文中の該当テキストそのものを指定（クリックでカーソルが飛ぶ）。
 {"issues":[{"type":"error|warning","message":"指摘内容30文字以内","suggestion":"修正案40文字以内","searchText":"本文中の該当テキスト（なければ省略）"}]}`
 
   try {
@@ -266,7 +274,8 @@ ${body}
     }
 
     return { passed: combined.filter((i) => i.type === "error").length === 0, issues: combined }
-  } catch {
+  } catch (err) {
+    console.error("[checkMailWithAI] AI check failed, using static fallback:", err)
     return quickCheck
   }
 }

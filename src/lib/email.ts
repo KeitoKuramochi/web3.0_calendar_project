@@ -44,6 +44,37 @@ export async function sendConfirmedNotification({
   })
 }
 
+export async function sendPostNoteNotification({
+  toEmail,
+  toName,
+  title,
+  note,
+}: {
+  toEmail: string
+  toName: string
+  title: string
+  note: string
+}) {
+  const resend = getResend()
+  if (!resend) return
+
+  await resend.emails.send({
+    from: FROM,
+    to: toEmail,
+    subject: `【追加メッセージ】${title}`,
+    text: [
+      `${toName}さん`,
+      "",
+      `「${title}」の日程確定後に、相手から追加メッセージが届きました。`,
+      "",
+      `■ メッセージ`,
+      note,
+      "",
+      `ダッシュボードで確認: ${APP_URL}/`,
+    ].join("\n"),
+  })
+}
+
 export async function sendReschedulingNotification({
   toEmail,
   toName,

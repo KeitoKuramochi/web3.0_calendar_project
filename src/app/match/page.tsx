@@ -21,6 +21,8 @@ export default function MatchPage() {
   const [inferredUserId, setInferredUserId] = useState<string>("")
   const [recipientNote, setRecipientNote] = useState<string | null>(null)
   const [analyzing, setAnalyzing] = useState(true)
+  const [aiStatus, setAiStatus] = useState<"ai" | "mock" | null>(null)
+  const [aiError, setAiError] = useState<string | null>(null)
   const [editableSlots, setEditableSlots] = useState<string[]>([])
   const [addDate, setAddDate] = useState("")
   const [addTime, setAddTime] = useState("10:00")
@@ -53,6 +55,7 @@ export default function MatchPage() {
       const cacheHit = cache && [...(cache.forSlots ?? [])].sort().join(",") === sortedSlots
       if (cacheHit && cache) {
         setInferredUserId("")
+        setAiStatus("ai")
         applyAnalysis(cache.scoredSlots, {
           preferredTimeHints: cache.preferredTimeHints,
           avoidedTimeHints: cache.avoidedTimeHints,
@@ -67,7 +70,7 @@ export default function MatchPage() {
 
       setAnalyzing(true)
       try {
-        const { profile, scores, reasoningFactors, workPattern, aiComment } = await analyzeRecipient(
+        const { profile, scores, reasoningFactors, workPattern, aiComment, usedMock } = await analyzeRecipient(
           r.name ?? "",
           r.role ?? "",
           r.department ?? "",
@@ -76,6 +79,7 @@ export default function MatchPage() {
           req.duration ?? 30
         )
         setInferredUserId(profile.id)
+        setAiStatus(usedMock ? "mock" : "ai")
         const profileData = {
           preferredTimeHints: profile.availableTimesFreeText
             ? profile.availableTimesFreeText.split("。").filter(Boolean)
@@ -90,9 +94,11 @@ export default function MatchPage() {
         }
         applyAnalysis(scores, profileData)
         saveAnalysisCache(active, slots, scores, profileData)
-      } catch {
+      } catch (err) {
         const inferred = inferProfileFromRole(r.name ?? "", r.role ?? "", r.department ?? "", r.notes ?? "")
         setInferredUserId(inferred.id)
+        setAiStatus("mock")
+        setAiError(String(err))
       } finally {
         setAnalyzing(false)
       }
@@ -111,6 +117,21 @@ export default function MatchPage() {
     return opts
   }, [])
 
+  const applyRescore = (result: Awaited<ReturnType<typeof analyzeRecipient>>) => {
+    const { profile, scores, reasoningFactors, workPattern, aiComment, usedMock } = result
+    setInferredUserId(profile.id)
+    setAiStatus(usedMock ? "mock" : "ai")
+    setAnalyzedProfile({
+      preferredTimeHints: profile.availableTimesFreeText?.split("。").filter(Boolean) ?? [],
+      avoidedTimeHints: profile.avoidTimesFreeText?.split("。").filter(Boolean) ?? [],
+      requiredInfos: profile.mailRequiredInfo,
+      reasoningFactors: reasoningFactors ?? [],
+      workPattern: workPattern ?? "",
+      aiComment: aiComment ?? "",
+    })
+    setScoredSlots(scores)
+  }
+
   const addSlotAndRescore = async () => {
     if (!addDate || !addTime || !request) return
     const newSlot = `${addDate}T${addTime}`
@@ -122,20 +143,7 @@ export default function MatchPage() {
     const r = request.recipient ?? {}
     setAnalyzing(true)
     try {
-      const { profile, scores, reasoningFactors, workPattern, aiComment } = await analyzeRecipient(
-        r.name ?? "", r.role ?? "", r.department ?? "", r.notes ?? "",
-        next, request.duration ?? 30
-      )
-      setInferredUserId(profile.id)
-      setAnalyzedProfile({
-        preferredTimeHints: profile.availableTimesFreeText?.split("。").filter(Boolean) ?? [],
-        avoidedTimeHints: profile.avoidTimesFreeText?.split("。").filter(Boolean) ?? [],
-        requiredInfos: profile.mailRequiredInfo,
-        reasoningFactors: reasoningFactors ?? [],
-        workPattern: workPattern ?? "",
-        aiComment: aiComment ?? "",
-      })
-      setScoredSlots(scores)
+      applyRescore(await analyzeRecipient(r.name ?? "", r.role ?? "", r.department ?? "", r.notes ?? "", next, request.duration ?? 30))
     } finally {
       setAnalyzing(false)
     }
@@ -149,20 +157,7 @@ export default function MatchPage() {
     const r = request.recipient ?? {}
     setAnalyzing(true)
     try {
-      const { profile, scores, reasoningFactors, workPattern, aiComment } = await analyzeRecipient(
-        r.name ?? "", r.role ?? "", r.department ?? "", r.notes ?? "",
-        next, request.duration ?? 30
-      )
-      setInferredUserId(profile.id)
-      setAnalyzedProfile({
-        preferredTimeHints: profile.availableTimesFreeText?.split("。").filter(Boolean) ?? [],
-        avoidedTimeHints: profile.avoidTimesFreeText?.split("。").filter(Boolean) ?? [],
-        requiredInfos: profile.mailRequiredInfo,
-        reasoningFactors: reasoningFactors ?? [],
-        workPattern: workPattern ?? "",
-        aiComment: aiComment ?? "",
-      })
-      setScoredSlots(scores)
+      applyRescore(await analyzeRecipient(r.name ?? "", r.role ?? "", r.department ?? "", r.notes ?? "", next, request.duration ?? 30))
     } finally {
       setAnalyzing(false)
     }
@@ -307,6 +302,35 @@ export default function MatchPage() {
         }}>
           <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⟳</span>
           AIが相手の予定傾向を分析中...
+        </div>
+      )}
+
+      {/* AI / モックステータスバッジ */}
+      {!analyzing && aiStatus && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 8,
+          padding: "8px 14px",
+          background: aiStatus === "ai" ? "rgba(78,191,173,0.08)" : "rgba(232,146,78,0.08)",
+          border: `1.5px solid ${aiStatus === "ai" ? "rgba(78,191,173,0.3)" : "rgba(232,146,78,0.35)"}`,
+          borderRadius: 10, fontSize: "0.78rem", fontWeight: 700,
+          color: aiStatus === "ai" ? "var(--color-excellent)" : "var(--color-fair)",
+        }}>
+          {aiStatus === "ai" ? "✓ Cloudflare AI で分析済み" : "⚠ モックデータを使用中（AI応答なし）"}
+          {aiStatus === "mock" && (
+            <a href="/api/debug/ai" target="_blank" rel="noreferrer" style={{ marginLeft: "auto", fontSize: "0.72rem", color: "var(--text-muted)", textDecoration: "underline" }}>
+              診断を確認 →
+            </a>
+          )}
+        </div>
+      )}
+      {!analyzing && aiError && (
+        <div style={{
+          padding: "8px 14px",
+          background: "rgba(220,50,50,0.07)",
+          border: "1.5px solid rgba(220,50,50,0.25)",
+          borderRadius: 10, fontSize: "0.75rem", color: "var(--color-danger)",
+        }}>
+          AIエラー: {aiError}
         </div>
       )}
 
