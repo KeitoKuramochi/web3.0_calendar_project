@@ -6,7 +6,7 @@ import { CalendarDays, Mail, Plus, Trash2, RefreshCw, ChevronDown, ChevronUp } f
 import styles from "./match.module.css"
 import { inferProfileFromRole } from "@/lib/ai"
 import { ConsultRequest, TimeSlotScore, CachedAnalysis, TimeRange } from "@/types"
-import { formatJaWithEnd } from "@/lib/formatDate"
+import { formatJaWithEnd, mergeConsecutiveSlots } from "@/lib/formatDate"
 import StepIndicator from "@/components/StepIndicator/StepIndicator"
 import { getActiveConsultation, upsertConsultation } from "@/lib/storage"
 import { analyzeRecipient } from "@/app/actions/ai"
@@ -244,9 +244,9 @@ export default function MatchPage() {
     })
     const matchData = {
       targetUserId: inferredUserId || inferred.id,
-      selectedTimeSlots: selectedSlots.map(s => formatJaWithEnd(s, duration)),
+      selectedTimeSlots: mergeConsecutiveSlots(selectedSlots, duration),
       selectedTimeSlotsRaw: selectedSlots,
-      selectedTimeSlot: formatJaWithEnd(selectedSlots[0], duration),
+      selectedTimeSlot: mergeConsecutiveSlots(selectedSlots, duration)[0] ?? formatJaWithEnd(selectedSlots[0], duration),
       selectedTimeRanges: selectedTimeRanges.length > 0 ? selectedTimeRanges : undefined,
       inferredProfile: {
         ...inferred,
@@ -572,9 +572,13 @@ export default function MatchPage() {
           </div>
 
           {selectedSlots.length > 0 && (
-            <div className={styles.selectedSummary} style={{ marginTop: 14 }}>
-              <span className={styles.selectedCount}>{selectedSlots.length}スロット選択中</span>
-              <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>→ 選択した日時がメッセージの候補として使用されます</span>
+            <div className={styles.selectedSummary} style={{ marginTop: 14, flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
+              <span className={styles.selectedCount}>選択中の候補（{mergeConsecutiveSlots(selectedSlots, duration).length}件）</span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                {mergeConsecutiveSlots(selectedSlots, duration).map(s => (
+                  <span key={s} style={{ fontSize: "0.82rem", color: "var(--text-primary)", fontWeight: 600 }}>・{s}</span>
+                ))}
+              </div>
             </div>
           )}
 
