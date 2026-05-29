@@ -6,7 +6,8 @@ export const hasCloudflareAI = !!(ACCOUNT_ID && API_TOKEN)
 
 export async function callCloudflareAI(
   model: string,
-  messages: { role: "user" | "assistant" | "system"; content: string }[]
+  messages: { role: "user" | "assistant" | "system"; content: string }[],
+  maxTokens = 1024
 ): Promise<string> {
   if (!ACCOUNT_ID || !API_TOKEN) throw new Error("Cloudflare AI credentials not set")
 
@@ -18,7 +19,7 @@ export async function callCloudflareAI(
         Authorization: `Bearer ${API_TOKEN}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ messages, temperature: 0, seed: 42 }),
+      body: JSON.stringify({ messages, temperature: 0, seed: 42, max_tokens: maxTokens }),
     }
   )
 

@@ -88,7 +88,9 @@ Return this exact JSON structure:
 STRICT LIMITS: preferredTimeHints/avoidedTimeHints max 4 items each, ≤25 chars per item; reasoningFactors max 3 items, ≤20 chars each.`
 
   try {
-    const text = await callCloudflareAI(MODEL_FAST, [{ role: "user", content: prompt }])
+    // スロット数に応じてトークン上限を調整（スロット1件≒80トークン）
+    const neededTokens = Math.max(1024, 512 + timeSlots.length * 100)
+    const text = await callCloudflareAI(MODEL_FAST, [{ role: "user", content: prompt }], neededTokens)
     const jsonMatch = text.match(/\{[\s\S]*\}/)
     if (!jsonMatch) throw new Error("JSON not found")
     const data = JSON.parse(jsonMatch[0])
@@ -202,7 +204,7 @@ ${outputFormat === "email"
   }`
 
   try {
-    const text = await callCloudflareAI(MODEL_QUALITY, [{ role: "user", content: prompt }])
+    const text = await callCloudflareAI(MODEL_QUALITY, [{ role: "user", content: prompt }], 2048)
     const jsonMatch = text.match(/\{[\s\S]*\}/)
     if (!jsonMatch) throw new Error("JSON not found")
     const data = JSON.parse(jsonMatch[0])
@@ -258,7 +260,7 @@ ${body}
 {"issues":[{"type":"error|warning","message":"指摘内容30文字以内","suggestion":"修正案40文字以内","searchText":"本文中の該当テキスト（なければ省略）"}]}`
 
   try {
-    const text = await callCloudflareAI(MODEL_QUALITY, [{ role: "user", content: prompt }])
+    const text = await callCloudflareAI(MODEL_QUALITY, [{ role: "user", content: prompt }], 1024)
     const jsonMatch = text.match(/\{[\s\S]*\}/)
     if (!jsonMatch) throw new Error("JSON not found")
     const data = JSON.parse(jsonMatch[0])
