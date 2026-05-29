@@ -175,12 +175,24 @@ export default function RequestPage() {
     setRecipientRole("研究室教員")
     setRecipientDept("情報工学科")
     setRecipientScheduleNotes("火曜は研究会あり。月曜午前は会議が多いと聞いた。")
-    setAvailableRanges([])
     const base = new Date(); base.setHours(0, 0, 0, 0)
     const d7 = new Date(base); d7.setDate(base.getDate() + 7)
     const d8 = new Date(base); d8.setDate(base.getDate() + 8)
-    const fmt = (d: Date, h: number) => { const dd = new Date(d); dd.setHours(h, 0, 0, 0); return dd.toISOString().slice(0, 16) }
-    setAvailableTimes([fmt(d7, 10), fmt(d7, 11), fmt(d8, 10)])
+    const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m }
+    const toStr = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`
+    const expandRange = (dateStr: string, start: string, end: string) => {
+      const slots: string[] = []
+      let cur = toMin(start)
+      while (cur + 30 <= toMin(end)) { slots.push(`${dateStr}T${toStr(cur)}`); cur += 30 }
+      return slots
+    }
+    const fmtDate = (d: Date) => d.toISOString().slice(0, 10)
+    const ranges: TimeRange[] = [
+      { date: fmtDate(d7), start: "10:00", end: "12:00" },
+      { date: fmtDate(d8), start: "14:00", end: "17:00" },
+    ]
+    setAvailableRanges(ranges)
+    setAvailableTimes(ranges.flatMap(r => expandRange(r.date, r.start, r.end)))
     setAiNotice(`デモ入力。相手：鈴木 茂（研究室教員）、相談：就職活動、30分・対面。`)
   }
 
