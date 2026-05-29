@@ -9,10 +9,112 @@ import { scoreTimeSlots } from "@/lib/ai/scorer"
 import { generateEmail } from "@/lib/ai/mailGen"
 import { checkEmail } from "@/lib/ai/mailCheck"
 
+type ProposedSlot = { datetime: string; reason: string }
+
 // 品質重視モデル（メール生成・チェック）
 const MODEL_QUALITY = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
 // 速度重視モデル（スコアリング）
 const MODEL_FAST = "@cf/meta/llama-3.1-8b-instruct"
+
+// ─── Feature 0: AIによる日程提案 ─────────────────────────────────────────────────
+
+function mockProposeSlots(today: string): ProposedSlot[] {
+  const base = new Date(today)
+  const slots: ProposedSlot[] = []
+  const d = new Date(base)
+  d.setDate(d.getDate() + 7)
+  const hours = [10, 14]
+  let hi = 0
+  while (slots.length < 4) {
+    const day = d.getDay()
+    if (day !== 0 && day !== 6) {
+      const dt = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(hours[hi % 2]).padStart(2, "0")}:00`
+      const dayNames = ["日", "月", "火", "水", "木", "金", "土"]
+      slots.push({ datetime: dt, reason: `${dayNames[day]}曜${hours[hi % 2] < 12 ? "午前" : "午後"}` })
+      hi++
+      if (hi % 2 === 0) d.setDate(d.getDate() + 1)
+    } else {
+      d.setDate(d.getDate() + 1)
+    }
+  }
+  return slots
+}
+
+export async function proposeTimeSlots(
+  recipientName: string,
+  role: string,
+  dept: string,
+  recipientNotes: string,
+  scheduleNotes: string,
+  duration: number,
+  today: string
+): Promise<{ slots: ProposedSlot[]; reasoning: string; inferredProfile: UserProfile; usedMock: boolean }> {
+  const inferred = inferProfileFromRole(recipientName, role, dept, recipientNotes)
+
+  if (!hasCloudflareAI) {
+    return {
+      slots: mockProposeSlots(today),
+      reasoning: role ? `${role}の一般的な勤務パターンを参考に提案しました。` : "入力情報から候補を提案しました。",
+      inferredProfile: inferred,
+      usedMock: true,
+    }
+  }
+
+  const prompt = `今日は ${today} です。相手の情報から、2〜3週間以内の面談候補を4〜5件提案してください。JSONのみ返答してください。
+
+相手:
+- 名前: ${recipientName || "（不明）"}
+- 役職: ${role || "（不明）"}
+- 所属: ${dept || "（不明）"}
+- メモ: ${recipientNotes || "なし"}
+
+依頼者が知っている相手のスケジュール情報:
+${scheduleNotes || "特になし"}
+
+面談時間: ${duration}分
+
+IMPORTANT: datetimeは "YYYY-MM-DDTHH:MM" 形式。今日 ${today} より後の平日を選ぶこと。土日は避けること。スケジュール情報で指定された日は避けること。
+
+{
+  "reasoning": "提案の根拠（1〜2文、日本語）",
+  "slots": [
+    {"datetime": "2025-06-12T10:00", "reason": "理由（20文字以内）"},
+    {"datetime": "2025-06-13T14:00", "reason": "理由（20文字以内）"}
+  ],
+  "preferredTimeHints": ["水曜午前"],
+  "avoidedTimeHints": ["土日"],
+  "mailRequiredInfo": []
+}`
+
+  try {
+    const text = await callCloudflareAI(MODEL_FAST, [{ role: "user", content: prompt }], 1024)
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) throw new Error("JSON not found")
+    const data = JSON.parse(jsonMatch[0])
+
+    const slots: ProposedSlot[] = (data.slots as { datetime: string; reason: string }[]).map((s) => ({
+      datetime: s.datetime,
+      reason: s.reason ?? "",
+    }))
+
+    const profile: UserProfile = {
+      ...inferred,
+      availableTimesFreeText: Array.isArray(data.preferredTimeHints) ? (data.preferredTimeHints as string[]).join("。") : inferred.availableTimesFreeText,
+      avoidTimesFreeText: Array.isArray(data.avoidedTimeHints) ? (data.avoidedTimeHints as string[]).join("。") : inferred.avoidTimesFreeText,
+      mailRequiredInfo: Array.isArray(data.mailRequiredInfo) ? data.mailRequiredInfo as string[] : inferred.mailRequiredInfo,
+    }
+
+    return { slots, reasoning: data.reasoning ?? "", inferredProfile: profile, usedMock: false }
+  } catch (err) {
+    console.error("[proposeTimeSlots] AI failed, using mock fallback:", err)
+    return {
+      slots: mockProposeSlots(today),
+      reasoning: role ? `${role}の一般的な勤務パターンを参考に提案しました。` : "入力情報から候補を提案しました。",
+      inferredProfile: inferred,
+      usedMock: true,
+    }
+  }
+}
 
 // ─── Feature 1: 相手プロフィール推論 + 時間スロットスコアリング ──────────────────
 

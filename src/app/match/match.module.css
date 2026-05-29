@@ -193,6 +193,13 @@
   border-color: var(--color-secondary);
 }
 
+.slotItemRemoved {
+  opacity: 0.4;
+  background: var(--bg-primary);
+  border-color: var(--border-color);
+  text-decoration: line-through;
+}
+
 .slotCheckbox {
   width: 17px;
   height: 17px;
