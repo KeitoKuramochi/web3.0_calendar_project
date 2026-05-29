@@ -11,8 +11,8 @@ import type { ConsultationRecord, ConsultationStatus, UserProfile } from "@/type
 
 
 const STATUS_META: Record<ConsultationStatus, { label: string; nextPath: string; actionLabel: string }> = {
-  draft:     { label: "下書き",       nextPath: "/request", actionLabel: "続きを入力する" },
-  matched:   { label: "日程提案済み", nextPath: "/mail",    actionLabel: "メッセージを作成" },
+  draft:     { label: "下書き",        nextPath: "/match", actionLabel: "AIに日程を確認してもらう" },
+  matched:   { label: "日程確認済み", nextPath: "/mail",  actionLabel: "メッセージを作成" },
   composed:  { label: "メッセージ完成",  nextPath: "/mail",  actionLabel: "メッセージを確認" },
   sent:         { label: "送信済み",      nextPath: "/",        actionLabel: "" },
   waiting:      { label: "確定待ち",      nextPath: "/",        actionLabel: "" },
@@ -41,8 +41,8 @@ export default function Home() {
   const handleResume = (record: ConsultationRecord) => {
     setActiveId(record.id)
     if (record.status === "draft") {
-      const hasTitle = !!record.request?.title
-      router.push(hasTitle ? "/match" : "/request")
+      const isComplete = (record.request?.myAvailableTimes?.length ?? 0) > 0
+      router.push(isComplete ? "/match" : "/request")
       return
     }
     router.push(STATUS_META[record.status].nextPath)
@@ -270,7 +270,7 @@ export default function Home() {
                   <div className={styles.consultCardFooter}>
                     <button className={styles.btnResume} onClick={() => handleResume(record)}>
                       {record.status === "draft"
-                        ? (record.request?.title ? "日程を提案してもらう" : "続きを入力する")
+                        ? ((record.request?.myAvailableTimes?.length ?? 0) > 0 ? "AIに日程を確認してもらう" : "続きを入力する")
                         : meta.actionLabel}
                       <ArrowRight size={15} />
                     </button>
