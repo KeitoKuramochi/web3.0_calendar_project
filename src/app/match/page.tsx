@@ -23,6 +23,17 @@ function genTimeOptions() {
 }
 const TIME_OPTIONS = genTimeOptions()
 
+const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m }
+const toStr = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`
+
+function formatRangeJa(range: TimeRange) {
+  const d = new Date(range.date)
+  const days = ["日", "月", "火", "水", "木", "金", "土"]
+  return `${d.getMonth() + 1}月${d.getDate()}日(${days[d.getDay()]}) ${range.start}〜${range.end}`
+}
+
+function rangeKey(r: TimeRange) { return `${r.date}-${r.start}-${r.end}` }
+
 export default function MatchPage() {
   const router = useRouter()
 
@@ -42,11 +53,11 @@ export default function MatchPage() {
   const [analyzing, setAnalyzing] = useState(true)
   const [aiStatus, setAiStatus] = useState<"ai" | "mock" | null>(null)
 
-  // 日程編集用
   const [localSlots, setLocalSlots] = useState<string[]>([])
   const [localRanges, setLocalRanges] = useState<TimeRange[]>([])
   const [slotsChanged, setSlotsChanged] = useState(false)
   const [addFormOpen, setAddFormOpen] = useState(false)
+  const [expandedRanges, setExpandedRanges] = useState<Set<string>>(new Set())
   const [tempDate, setTempDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [tempStart, setTempStart] = useState("10:00")
   const [tempEnd, setTempEnd] = useState("12:00")
@@ -65,7 +76,6 @@ export default function MatchPage() {
       const combinedNotes = [r.notes, req.recipientScheduleNotes].filter(Boolean).join("\n")
       const slots = req.myAvailableTimes
 
-      // キャッシュチェック
       const cache = active.cachedAnalysis
       const sortedSlots = [...slots].sort().join(",")
       const cacheHit = cache && [...(cache.forSlots ?? [])].sort().join(",") === sortedSlots
@@ -85,7 +95,6 @@ export default function MatchPage() {
         return
       }
 
-      setAnalyzing(true)
       await runAnalysis(req, slots)
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,22 +106,13 @@ export default function MatchPage() {
     setAnalyzing(true)
     try {
       const { profile, scores, reasoningFactors, workPattern, aiComment, usedMock } = await analyzeRecipient(
-        r.name ?? "",
-        r.role ?? "",
-        r.department ?? "",
-        combinedNotes,
-        slots,
-        req.duration ?? 30
+        r.name ?? "", r.role ?? "", r.department ?? "", combinedNotes, slots, req.duration ?? 30
       )
       setInferredUserId(profile.id)
       setAiStatus(usedMock ? "mock" : "ai")
       const profileData = {
-        preferredTimeHints: profile.availableTimesFreeText
-          ? profile.availableTimesFreeText.split("。").filter(Boolean)
-          : [],
-        avoidedTimeHints: profile.avoidTimesFreeText
-          ? profile.avoidTimesFreeText.split("。").filter(Boolean)
-          : [],
+        preferredTimeHints: profile.availableTimesFreeText?.split("。").filter(Boolean) ?? [],
+        avoidedTimeHints: profile.avoidTimesFreeText?.split("。").filter(Boolean) ?? [],
         requiredInfos: profile.mailRequiredInfo,
         reasoningFactors: reasoningFactors ?? [],
         workPattern: workPattern ?? "",
@@ -121,17 +121,15 @@ export default function MatchPage() {
       setAnalyzedProfile(profileData)
       setScoredSlots(scores)
       setSelectedSlots(scores.filter(s => s.score !== "poor").map(s => s.timeSlot))
-
       const active = await getActiveConsultation()
       if (active) {
         const cacheData: CachedAnalysis = { forSlots: [...slots].sort(), scoredSlots: scores, ...profileData }
         await upsertConsultation({ ...active, cachedAnalysis: cacheData })
       }
-    } catch (err) {
-      console.error("[MatchPage] analyzeRecipient failed:", err)
-      const r = req.recipient ?? {}
-      const combinedNotes = [r.notes, req.recipientScheduleNotes].filter(Boolean).join("\n")
-      const inferred = inferProfileFromRole(r.name ?? "", r.role ?? "", r.department ?? "", combinedNotes)
+    } catch {
+      const r2 = req.recipient ?? {}
+      const notes2 = [r2.notes, req.recipientScheduleNotes].filter(Boolean).join("\n")
+      const inferred = inferProfileFromRole(r2.name ?? "", r2.role ?? "", r2.department ?? "", notes2)
       setInferredUserId(inferred.id)
       setAiStatus("mock")
       setScoredSlots(slots.map(s => ({ timeSlot: s, score: "fair" as const, privacyReason: "情報不足のため判定できません" })))
@@ -149,64 +147,83 @@ export default function MatchPage() {
 
   const addRange = () => {
     if (!tempDate || !tempStart || !tempEnd) return
-    const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m }
-    const toStr = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`
-    const start = toMin(tempStart)
-    const end = toMin(tempEnd)
+    const start = toMin(tempStart), end = toMin(tempEnd)
     if (end <= start) return
     const duration = request?.duration ?? 30
     const newRange: TimeRange = { date: tempDate, start: tempStart, end: tempEnd }
     const newSlots: string[] = []
     let cur = start
-    while (cur + duration <= end) {
-      newSlots.push(`${tempDate}T${toStr(cur)}`)
-      cur += duration
-    }
+    while (cur + duration <= end) { newSlots.push(`${tempDate}T${toStr(cur)}`); cur += duration }
     if (newSlots.length === 0) return
     setLocalRanges(prev => [...prev, newRange])
     setLocalSlots(prev => [...new Set([...prev, ...newSlots])].sort())
     setSlotsChanged(true)
-    const d = new Date(tempDate)
-    const days = ["日", "月", "火", "水", "木", "金", "土"]
-    setAddMsg(`${d.getMonth() + 1}月${d.getDate()}日(${days[d.getDay()]}) ${tempStart}〜${tempEnd} を追加しました`)
+    setAddMsg(`${formatRangeJa(newRange)} を追加しました`)
     setTimeout(() => setAddMsg(null), 3000)
-    setTempDate("")
+    setTempDate(new Date().toISOString().slice(0, 10))
     setAddFormOpen(false)
+  }
+
+  const deleteRange = (range: TimeRange) => {
+    const duration = request?.duration ?? 30
+    const start = toMin(range.start), end = toMin(range.end)
+    setLocalRanges(prev => prev.filter(r => rangeKey(r) !== rangeKey(range)))
+    setLocalSlots(prev => prev.filter(s => {
+      if (!s.startsWith(range.date + "T")) return true
+      const slotMin = toMin(s.split("T")[1].slice(0, 5))
+      return !(slotMin >= start && slotMin + duration <= end)
+    }))
+    setSelectedSlots(prev => prev.filter(s => {
+      if (!s.startsWith(range.date + "T")) return true
+      const slotMin = toMin(s.split("T")[1].slice(0, 5))
+      return !(slotMin >= start && slotMin + duration <= end)
+    }))
+    setScoredSlots(prev => prev.filter(s => {
+      if (!s.timeSlot.startsWith(range.date + "T")) return true
+      const slotMin = toMin(s.timeSlot.split("T")[1].slice(0, 5))
+      return !(slotMin >= start && slotMin + duration <= end)
+    }))
+    setSlotsChanged(true)
   }
 
   const deleteSlot = (slot: string) => {
     setLocalSlots(prev => prev.filter(s => s !== slot))
     setSelectedSlots(prev => prev.filter(s => s !== slot))
     setScoredSlots(prev => prev.filter(s => s.timeSlot !== slot))
-    // そのスロットを含む範囲が全滅したら範囲も削除
-    const duration = request?.duration ?? 30
-    const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m }
-    setLocalRanges(prev => prev.filter(r => {
-      if (!slot.startsWith(r.date + "T")) return true
-      const slotMin = toMin(slot.split("T")[1].slice(0, 5))
-      return !(slotMin >= toMin(r.start) && slotMin + duration <= toMin(r.end))
-    }))
     setSlotsChanged(true)
   }
 
-  const toggleSlot = (timeSlot: string) => {
-    setSelectedSlots((prev) =>
-      prev.includes(timeSlot) ? prev.filter((s) => s !== timeSlot) : [...prev, timeSlot]
-    )
+  const toggleRangeSelect = (rangeSlots: string[]) => {
+    const allSelected = rangeSlots.every(s => selectedSlots.includes(s))
+    if (allSelected) {
+      setSelectedSlots(prev => prev.filter(s => !rangeSlots.includes(s)))
+    } else {
+      setSelectedSlots(prev => [...new Set([...prev, ...rangeSlots])])
+    }
   }
 
-  const getScoreEmoji = (s: string) =>
-    s === "excellent" ? "◎" : s === "good" ? "○" : s === "fair" ? "△" : "×"
+  const toggleSlot = (slot: string) => {
+    setSelectedSlots(prev => prev.includes(slot) ? prev.filter(s => s !== slot) : [...prev, slot])
+  }
 
-  const getScoreLabel = (s: string) =>
-    s === "excellent" ? "問題なし" : s === "good" ? "ほぼOK" : s === "fair" ? "要注意" : "NG"
+  const toggleRangeExpand = (key: string) => {
+    setExpandedRanges(prev => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+  }
 
-  const getScoreClass = (s: string) => {
-    const base = styles.scoreBadge
-    if (s === "excellent") return `${base} ${styles.scoreExcellent}`
-    if (s === "good") return `${base} ${styles.scoreGood}`
-    if (s === "fair") return `${base} ${styles.scoreFair}`
-    return `${base} ${styles.scorePoor}`
+  const getScoreEmoji = (s: string) => s === "excellent" ? "◎" : s === "good" ? "○" : s === "fair" ? "△" : "×"
+  const getScoreLabel = (s: string) => s === "excellent" ? "問題なし" : s === "good" ? "ほぼOK" : s === "fair" ? "要注意" : "NG"
+  const getScoreColor = (s: string) =>
+    s === "excellent" ? "var(--color-excellent)" : s === "good" ? "var(--color-good)" : s === "fair" ? "var(--color-fair)" : "var(--color-danger)"
+  const getScoreBg = (s: string) =>
+    s === "excellent" ? "var(--color-excellent-bg)" : s === "good" ? "var(--color-good-bg)" : s === "fair" ? "var(--color-fair-bg)" : "var(--color-danger-bg)"
+
+  const worstScore = (scores: TimeSlotScore[]) => {
+    const order = ["poor", "fair", "good", "excellent"]
+    return scores.reduce((worst, s) => order.indexOf(s.score) < order.indexOf(worst) ? s.score : worst, "excellent")
   }
 
   const handleNext = async () => {
@@ -217,20 +234,20 @@ export default function MatchPage() {
     const r = request?.recipient ?? {}
     const combinedNotes = [r.notes, request?.recipientScheduleNotes].filter(Boolean).join("\n")
     const inferred = inferProfileFromRole(r.name ?? "", r.role ?? "", r.department ?? "", combinedNotes)
-    const selectedTimeRanges = localRanges?.filter((range) => {
-      const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m }
-      return selectedSlots.some((s) => {
+    const selectedTimeRanges = localRanges.filter(range => {
+      const start = toMin(range.start), end = toMin(range.end)
+      return selectedSlots.some(s => {
         if (!s.startsWith(range.date + "T")) return false
         const slotMin = toMin(s.split("T")[1].slice(0, 5))
-        return slotMin >= toMin(range.start) && slotMin + duration <= toMin(range.end)
+        return slotMin >= start && slotMin + duration <= end
       })
     })
     const matchData = {
       targetUserId: inferredUserId || inferred.id,
-      selectedTimeSlots: selectedSlots.map((s) => formatJaWithEnd(s, duration)),
+      selectedTimeSlots: selectedSlots.map(s => formatJaWithEnd(s, duration)),
       selectedTimeSlotsRaw: selectedSlots,
       selectedTimeSlot: formatJaWithEnd(selectedSlots[0], duration),
-      selectedTimeRanges: selectedTimeRanges && selectedTimeRanges.length > 0 ? selectedTimeRanges : undefined,
+      selectedTimeRanges: selectedTimeRanges.length > 0 ? selectedTimeRanges : undefined,
       inferredProfile: {
         ...inferred,
         id: inferredUserId || inferred.id,
@@ -240,18 +257,32 @@ export default function MatchPage() {
       },
     }
     await upsertConsultation({
-      ...active,
-      status: "matched",
-      match: matchData,
+      ...active, status: "matched", match: matchData,
       request: { ...active.request!, myAvailableTimes: localSlots, myAvailableRanges: localRanges.length > 0 ? localRanges : undefined },
     })
     router.push("/mail")
   }
 
-  const recipient = request?.recipient
-  const recipientLabel = [recipient?.name, recipient?.role, recipient?.department]
-    .filter(Boolean).join("・") || "（相手の情報が未入力です）"
+  // 表示用: 範囲ごとにグループ化、範囲に属さない孤立スロット
+  const duration = request?.duration ?? 30
+  const getRangeSlots = (range: TimeRange) => {
+    const start = toMin(range.start), end = toMin(range.end)
+    return localSlots.filter(s => {
+      if (!s.startsWith(range.date + "T")) return false
+      const slotMin = toMin(s.split("T")[1].slice(0, 5))
+      return slotMin >= start && slotMin + duration <= end
+    })
+  }
+  const orphanSlots = localSlots.filter(s =>
+    !localRanges.some(r => {
+      if (!s.startsWith(r.date + "T")) return false
+      const slotMin = toMin(s.split("T")[1].slice(0, 5))
+      return slotMin >= toMin(r.start) && slotMin + duration <= toMin(r.end)
+    })
+  )
 
+  const recipient = request?.recipient
+  const recipientLabel = [recipient?.name, recipient?.role, recipient?.department].filter(Boolean).join("・") || "（相手の情報が未入力です）"
   const poorSlots = scoredSlots.filter(s => s.score === "poor")
   const fairSlots = scoredSlots.filter(s => s.score === "fair")
 
@@ -260,114 +291,51 @@ export default function MatchPage() {
       <StepIndicator current={2} />
       <div className={styles.header}>
         <div style={{ marginBottom: 10 }}>
-          <button
-            onClick={() => router.push("/request")}
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 5,
-              background: "none", border: "none", padding: 0,
-              fontSize: "0.82rem", fontWeight: 600, color: "var(--text-secondary)",
-              cursor: "pointer", fontFamily: "inherit",
-            }}
-          >
-            ← リクエストに戻る
-          </button>
+          <button onClick={() => router.push("/request")} style={{
+            display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none", padding: 0,
+            fontSize: "0.82rem", fontWeight: 600, color: "var(--text-secondary)", cursor: "pointer", fontFamily: "inherit",
+          }}>← リクエストに戻る</button>
         </div>
         <h1>AI日程チェック</h1>
         <p>入力した空き時間を相手の役職・スケジュール情報と照らし合わせて問題がないか確認します。</p>
       </div>
 
-      {/* 再調整バナー */}
       {recipientNote && (
-        <div style={{
-          padding: "12px 16px",
-          background: "rgba(232, 146, 78, 0.08)",
-          border: "2px solid rgba(232, 146, 78, 0.35)",
-          borderRadius: 14,
-          fontSize: "0.85rem",
-          display: "flex", flexDirection: "column", gap: 4,
-        }}>
+        <div style={{ padding: "12px 16px", background: "rgba(232,146,78,0.08)", border: "2px solid rgba(232,146,78,0.35)", borderRadius: 14, fontSize: "0.85rem", display: "flex", flexDirection: "column", gap: 4 }}>
           <div style={{ fontWeight: 700, color: "var(--color-fair)" }}>🔄 再調整モード</div>
-          <div style={{ color: "var(--text-secondary)" }}>
-            相手からの返信: <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>「{recipientNote}」</span>
-          </div>
-          <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-            この内容を踏まえて新しい候補日時を選んでください。
-          </div>
+          <div style={{ color: "var(--text-secondary)" }}>相手からの返信: <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>「{recipientNote}」</span></div>
+          <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>この内容を踏まえて新しい候補日時を選んでください。</div>
         </div>
       )}
 
-      {/* 分析中ローディング */}
       {analyzing && (
-        <div style={{
-          padding: "14px 18px",
-          background: "var(--color-excellent-bg)",
-          border: "1.5px solid rgba(78, 191, 173, 0.3)",
-          borderRadius: 14,
-          fontSize: "0.85rem", fontWeight: 600, color: "var(--color-excellent)",
-          display: "flex", alignItems: "center", gap: 10,
-        }}>
+        <div style={{ padding: "14px 18px", background: "var(--color-excellent-bg)", border: "1.5px solid rgba(78,191,173,0.3)", borderRadius: 14, fontSize: "0.85rem", fontWeight: 600, color: "var(--color-excellent)", display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⟳</span>
           AIが各日程を相手の役職・情報と照らし合わせて確認中...
         </div>
       )}
 
-      {/* AI/モックステータス */}
       {!analyzing && aiStatus && (
-        <div style={{
-          display: "flex", alignItems: "center", gap: 8,
-          padding: "8px 14px",
-          background: aiStatus === "ai" ? "rgba(78,191,173,0.08)" : "rgba(232,146,78,0.08)",
-          border: `1.5px solid ${aiStatus === "ai" ? "rgba(78,191,173,0.3)" : "rgba(232,146,78,0.35)"}`,
-          borderRadius: 10, fontSize: "0.78rem", fontWeight: 700,
-          color: aiStatus === "ai" ? "var(--color-excellent)" : "var(--color-fair)",
-        }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: aiStatus === "ai" ? "rgba(78,191,173,0.08)" : "rgba(232,146,78,0.08)", border: `1.5px solid ${aiStatus === "ai" ? "rgba(78,191,173,0.3)" : "rgba(232,146,78,0.35)"}`, borderRadius: 10, fontSize: "0.78rem", fontWeight: 700, color: aiStatus === "ai" ? "var(--color-excellent)" : "var(--color-fair)" }}>
           {aiStatus === "ai" ? "✓ Cloudflare AI で確認済み" : "⚠ モックデータを使用中（AI応答なし）"}
-          {aiStatus === "mock" && (
-            <a href="/api/debug/ai" target="_blank" rel="noreferrer" style={{ marginLeft: "auto", fontSize: "0.72rem", color: "var(--text-muted)", textDecoration: "underline" }}>
-              診断を確認 →
-            </a>
-          )}
+          {aiStatus === "mock" && <a href="/api/debug/ai" target="_blank" rel="noreferrer" style={{ marginLeft: "auto", fontSize: "0.72rem", color: "var(--text-muted)", textDecoration: "underline" }}>診断を確認 →</a>}
         </div>
       )}
 
-      {/* NGスロット警告サマリー */}
       {!analyzing && (poorSlots.length > 0 || fairSlots.length > 0) && (
-        <div style={{
-          padding: "12px 16px",
-          background: poorSlots.length > 0 ? "rgba(220,50,50,0.06)" : "rgba(232,146,78,0.07)",
-          border: `1.5px solid ${poorSlots.length > 0 ? "rgba(220,50,50,0.25)" : "rgba(232,146,78,0.3)"}`,
-          borderRadius: 14, fontSize: "0.84rem",
-        }}>
-          {poorSlots.length > 0 && (
-            <div style={{ fontWeight: 700, color: "var(--color-danger)", marginBottom: fairSlots.length > 0 ? 4 : 0 }}>
-              ✗ NG {poorSlots.length}件: 相手にとって都合が悪い可能性が高い日程があります
-            </div>
-          )}
-          {fairSlots.length > 0 && (
-            <div style={{ fontWeight: 600, color: "var(--color-fair)" }}>
-              △ 要注意 {fairSlots.length}件: 確認が必要な日程があります
-            </div>
-          )}
-          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: 4 }}>
-            下のリストで各日程の理由を確認し、送る候補を選んでください
-          </div>
+        <div style={{ padding: "12px 16px", background: poorSlots.length > 0 ? "rgba(220,50,50,0.06)" : "rgba(232,146,78,0.07)", border: `1.5px solid ${poorSlots.length > 0 ? "rgba(220,50,50,0.25)" : "rgba(232,146,78,0.3)"}`, borderRadius: 14, fontSize: "0.84rem" }}>
+          {poorSlots.length > 0 && <div style={{ fontWeight: 700, color: "var(--color-danger)", marginBottom: fairSlots.length > 0 ? 4 : 0 }}>✗ NG {poorSlots.length}件: 相手にとって都合が悪い可能性が高い日程があります</div>}
+          {fairSlots.length > 0 && <div style={{ fontWeight: 600, color: "var(--color-fair)" }}>△ 要注意 {fairSlots.length}件: 確認が必要な日程があります</div>}
+          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: 4 }}>下のリストで各日程の理由を確認し、送る候補を選んでください</div>
         </div>
       )}
 
-      {/* 全クリアメッセージ */}
       {!analyzing && scoredSlots.length > 0 && poorSlots.length === 0 && fairSlots.length === 0 && (
-        <div style={{
-          padding: "12px 16px",
-          background: "rgba(78,191,173,0.08)",
-          border: "1.5px solid rgba(78,191,173,0.3)",
-          borderRadius: 14,
-          fontSize: "0.84rem", fontWeight: 700, color: "var(--color-excellent)",
-        }}>
+        <div style={{ padding: "12px 16px", background: "rgba(78,191,173,0.08)", border: "1.5px solid rgba(78,191,173,0.3)", borderRadius: 14, fontSize: "0.84rem", fontWeight: 700, color: "var(--color-excellent)" }}>
           ✓ 全ての候補日程に問題は見つかりませんでした
         </div>
       )}
 
-      {/* 相手の傾向カード */}
       {!analyzing && analyzedProfile && (
         <div className="glass-card fade-in" style={{ padding: "16px 18px" }}>
           <div className={styles.sectionTitle} style={{ marginBottom: "10px" }}>
@@ -377,34 +345,18 @@ export default function MatchPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {analyzedProfile.reasoningFactors.length > 0 && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 4 }}>
-                {analyzedProfile.reasoningFactors.map((f) => (
-                  <span key={f} style={{
-                    padding: "3px 10px",
-                    background: "var(--bg-primary)",
-                    border: "1.5px solid var(--border-color)",
-                    borderRadius: 20, fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)",
-                  }}>📌 {f}</span>
+                {analyzedProfile.reasoningFactors.map(f => (
+                  <span key={f} style={{ padding: "3px 10px", background: "var(--bg-primary)", border: "1.5px solid var(--border-color)", borderRadius: 20, fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)" }}>📌 {f}</span>
                 ))}
               </div>
             )}
             {analyzedProfile.workPattern && (
-              <div style={{
-                fontSize: "0.8rem", padding: "7px 12px",
-                background: "var(--color-excellent-bg)",
-                border: "1px solid rgba(78,191,173,0.3)",
-                borderRadius: 10, color: "var(--text-primary)",
-              }}>
-                <span style={{ fontWeight: 700, color: "var(--color-excellent)", marginRight: 6 }}>🗓 勤務パターン:</span>
-                {analyzedProfile.workPattern}
+              <div style={{ fontSize: "0.8rem", padding: "7px 12px", background: "var(--color-excellent-bg)", border: "1px solid rgba(78,191,173,0.3)", borderRadius: 10, color: "var(--text-primary)" }}>
+                <span style={{ fontWeight: 700, color: "var(--color-excellent)", marginRight: 6 }}>🗓 勤務パターン:</span>{analyzedProfile.workPattern}
               </div>
             )}
             {analyzedProfile.aiComment && (
-              <div style={{
-                fontSize: "0.78rem", padding: "6px 12px",
-                background: "rgba(232,146,78,0.06)",
-                border: "1px solid rgba(232,146,78,0.25)",
-                borderRadius: 10, color: "var(--color-fair)",
-              }}>
+              <div style={{ fontSize: "0.78rem", padding: "6px 12px", background: "rgba(232,146,78,0.06)", border: "1px solid rgba(232,146,78,0.25)", borderRadius: 10, color: "var(--color-fair)" }}>
                 💬 {analyzedProfile.aiComment}
               </div>
             )}
@@ -412,21 +364,13 @@ export default function MatchPage() {
               {analyzedProfile.preferredTimeHints.length > 0 && (
                 <div>
                   <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)", fontWeight: 600, marginBottom: 4 }}>都合が良さそうな時間帯:</div>
-                  <div className={styles.timeTagGroup}>
-                    {analyzedProfile.preferredTimeHints.map((h) => (
-                      <span key={h} className={styles.timeTagPrefer}>{h}</span>
-                    ))}
-                  </div>
+                  <div className={styles.timeTagGroup}>{analyzedProfile.preferredTimeHints.map(h => <span key={h} className={styles.timeTagPrefer}>{h}</span>)}</div>
                 </div>
               )}
               {analyzedProfile.avoidedTimeHints.length > 0 && (
                 <div>
                   <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)", fontWeight: 600, marginBottom: 4 }}>避けた方が良い時間帯:</div>
-                  <div className={styles.timeTagGroup}>
-                    {analyzedProfile.avoidedTimeHints.map((h) => (
-                      <span key={h} className={styles.timeTagAvoid}>{h}</span>
-                    ))}
-                  </div>
+                  <div className={styles.timeTagGroup}>{analyzedProfile.avoidedTimeHints.map(h => <span key={h} className={styles.timeTagAvoid}>{h}</span>)}</div>
                 </div>
               )}
             </div>
@@ -434,9 +378,10 @@ export default function MatchPage() {
         </div>
       )}
 
-      {/* 日程チェック結果リスト */}
+      {/* チェック結果 */}
       {!analyzing && (
         <div className="glass-card fade-in" style={{ padding: "18px" }}>
+          {/* ヘッダー行 */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
             <div className={styles.sectionTitle} style={{ margin: 0, flex: 1 }}>
               <CalendarDays size={16} />
@@ -444,186 +389,181 @@ export default function MatchPage() {
             </div>
             <button
               onClick={() => setAddFormOpen(v => !v)}
-              style={{
-                display: "flex", alignItems: "center", gap: 5,
-                padding: "6px 12px",
-                background: addFormOpen ? "var(--color-primary-bg)" : "var(--bg-primary)",
-                border: `1.5px solid ${addFormOpen ? "var(--color-primary)" : "var(--border-color-hover)"}`,
-                borderRadius: 14, fontSize: "0.78rem", fontWeight: 700,
-                color: addFormOpen ? "var(--color-primary)" : "var(--text-secondary)",
-                cursor: "pointer", fontFamily: "inherit",
-              }}
+              style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", background: addFormOpen ? "var(--color-primary-bg)" : "var(--bg-primary)", border: `1.5px solid ${addFormOpen ? "var(--color-primary)" : "var(--border-color-hover)"}`, borderRadius: 14, fontSize: "0.78rem", fontWeight: 700, color: addFormOpen ? "var(--color-primary)" : "var(--text-secondary)", cursor: "pointer", fontFamily: "inherit" }}
             >
               {addFormOpen ? <ChevronUp size={13} /> : <Plus size={13} />}
               日程を追加
-              {addFormOpen ? <ChevronUp size={13} /> : null}
             </button>
           </div>
 
-          {/* 日程追加フォーム */}
+          {/* 追加フォーム */}
           {addFormOpen && (
-            <div style={{
-              padding: "14px", marginBottom: 12,
-              background: "var(--color-primary-bg)",
-              border: "1.5px solid rgba(112,185,126,0.3)",
-              borderRadius: 14,
-            }}>
-              <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--color-primary)", marginBottom: 10 }}>
-                空いている時間帯を追加（範囲で指定）
-              </div>
+            <div style={{ padding: "14px", marginBottom: 12, background: "var(--color-primary-bg)", border: "1.5px solid rgba(112,185,126,0.3)", borderRadius: 14 }}>
+              <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--color-primary)", marginBottom: 10 }}>空いている時間帯を追加（範囲で指定）</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                <input
-                  type="date"
-                  value={tempDate}
-                  onChange={(e) => setTempDate(e.target.value)}
-                  style={{
-                    flex: 1, minWidth: 120, padding: "8px 10px",
-                    border: "1.5px solid var(--border-color)", borderRadius: 10,
-                    fontSize: "0.85rem", fontFamily: "inherit",
-                    background: "var(--bg-card)", color: "var(--text-primary)",
-                  }}
-                />
-                <select
-                  value={tempStart}
-                  onChange={(e) => setTempStart(e.target.value)}
-                  style={{
-                    width: 100, padding: "8px 6px",
-                    border: "1.5px solid var(--border-color)", borderRadius: 10,
-                    fontSize: "0.85rem", fontFamily: "inherit",
-                    background: "var(--bg-card)", color: "var(--text-primary)",
-                  }}
-                >
+                <input type="date" value={tempDate} onChange={e => setTempDate(e.target.value)} style={{ flex: 1, minWidth: 120, padding: "8px 10px", border: "1.5px solid var(--border-color)", borderRadius: 10, fontSize: "0.85rem", fontFamily: "inherit", background: "var(--bg-card)", color: "var(--text-primary)" }} />
+                <select value={tempStart} onChange={e => setTempStart(e.target.value)} style={{ width: 100, padding: "8px 6px", border: "1.5px solid var(--border-color)", borderRadius: 10, fontSize: "0.85rem", fontFamily: "inherit", background: "var(--bg-card)", color: "var(--text-primary)" }}>
                   {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
                 <span style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600 }}>〜</span>
-                <select
-                  value={tempEnd}
-                  onChange={(e) => setTempEnd(e.target.value)}
-                  style={{
-                    width: 100, padding: "8px 6px",
-                    border: "1.5px solid var(--border-color)", borderRadius: 10,
-                    fontSize: "0.85rem", fontFamily: "inherit",
-                    background: "var(--bg-card)", color: "var(--text-primary)",
-                  }}
-                >
+                <select value={tempEnd} onChange={e => setTempEnd(e.target.value)} style={{ width: 100, padding: "8px 6px", border: "1.5px solid var(--border-color)", borderRadius: 10, fontSize: "0.85rem", fontFamily: "inherit", background: "var(--bg-card)", color: "var(--text-primary)" }}>
                   {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
-                <button
-                  onClick={addRange}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 5,
-                    padding: "8px 16px",
-                    background: "var(--color-primary)", border: "none",
-                    borderRadius: 12, fontSize: "0.82rem", fontWeight: 700,
-                    color: "white", cursor: "pointer", fontFamily: "inherit",
-                  }}
-                >
+                <button onClick={addRange} style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 16px", background: "var(--color-primary)", border: "none", borderRadius: 12, fontSize: "0.82rem", fontWeight: 700, color: "white", cursor: "pointer", fontFamily: "inherit" }}>
                   <Plus size={14} />追加
                 </button>
               </div>
-              {addMsg && (
-                <div style={{ marginTop: 8, fontSize: "0.78rem", fontWeight: 700, color: "var(--color-primary)" }}>
-                  ✓ {addMsg}
-                </div>
-              )}
+              {addMsg && <div style={{ marginTop: 8, fontSize: "0.78rem", fontWeight: 700, color: "var(--color-primary)" }}>✓ {addMsg}</div>}
             </div>
           )}
 
-          {/* 日程変更バナー */}
+          {/* 変更バナー */}
           {slotsChanged && (
-            <div style={{
-              display: "flex", alignItems: "center", gap: 10,
-              padding: "10px 14px", marginBottom: 12,
-              background: "rgba(232,146,78,0.08)",
-              border: "1.5px solid rgba(232,146,78,0.35)",
-              borderRadius: 12, fontSize: "0.82rem", fontWeight: 600, color: "var(--color-fair)",
-            }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", marginBottom: 12, background: "rgba(232,146,78,0.08)", border: "1.5px solid rgba(232,146,78,0.35)", borderRadius: 12, fontSize: "0.82rem", fontWeight: 600, color: "var(--color-fair)" }}>
               <span>日程が変更されました。再チェックすると最新の結果が反映されます。</span>
-              <button
-                onClick={handleReanalyze}
-                style={{
-                  marginLeft: "auto", display: "flex", alignItems: "center", gap: 5,
-                  padding: "6px 14px",
-                  background: "var(--color-secondary)", border: "none",
-                  borderRadius: 12, fontSize: "0.8rem", fontWeight: 700,
-                  color: "white", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
-                }}
-              >
-                <RefreshCw size={13} />
-                AIに再チェック
+              <button onClick={handleReanalyze} style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", background: "var(--color-secondary)", border: "none", borderRadius: 12, fontSize: "0.8rem", fontWeight: 700, color: "white", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                <RefreshCw size={13} />AIに再チェック
               </button>
             </div>
           )}
 
-          <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginBottom: "12px" }}>
-            チェックを外すと、その日程はメッセージに含まれません。右の×で日程を削除できます。
+          <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginBottom: 14 }}>
+            範囲ごとにまとめて表示しています。右の▼で詳細を展開できます。チェックを外すと候補から除外されます。
           </p>
 
-          <div className={styles.slotList}>
-            {localSlots.length === 0 && (
-              <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", padding: "12px 0" }}>
-                候補日程がありません。「日程を追加」から追加してください。
-              </p>
-            )}
-            {localSlots.map((slotTime) => {
-              const scored = scoredSlots.find(s => s.timeSlot === slotTime)
-              const isChecked = selectedSlots.includes(slotTime)
-              const score = scored?.score ?? "fair"
+          {/* スロットが空 */}
+          {localRanges.length === 0 && orphanSlots.length === 0 && (
+            <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", padding: "12px 0" }}>候補日程がありません。「日程を追加」から追加してください。</p>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {/* 範囲ごとの表示 */}
+            {localRanges.map(range => {
+              const key = rangeKey(range)
+              const rangeSlots = getRangeSlots(range)
+              const scored = rangeSlots.map(s => scoredSlots.find(ss => ss.timeSlot === s)).filter(Boolean) as TimeSlotScore[]
+              const allChecked = rangeSlots.length > 0 && rangeSlots.every(s => selectedSlots.includes(s))
+              const someChecked = rangeSlots.some(s => selectedSlots.includes(s))
+              const worst = scored.length > 0 ? worstScore(scored) : null
+              const isExpanded = expandedRanges.has(key)
+
+              // スコア件数
+              const counts: Record<string, number> = {}
+              scored.forEach(s => { counts[s.score] = (counts[s.score] ?? 0) + 1 })
+              const uncheckedCount = rangeSlots.length - scored.length
+
               return (
-                <div
-                  key={slotTime}
-                  className={`${styles.slotItem} ${isChecked ? styles.slotItemActive : ""}`}
-                  style={{
-                    cursor: "pointer",
-                    opacity: score === "poor" && !isChecked ? 0.6 : 1,
-                  }}
-                  onClick={() => toggleSlot(slotTime)}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    readOnly
-                    className={styles.slotCheckbox}
-                    style={{ pointerEvents: "none" }}
-                  />
-                  <div className={getScoreClass(score)} title={getScoreLabel(score)}>
-                    {scored ? getScoreEmoji(score) : "？"}
-                  </div>
-                  <div className={styles.slotInfo}>
-                    <div className={styles.slotTime}>{formatJaWithEnd(slotTime, request?.duration ?? 30)}</div>
-                    {scored && (
-                      <div className={styles.slotReason}>
-                        <span style={{
-                          fontWeight: 700,
-                          color: score === "poor" ? "var(--color-danger)"
-                            : score === "fair" ? "var(--color-fair)"
-                            : "var(--color-excellent)",
-                          marginRight: 4,
-                        }}>
-                          {getScoreLabel(score)}
-                        </span>
-                        {scored.privacyReason}
-                      </div>
-                    )}
-                    {!scored && (
-                      <div className={styles.slotReason} style={{ color: "var(--text-muted)" }}>
-                        未チェック — 「AIに再チェック」で評価します
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); deleteSlot(slotTime) }}
-                    style={{
-                      flexShrink: 0, display: "flex", alignItems: "center",
-                      padding: "4px 6px", background: "none",
-                      border: "1.5px solid var(--border-color)",
-                      borderRadius: 8, cursor: "pointer", color: "var(--text-muted)",
-                      transition: "all var(--transition-fast)",
-                    }}
-                    title="この日程を削除"
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--color-danger)"; (e.currentTarget as HTMLElement).style.color = "var(--color-danger)" }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-color)"; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)" }}
+                <div key={key} style={{ border: `2px solid ${allChecked ? "var(--color-secondary)" : someChecked ? "var(--border-color-hover)" : "var(--border-color)"}`, borderRadius: 16, overflow: "hidden", background: allChecked ? "var(--color-secondary-bg)" : "var(--bg-card)" }}>
+                  {/* 範囲ヘッダー行 */}
+                  <div
+                    style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", cursor: "pointer" }}
+                    onClick={() => toggleRangeSelect(rangeSlots)}
                   >
+                    <input type="checkbox" checked={allChecked} readOnly className={styles.slotCheckbox} style={{ pointerEvents: "none", flexShrink: 0 }} />
+
+                    {/* スコアバッジ */}
+                    {worst ? (
+                      <div style={{ width: 32, height: 32, borderRadius: "50%", display: "grid", placeContent: "center", fontSize: "0.9rem", fontWeight: 700, flexShrink: 0, background: getScoreBg(worst), color: getScoreColor(worst) }}>
+                        {getScoreEmoji(worst)}
+                      </div>
+                    ) : (
+                      <div style={{ width: 32, height: 32, borderRadius: "50%", display: "grid", placeContent: "center", fontSize: "0.8rem", fontWeight: 700, flexShrink: 0, background: "var(--bg-primary)", color: "var(--text-muted)", border: "1.5px dashed var(--border-color)" }}>？</div>
+                    )}
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "0.9rem", fontWeight: 700, color: "var(--text-primary)" }}>{formatRangeJa(range)}</div>
+                      {/* スコア内訳チップ */}
+                      <div style={{ display: "flex", gap: 5, marginTop: 4, flexWrap: "wrap" }}>
+                        {(["excellent", "good", "fair", "poor"] as const).map(sc =>
+                          counts[sc] ? (
+                            <span key={sc} style={{ fontSize: "0.72rem", fontWeight: 700, padding: "1px 7px", borderRadius: 20, background: getScoreBg(sc), color: getScoreColor(sc) }}>
+                              {getScoreEmoji(sc)} {counts[sc]}件
+                            </span>
+                          ) : null
+                        )}
+                        {uncheckedCount > 0 && (
+                          <span style={{ fontSize: "0.72rem", fontWeight: 600, padding: "1px 7px", borderRadius: 20, background: "var(--bg-primary)", color: "var(--text-muted)", border: "1px dashed var(--border-color)" }}>
+                            未チェック {uncheckedCount}件
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 展開ボタン */}
+                    <button
+                      onClick={e => { e.stopPropagation(); toggleRangeExpand(key) }}
+                      style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", background: "none", border: "1.5px solid var(--border-color)", borderRadius: 10, fontSize: "0.75rem", fontWeight: 700, color: "var(--text-secondary)", cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}
+                    >
+                      {isExpanded ? <><ChevronUp size={12} />閉じる</> : <><ChevronDown size={12} />詳細</>}
+                    </button>
+
+                    {/* 削除ボタン */}
+                    <button
+                      onClick={e => { e.stopPropagation(); deleteRange(range) }}
+                      style={{ display: "flex", alignItems: "center", padding: "5px 8px", background: "none", border: "1.5px solid var(--border-color)", borderRadius: 10, cursor: "pointer", color: "var(--text-muted)", flexShrink: 0 }}
+                      title="この範囲を削除"
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--color-danger)"; (e.currentTarget as HTMLElement).style.color = "var(--color-danger)" }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-color)"; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)" }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+
+                  {/* 展開: 個別スロット */}
+                  {isExpanded && (
+                    <div style={{ borderTop: "1px solid var(--border-color)", padding: "8px 16px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
+                      {rangeSlots.map(slot => {
+                        const sc = scoredSlots.find(s => s.timeSlot === slot)
+                        const isChecked = selectedSlots.includes(slot)
+                        const score = sc?.score ?? "fair"
+                        return (
+                          <div key={slot} onClick={() => toggleSlot(slot)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 10, cursor: "pointer", background: isChecked ? "rgba(232,168,124,0.08)" : "var(--bg-primary)", border: `1.5px solid ${isChecked ? "rgba(232,168,124,0.3)" : "var(--border-color)"}` }}>
+                            <input type="checkbox" checked={isChecked} readOnly style={{ pointerEvents: "none", accentColor: "var(--color-secondary)" }} />
+                            {sc ? (
+                              <span style={{ fontSize: "0.85rem", fontWeight: 700, color: getScoreColor(score), width: 20, textAlign: "center" }}>{getScoreEmoji(score)}</span>
+                            ) : (
+                              <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", width: 20, textAlign: "center" }}>？</span>
+                            )}
+                            <div style={{ flex: 1 }}>
+                              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-primary)" }}>{formatJaWithEnd(slot, duration)}</span>
+                              {sc && <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginLeft: 8 }}>{getScoreLabel(score)} — {sc.privacyReason}</span>}
+                              {!sc && <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginLeft: 8 }}>未チェック</span>}
+                            </div>
+                            <button onClick={e => { e.stopPropagation(); deleteSlot(slot) }} style={{ display: "flex", alignItems: "center", padding: "3px 5px", background: "none", border: "1px solid var(--border-color)", borderRadius: 6, cursor: "pointer", color: "var(--text-muted)" }}
+                              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--color-danger)" }}
+                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)" }}>
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+
+            {/* 孤立スロット（範囲に属さない個別スロット） */}
+            {orphanSlots.map(slot => {
+              const sc = scoredSlots.find(s => s.timeSlot === slot)
+              const isChecked = selectedSlots.includes(slot)
+              const score = sc?.score ?? "fair"
+              return (
+                <div key={slot} onClick={() => toggleSlot(slot)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", borderRadius: 16, cursor: "pointer", background: isChecked ? "var(--color-secondary-bg)" : "var(--bg-card)", border: `2px solid ${isChecked ? "var(--color-secondary)" : "var(--border-color)"}` }}>
+                  <input type="checkbox" checked={isChecked} readOnly className={styles.slotCheckbox} style={{ pointerEvents: "none" }} />
+                  {sc ? (
+                    <div style={{ width: 32, height: 32, borderRadius: "50%", display: "grid", placeContent: "center", fontSize: "0.9rem", fontWeight: 700, background: getScoreBg(score), color: getScoreColor(score) }}>{getScoreEmoji(score)}</div>
+                  ) : (
+                    <div style={{ width: 32, height: 32, borderRadius: "50%", display: "grid", placeContent: "center", fontSize: "0.8rem", fontWeight: 700, background: "var(--bg-primary)", color: "var(--text-muted)", border: "1.5px dashed var(--border-color)" }}>？</div>
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: "0.88rem", fontWeight: 700, color: "var(--text-primary)" }}>{formatJaWithEnd(slot, duration)}</div>
+                    {sc && <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)", marginTop: 2 }}><span style={{ fontWeight: 700, color: getScoreColor(score), marginRight: 4 }}>{getScoreLabel(score)}</span>{sc.privacyReason}</div>}
+                    {!sc && <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: 2 }}>未チェック — 「AIに再チェック」で評価します</div>}
+                  </div>
+                  <button onClick={e => { e.stopPropagation(); deleteSlot(slot) }} style={{ display: "flex", alignItems: "center", padding: "4px 6px", background: "none", border: "1.5px solid var(--border-color)", borderRadius: 8, cursor: "pointer", color: "var(--text-muted)" }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--color-danger)"; (e.currentTarget as HTMLElement).style.color = "var(--color-danger)" }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-color)"; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)" }}>
                     <Trash2 size={13} />
                   </button>
                 </div>
@@ -632,18 +572,14 @@ export default function MatchPage() {
           </div>
 
           {selectedSlots.length > 0 && (
-            <div className={styles.selectedSummary}>
-              <span className={styles.selectedCount}>{selectedSlots.length}件選択中</span>
+            <div className={styles.selectedSummary} style={{ marginTop: 14 }}>
+              <span className={styles.selectedCount}>{selectedSlots.length}スロット選択中</span>
               <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>→ 選択した日時がメッセージの候補として使用されます</span>
             </div>
           )}
 
           <div className={styles.footer}>
-            <button
-              onClick={handleNext}
-              className={styles.btnNext}
-              disabled={selectedSlots.length === 0}
-            >
+            <button onClick={handleNext} className={styles.btnNext} disabled={selectedSlots.length === 0}>
               選択した日時でメッセージ作成へ
               <Mail size={15} />
             </button>
