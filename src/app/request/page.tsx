@@ -34,7 +34,7 @@ export default function RequestPage() {
   const [urgency, setUrgency] = useState<"high" | "normal" | "low">("normal")
   const [selectedTopics, setSelectedTopics] = useState<string[]>([])
 
-  const [tempDate, setTempDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [tempDate, setTempDate] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` })
   const [tempTime, setTempTime] = useState("10:00")
   const [availableTimes, setAvailableTimes] = useState<string[]>([])
   const [availableRanges, setAvailableRanges] = useState<TimeRange[]>([])
@@ -186,7 +186,7 @@ export default function RequestPage() {
       while (cur + 30 <= toMin(end)) { slots.push(`${dateStr}T${toStr(cur)}`); cur += 30 }
       return slots
     }
-    const fmtDate = (d: Date) => d.toISOString().slice(0, 10)
+    const fmtDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`
     const ranges: TimeRange[] = [
       { date: fmtDate(d7), start: "10:00", end: "12:00" },
       { date: fmtDate(d8), start: "14:00", end: "17:00" },

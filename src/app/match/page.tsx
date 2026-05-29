@@ -58,7 +58,7 @@ export default function MatchPage() {
   const [slotsChanged, setSlotsChanged] = useState(false)
   const [addFormOpen, setAddFormOpen] = useState(false)
   const [expandedRanges, setExpandedRanges] = useState<Set<string>>(new Set())
-  const [tempDate, setTempDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [tempDate, setTempDate] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` })
   const [tempStart, setTempStart] = useState("10:00")
   const [tempEnd, setTempEnd] = useState("12:00")
   const [addMsg, setAddMsg] = useState<string | null>(null)
@@ -160,7 +160,7 @@ export default function MatchPage() {
     setSlotsChanged(true)
     setAddMsg(`${formatRangeJa(newRange)} を追加しました`)
     setTimeout(() => setAddMsg(null), 3000)
-    setTempDate(new Date().toISOString().slice(0, 10))
+    const nd = new Date(); setTempDate(`${nd.getFullYear()}-${String(nd.getMonth()+1).padStart(2,"0")}-${String(nd.getDate()).padStart(2,"0")}`)
     setAddFormOpen(false)
   }
 
