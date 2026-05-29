@@ -241,13 +241,17 @@ export default function Home() {
       </Link>
 
       {/* 進行中の相談 */}
-      {active.length > 0 && (
-        <section className={styles.section}>
+      <section className={styles.section}>
           <h2 className={styles.sectionTitle}>
             <Clock size={16} />
             進行中の相談
           </h2>
           <div className={styles.cardList}>
+            {active.length === 0 && (
+              <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", padding: "8px 4px" }}>
+                進行中の相談はありません。「新しい相談を作成」から始めましょう。
+              </p>
+            )}
             {active.map((record) => {
               const meta = STATUS_META[record.status]
               const targetName = getTargetName(record)
@@ -309,16 +313,19 @@ export default function Home() {
             })}
           </div>
         </section>
-      )}
 
       {/* 送信準備完了 */}
-      {readyToSend.length > 0 && (
-        <section className={styles.section}>
+      <section className={styles.section}>
           <h2 className={styles.sectionTitle}>
             <Bookmark size={16} />
             送信準備完了
           </h2>
           <div className={styles.cardList}>
+            {readyToSend.length === 0 && (
+              <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", padding: "8px 4px" }}>
+                送信準備が完了した相談はありません
+              </p>
+            )}
             {readyToSend.map((record) => {
               const targetName = getTargetName(record)
               const targetEmail = getTargetEmail(record)
@@ -409,7 +416,6 @@ export default function Home() {
             })}
           </div>
         </section>
-      )}
 
       {/* 空状態 */}
       {records.length === 0 && (
