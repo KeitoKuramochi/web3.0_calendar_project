@@ -599,8 +599,7 @@ export default function Home() {
       )}
 
       {/* 確定済み（折りたたみ） */}
-      {confirmed.length > 0 && (
-        <section className={styles.section}>
+      <section className={styles.section}>
           <button
             className={styles.collapsibleHeader}
             onClick={() => toggleSection("confirmed")}
@@ -614,6 +613,11 @@ export default function Home() {
           </button>
           {!collapsedSections.has("confirmed") && (
             <div className={styles.cardList}>
+              {confirmed.length === 0 && (
+                <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", padding: "8px 4px" }}>
+                  確定済みの相談はまだありません
+                </p>
+              )}
               {confirmed.map((record) => (
                 <div key={record.id} className={`${styles.consultCard} ${styles.confirmedCard}`}>
                   <div className={styles.consultCardTop}>
@@ -682,11 +686,9 @@ export default function Home() {
             </div>
           )}
         </section>
-      )}
 
       {/* 送信済み（折りたたみ） */}
-      {sent.length > 0 && (
-        <section className={styles.section}>
+      <section className={styles.section}>
           <button
             className={styles.collapsibleHeader}
             onClick={() => toggleSection("sent")}
@@ -700,6 +702,11 @@ export default function Home() {
           </button>
           {!collapsedSections.has("sent") && (
           <div className={styles.cardList}>
+            {sent.length === 0 && (
+              <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", padding: "8px 4px" }}>
+                送信済みの相談はまだありません
+              </p>
+            )}
             {sent.map((record) => {
               const targetName = getTargetName(record)
               const targetEmail = getTargetEmail(record)
@@ -812,7 +819,6 @@ export default function Home() {
           </div>
           )}
         </section>
-      )}
 
       {/* 削除トースト */}
       {deletedTitle && (
