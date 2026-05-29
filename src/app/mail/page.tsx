@@ -31,6 +31,7 @@ export default function MailPage() {
   const [isRescheduling, setIsRescheduling] = useState(false)
   const [recipientNote, setRecipientNote] = useState<string | undefined>(undefined)
   const [recipientEmail, setRecipientEmail] = useState("")
+  const [scheduleToken, setScheduleToken] = useState<string | null>(null)
   const [scheduleUrlForShare, setScheduleUrlForShare] = useState<string | null>(null)
   const [linkCopied, setLinkCopied] = useState(false)
   const [pastContactCount, setPastContactCount] = useState(0)
@@ -72,6 +73,20 @@ export default function MailPage() {
       setTargetUser(target)
       setRecipientEmail(req.recipient?.email ?? target.email ?? "")
 
+      // スケジュールトークンをmount時に生成してDBに保存（ステータスは変えない）
+      const existingToken = active.scheduleToken ?? crypto.randomUUID()
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin
+      if (!active.scheduleToken) {
+        await upsertConsultation({
+          ...active,
+          scheduleToken: existingToken,
+          senderDisplayName: sender.name,
+          scheduleTokenExpiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        })
+      }
+      setScheduleToken(existingToken)
+      setScheduleUrlForShare(`${appUrl}/schedule/${existingToken}`)
+
       if (active.recipientNote) {
         setIsRescheduling(true)
         setRecipientNote(active.recipientNote)
@@ -112,7 +127,7 @@ export default function MailPage() {
   const handleFormatChange = async (fmt: OutputFormat) => {
     setOutputFormat(fmt)
     if (requester && targetUser && request && matchData) {
-      await regenerate(requester, targetUser, request, matchData, fmt, undefined, isFirstContact, isRescheduling, recipientNote)
+      await regenerate(requester, targetUser, request, matchData, fmt, scheduleToken ?? undefined, isFirstContact, isRescheduling, recipientNote)
     }
   }
 
@@ -120,7 +135,7 @@ export default function MailPage() {
   const handleFirstContactToggle = async (val: boolean) => {
     setIsFirstContact(val)
     if (outputFormat && requester && targetUser && request && matchData) {
-      await regenerate(requester, targetUser, request, matchData, outputFormat, undefined, val, isRescheduling, recipientNote)
+      await regenerate(requester, targetUser, request, matchData, outputFormat, scheduleToken ?? undefined, val, isRescheduling, recipientNote)
     }
   }
 
@@ -196,19 +211,12 @@ export default function MailPage() {
         return
       }
     }
-    // スケジュールトークンを生成してDB保存し、URL付き文面を再生成
-    const token = crypto.randomUUID()
+    // トークンはmount時に生成済み。ステータスをwaitingに更新するだけ
     const active = await getActiveConsultation()
-    if (active && requester && targetUser && request && matchData) {
-      await upsertConsultation({ ...active, status: "waiting", scheduleToken: token, senderDisplayName: requester.name, scheduleTokenExpiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() })
-      regenerate(requester, targetUser, request, matchData, outputFormat, token, isFirstContact, isRescheduling, recipientNote)
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin
-      setScheduleUrlForShare(`${appUrl}/schedule/${token}`)
-      // URL挿入後の文面で少し待ってからコピー（state更新を待つ）
-      await new Promise((r) => setTimeout(r, 50))
+    if (active) {
+      await upsertConsultation({ ...active, status: "waiting" })
     }
-    const latestBody = bodyRef.current?.value ?? body
-    const text = (outputFormat === "email" && subject) ? `${subject}\n\n${latestBody}` : latestBody
+    const text = (outputFormat === "email" && subject) ? `${subject}\n\n${body}` : body
     navigator.clipboard.writeText(text).then(() => {
       setShowToast(true)
       setTimeout(() => {
@@ -220,7 +228,7 @@ export default function MailPage() {
 
   const handleInstructionRegenerate = async () => {
     if (!outputFormat || !userInstruction.trim() || !requester || !targetUser || !request || !matchData) return
-    await regenerate(requester, targetUser, request, matchData, outputFormat, undefined, isFirstContact, isRescheduling, recipientNote, userInstruction.trim())
+    await regenerate(requester, targetUser, request, matchData, outputFormat, scheduleToken ?? undefined, isFirstContact, isRescheduling, recipientNote, userInstruction.trim())
     setUserInstruction("")
   }
 
@@ -463,7 +471,7 @@ export default function MailPage() {
                       onClick={() => {
                         setMailRestored(false)
                         if (requester && targetUser && request && matchData && outputFormat) {
-                          regenerate(requester, targetUser, request, matchData, outputFormat, undefined, isFirstContact, isRescheduling, recipientNote)
+                          regenerate(requester, targetUser, request, matchData, outputFormat, scheduleToken ?? undefined, isFirstContact, isRescheduling, recipientNote)
                         }
                       }}
                     >
@@ -551,7 +559,7 @@ export default function MailPage() {
                 ) : (
                   <>
                     <Copy size={15} />
-                    コピーして完了
+                    コピーして送信
                   </>
                 )}
               </button>
@@ -660,7 +668,7 @@ export default function MailPage() {
               <div className="glass-card" style={{ padding: "14px" }}>
                 <div style={{ fontSize: "0.8rem", fontWeight: "600", color: "var(--text-primary)", marginBottom: "6px", display: "flex", alignItems: "center", gap: "5px" }}>
                   <HelpCircle size={13} style={{ color: "var(--color-primary)" }} />
-                  {targetUser.name}の指定条件:
+                  {targetUser.name}の推定された情報:
                 </div>
                 <ul style={{ fontSize: "0.78rem", color: "var(--text-secondary)", paddingLeft: "14px" }}>
                   {targetUser.mailRequiredInfo.map((info, i) => (

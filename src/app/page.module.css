@@ -263,6 +263,9 @@
 .consultCardFooter {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .btnResume {
@@ -510,6 +513,59 @@
   border-color: var(--color-fair);
   color: var(--color-fair);
   background: var(--color-fair-bg);
+}
+
+.btnRollback {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: none;
+  border: 1.5px dashed var(--border-color-hover);
+  border-radius: 14px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+}
+
+.btnRollback:hover {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  background: var(--color-danger-bg);
+}
+
+.collapsibleHeader {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: left;
+  transition: color var(--transition-fast);
+}
+
+.collapsibleHeader:hover {
+  color: var(--color-primary);
+}
+
+.collapsibleCount {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: white;
+  background: var(--text-muted);
+  border-radius: 20px;
+  padding: 2px 8px;
+  line-height: 1.4;
 }
 
 .btnConfirmReset {

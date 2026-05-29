@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { Calendar, Clock, MessageSquare, Plus, Trash2, ArrowRight, ArrowLeft } from "lucide-react"
 import styles from "./request.module.css"
 import { parseFreeText } from "@/lib/ai"
 import { ConsultRequest, RecipientInfo, TimeRange } from "@/types"
-import { POPULAR_TOPICS, POPULAR_ROLES } from "@/lib/dummyData"
+import { POPULAR_ROLES } from "@/lib/dummyData"
 import { upsertConsultation, setActiveId, getActiveConsultation } from "@/lib/storage"
+import { suggestSchedulePatterns } from "@/app/actions/ai"
 import StepIndicator from "@/components/StepIndicator/StepIndicator"
 
 function genTimeOptions() {
@@ -33,13 +33,11 @@ export default function RequestPage() {
   const [format, setFormat] = useState<"offline" | "online" | "hybrid">("hybrid")
   const [urgency, setUrgency] = useState<"high" | "normal" | "low">("normal")
   const [selectedTopics, setSelectedTopics] = useState<string[]>([])
-  const [customTopicInput, setCustomTopicInput] = useState("")
 
   const [tempDate, setTempDate] = useState("")
   const [tempTime, setTempTime] = useState("10:00")
   const [availableTimes, setAvailableTimes] = useState<string[]>([])
   const [availableRanges, setAvailableRanges] = useState<TimeRange[]>([])
-  const [addMode, setAddMode] = useState<"single" | "range">("single")
   const [rangeEndTime, setRangeEndTime] = useState("12:00")
   const [rangeAddedMsg, setRangeAddedMsg] = useState<string | null>(null)
 
@@ -47,8 +45,8 @@ export default function RequestPage() {
   const [recipientEmail, setRecipientEmail] = useState("")
   const [recipientRole, setRecipientRole] = useState("")
   const [recipientDept, setRecipientDept] = useState("")
-  const [recipientNotes, setRecipientNotes] = useState("")
   const [recipientScheduleNotes, setRecipientScheduleNotes] = useState("")
+  const [schedulePatterns, setSchedulePatterns] = useState<string[]>([])
 
   const [aiNotice, setAiNotice] = useState<string | null>(null)
   const [errors, setErrors] = useState<{ title?: string; slots?: string }>({})
@@ -78,22 +76,19 @@ export default function RequestPage() {
           setRecipientEmail(req.recipient.email ?? "")
           setRecipientRole(req.recipient.role ?? "")
           setRecipientDept(req.recipient.department ?? "")
-          setRecipientNotes(req.recipient.notes ?? "")
         }
         setRecipientScheduleNotes(req.recipientScheduleNotes ?? "")
         setAutoSaveLabel("自動保存済み")
-      } else {
-        // 新規作成: デフォルトの空き時間候補
-        const base = new Date(); base.setHours(0, 0, 0, 0)
-        const fmtISO = (d: Date, h: number, m: number) => { const dd = new Date(d); dd.setHours(h, m, 0, 0); return dd.toISOString().slice(0, 16) }
-        const d7 = new Date(base); d7.setDate(base.getDate() + 7)
-        const d8 = new Date(base); d8.setDate(base.getDate() + 8)
-        const d9 = new Date(base); d9.setDate(base.getDate() + 9)
-        setAvailableTimes([fmtISO(d7, 10, 0), fmtISO(d7, 11, 0), fmtISO(d8, 14, 0), fmtISO(d9, 15, 0)])
       }
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // 役職が変わったらスケジュールパターンチップを更新
+  useEffect(() => {
+    if (!recipientRole) { setSchedulePatterns([]); return }
+    suggestSchedulePatterns(recipientRole, recipientDept).then(setSchedulePatterns)
+  }, [recipientRole, recipientDept])
 
   useEffect(() => {
     const hasEnoughData = (title.trim() !== "" || selectedTopics.length > 0) && availableTimes.length > 0
@@ -117,30 +112,9 @@ export default function RequestPage() {
     setDuration(parsed.extractedDuration)
     setFormat(parsed.extractedFormat)
     setUrgency(parsed.extractedUrgency)
+    if (parsed.extractedKeywords.length > 0) setSelectedTopics(parsed.extractedKeywords)
     const fmtLabel = parsed.extractedFormat === "offline" ? "対面" : parsed.extractedFormat === "online" ? "オンライン" : "指定なし"
     setAiNotice(`AIが読み取りました：件名「${parsed.extractedTitle}」、${parsed.extractedDuration}分、${fmtLabel}`)
-  }
-
-  const toggleTopic = (t: string) => {
-    setSelectedTopics((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t])
-  }
-
-  const addCustomTopic = () => {
-    const t = customTopicInput.trim()
-    if (!t || selectedTopics.includes(t)) return
-    setSelectedTopics((prev) => [...prev, t])
-    setCustomTopicInput("")
-    if (!title) setTitle(t)
-  }
-
-  const addTimeSlot = () => {
-    if (!tempDate || !tempTime) return
-    const slot = `${tempDate}T${tempTime}`
-    if (!availableTimes.includes(slot)) {
-      setAvailableTimes((prev) => [...prev, slot].sort())
-    }
-    setTempDate("")
-    setTempTime("10:00")
   }
 
   const addTimeRange = () => {
@@ -160,7 +134,7 @@ export default function RequestPage() {
     }
     if (slots.length === 0) return
     setAvailableTimes((prev) => [...new Set([...prev, ...slots])].sort())
-    setRangeAddedMsg(`${tempTime}〜${rangeEndTime} の範囲から ${slots.length} 件追加しました`)
+    setRangeAddedMsg(`${tempTime}〜${rangeEndTime} の範囲を追加しました`)
     setTimeout(() => setRangeAddedMsg(null), 3000)
     setTempDate("")
   }
@@ -200,15 +174,13 @@ export default function RequestPage() {
     setRecipientEmail("suzuki@example.ac.jp")
     setRecipientRole("研究室教員")
     setRecipientDept("情報工学科")
-    setRecipientNotes("")
     setRecipientScheduleNotes("火曜は研究会あり。月曜午前は会議が多いと聞いた。")
+    setAvailableRanges([])
     const base = new Date(); base.setHours(0, 0, 0, 0)
-    const fmt = (d: Date, h: number) => { const dd = new Date(d); dd.setHours(h, 0, 0, 0); return dd.toISOString().slice(0, 16) }
     const d7 = new Date(base); d7.setDate(base.getDate() + 7)
     const d8 = new Date(base); d8.setDate(base.getDate() + 8)
-    const d9 = new Date(base); d9.setDate(base.getDate() + 9)
-    setAvailableTimes([fmt(d7, 10), fmt(d7, 11), fmt(d8, 10), fmt(d9, 14)])
-    setAvailableRanges([])
+    const fmt = (d: Date, h: number) => { const dd = new Date(d); dd.setHours(h, 0, 0, 0); return dd.toISOString().slice(0, 16) }
+    setAvailableTimes([fmt(d7, 10), fmt(d7, 11), fmt(d8, 10)])
     setAiNotice(`デモ入力。相手：鈴木 茂（研究室教員）、相談：就職活動、30分・対面。`)
   }
 
@@ -219,7 +191,6 @@ export default function RequestPage() {
       email: recipientEmail.trim() || undefined,
       role: recipientRole.trim() || undefined,
       department: recipientDept.trim() || undefined,
-      notes: recipientNotes.trim() || undefined,
     }
     return {
       id,
@@ -313,55 +284,12 @@ export default function RequestPage() {
           )}
         </div>
 
-        {/* 2. 相談内容タグ */}
-        <div className={styles.formGroupFull} style={{ marginBottom: "24px" }}>
-          <label className={styles.label}>
-            <Calendar size={14} />
-            相談内容タグ（複数選択可）
-          </label>
-          <div className={styles.tagGrid}>
-            {POPULAR_TOPICS.map((t) => (
-              <button key={t} type="button"
-                className={`${styles.tagChip} ${selectedTopics.includes(t) ? styles.tagChipActive : ""}`}
-                onClick={() => toggleTopic(t)}>
-                {t}
-              </button>
-            ))}
-          </div>
-
-          {selectedTopics.filter((t) => !POPULAR_TOPICS.includes(t)).length > 0 && (
-            <div className={styles.tagGrid} style={{ marginTop: "6px" }}>
-              {selectedTopics.filter((t) => !POPULAR_TOPICS.includes(t)).map((t) => (
-                <button key={t} type="button"
-                  className={`${styles.tagChip} ${styles.tagChipActive}`}
-                  onClick={() => toggleTopic(t)}>
-                  {t} ×
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div className={styles.timeSlotInputGroup} style={{ marginTop: "8px" }}>
-            <input
-              type="text"
-              value={customTopicInput}
-              onChange={(e) => setCustomTopicInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomTopic() } }}
-              className={styles.input}
-              placeholder="その他のトピックを入力 + Enter"
-            />
-            <button type="button" onClick={addCustomTopic} className={styles.btnAddSlot}>
-              <Plus size={15} />
-            </button>
-          </div>
-        </div>
-
         <hr style={{ border: "0", borderTop: "1px solid var(--border-color)", margin: "0 0 24px" }} />
 
-        {/* 3. 詳細設定 */}
+        {/* 2. 詳細設定 */}
         <div className={styles.sectionTitle}>
           <Clock size={16} />
-          <span>3. 詳細設定</span>
+          <span>2. 詳細設定</span>
         </div>
 
         <div className={styles.formGrid}>
@@ -422,10 +350,10 @@ export default function RequestPage() {
 
         <hr style={{ border: "0", borderTop: "1px solid var(--border-color)", margin: "24px 0" }} />
 
-        {/* 4. 相談相手の情報 */}
+        {/* 3. 相談相手の情報 */}
         <div className={styles.sectionTitle}>
           <Calendar size={16} />
-          <span>4. 相手の情報（AIの判断精度が上がります）</span>
+          <span>3. 相手の情報（AIの判断精度が上がります）</span>
         </div>
 
         <div className={styles.formGrid} style={{ marginBottom: "16px" }}>
@@ -472,16 +400,6 @@ export default function RequestPage() {
               placeholder="例: 情報工学科、キャリアセンター"
             />
           </div>
-          <div className={styles.formGroup}>
-            <label className={styles.label}>メモ（任意）</label>
-            <input
-              type="text"
-              value={recipientNotes}
-              onChange={(e) => setRecipientNotes(e.target.value)}
-              className={styles.input}
-              placeholder="例: 厳しいけど親切"
-            />
-          </div>
         </div>
 
         {/* 相手のスケジュールメモ */}
@@ -498,47 +416,50 @@ export default function RequestPage() {
             style={{ minHeight: 60 }}
             placeholder="知っている範囲で自由に記入してください。AIが日程チェックの参考にします。"
           />
+          {schedulePatterns.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+              {schedulePatterns.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setRecipientScheduleNotes((prev) => prev ? `${prev}、${p}` : p)}
+                  style={{
+                    padding: "4px 12px",
+                    background: "var(--bg-primary)",
+                    border: "1.5px solid var(--border-color-hover)",
+                    borderRadius: 20,
+                    fontSize: "0.78rem",
+                    fontWeight: 600,
+                    color: "var(--text-secondary)",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    transition: "all var(--transition-fast)",
+                  }}
+                >
+                  + {p}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <hr style={{ border: "0", borderTop: "1px solid var(--border-color)", margin: "0 0 24px" }} />
 
-        {/* 5. 自分の空き時間 */}
+        {/* 4. 自分の空き時間 */}
         <div className={styles.sectionTitle}>
           <Clock size={16} />
-          <span>5. 自分の空き時間</span>
+          <span>4. 自分の空き時間（範囲で指定）</span>
         </div>
 
         <div className={styles.formGroupFull}>
-          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-            {(["single", "range"] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setAddMode(m)}
-                style={{
-                  padding: "7px 16px",
-                  background: addMode === m ? "var(--color-primary-bg)" : "var(--bg-primary)",
-                  border: `2px solid ${addMode === m ? "var(--color-primary)" : "var(--border-color)"}`,
-                  borderRadius: 12, fontSize: "0.82rem", fontWeight: 700,
-                  color: addMode === m ? "var(--color-primary)" : "var(--text-secondary)",
-                  cursor: "pointer", fontFamily: "inherit",
-                }}
-              >
-                {m === "single" ? "時間を指定" : "範囲で追加"}
-              </button>
-            ))}
+          <div style={{
+            padding: "10px 14px", marginBottom: 8,
+            background: "var(--color-primary-bg)",
+            border: "1.5px solid rgba(112,185,126,0.25)", borderRadius: 12,
+            fontSize: "0.78rem", color: "var(--color-primary)", fontWeight: 600, lineHeight: 1.6,
+          }}>
+            空いている時間帯を範囲で入力してください。相手がその中から都合の良い時間を選べます。
           </div>
-
-          {addMode === "range" && (
-            <div style={{
-              padding: "10px 14px", marginBottom: 8,
-              background: "var(--color-primary-bg)",
-              border: "1.5px solid rgba(112,185,126,0.25)", borderRadius: 12,
-              fontSize: "0.78rem", color: "var(--color-primary)", fontWeight: 600, lineHeight: 1.6,
-            }}>
-              指定した範囲の候補日時（{duration}分単位）が自動展開されます。
-            </div>
-          )}
 
           <div className={styles.timeSlotInputGroup}>
             <input
@@ -556,27 +477,23 @@ export default function RequestPage() {
             >
               {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
-            {addMode === "range" && (
-              <>
-                <span style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600 }}>〜</span>
-                <select
-                  value={rangeEndTime}
-                  onChange={(e) => setRangeEndTime(e.target.value)}
-                  className={styles.select}
-                  style={{ width: "105px" }}
-                >
-                  {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </>
-            )}
+            <span style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 600 }}>〜</span>
+            <select
+              value={rangeEndTime}
+              onChange={(e) => setRangeEndTime(e.target.value)}
+              className={styles.select}
+              style={{ width: "105px" }}
+            >
+              {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
             <button
               type="button"
-              onClick={addMode === "single" ? addTimeSlot : addTimeRange}
+              onClick={addTimeRange}
               className={styles.btnAddSlot}
               style={{ display: "flex", alignItems: "center", gap: "5px" }}
             >
               <Plus size={15} />
-              {addMode === "single" ? "追加" : "展開して追加"}
+              追加
             </button>
           </div>
 
@@ -595,7 +512,7 @@ export default function RequestPage() {
           )}
 
           <div className={styles.timeSlotList}>
-            {availableTimes.length === 0 && availableRanges.length === 0 ? (
+            {availableRanges.length === 0 && availableTimes.length === 0 ? (
               <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", padding: "8px 0" }}>
                 空き時間が追加されていません
               </p>
@@ -605,12 +522,9 @@ export default function RequestPage() {
                   const d = new Date(r.date)
                   const days = ["日", "月", "火", "水", "木", "金", "土"]
                   const label = `${d.getMonth() + 1}月${d.getDate()}日(${days[d.getDay()]}) ${r.start}〜${r.end}`
-                  const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m }
-                  const slots = Math.floor((toMin(r.end) - toMin(r.start)) / duration)
                   return (
                     <div key={i} className={styles.timeSlotItem} style={{ background: "var(--color-primary-bg)", borderColor: "rgba(112,185,126,0.3)" }}>
                       <span style={{ fontWeight: 700 }}>📅 {label}</span>
-                      <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginLeft: 6 }}>（{slots}枠）</span>
                       <button type="button" onClick={() => removeRange(r)} className={styles.btnRemoveSlot}>
                         <Trash2 size={14} />
                       </button>

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
-import { Plus, ArrowRight, Clock, CheckCircle2, Trash2, User, CalendarDays, Send, RefreshCw, Copy, Share2, Mail, Pencil, Bookmark } from "lucide-react"
+import { Plus, ArrowRight, Clock, CheckCircle2, Trash2, User, CalendarDays, Send, RefreshCw, Copy, Share2, Mail, Pencil, Bookmark, ChevronDown, ChevronUp, Undo2 } from "lucide-react"
 import styles from "./page.module.css"
 import { getConsultations, deleteConsultation, upsertConsultation, setActiveId, clearActiveId } from "@/lib/storage"
 import type { ConsultationRecord, ConsultationStatus, UserProfile } from "@/types"
@@ -32,6 +32,7 @@ export default function Home() {
   const [expandedMail, setExpandedMail] = useState<Set<string>>(new Set())
   const [manualConfirmId, setManualConfirmId] = useState<string | null>(null)
   const [manualConfirmSlot, setManualConfirmSlot] = useState("")
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set(["confirmed", "sent"]))
 
   useEffect(() => {
     getConsultations().then(setRecords)
@@ -95,6 +96,34 @@ export default function Home() {
     getConsultations().then(setRecords)
     setManualConfirmId(null)
     setManualConfirmSlot("")
+  }
+
+  const toggleSection = (key: string) => {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+  }
+
+  // ステータスを1段階前に戻す
+  const handleRollback = async (record: ConsultationRecord) => {
+    let updated: ConsultationRecord
+    if (record.status === "confirmed") {
+      // 確定済み → 送信済み（確定日時をクリア）
+      updated = { ...record, status: "sent", confirmedSlot: undefined, updatedAt: new Date().toISOString() }
+    } else if (record.status === "rescheduling") {
+      // 要再調整 → 送信済み（recipientNoteをクリア）
+      updated = { ...record, status: "sent", recipientNote: undefined, updatedAt: new Date().toISOString() }
+    } else if (record.status === "sent" || record.status === "waiting") {
+      // 送信済み/確定待ち → 送信準備完了（メール有り）または日程確認済み
+      const prevStatus: ConsultationStatus = record.mail ? "composed" : "matched"
+      updated = { ...record, status: prevStatus, scheduleToken: undefined, scheduleTokenExpiresAt: undefined, updatedAt: new Date().toISOString() }
+    } else {
+      return
+    }
+    await upsertConsultation(updated)
+    getConsultations().then(setRecords)
   }
 
   // 再調整: request と recipientNote を保持したまま match へ
@@ -169,8 +198,8 @@ export default function Home() {
   const readyToSend = records.filter((r) => r.status === "composed")
   const rescheduling = records.filter((r) => r.status === "rescheduling")
   const waiting = records.filter((r) => r.status === "waiting")
-  const confirmed = records.filter((r) => r.status === "confirmed").slice(0, 5)
-  const sent = records.filter((r) => r.status === "sent").slice(0, 5)
+  const confirmed = records.filter((r) => r.status === "confirmed")
+  const sent = records.filter((r) => r.status === "sent")
 
   return (
     <div className={styles.container}>
@@ -442,6 +471,14 @@ export default function Home() {
                       新しい日程で返信する
                       <ArrowRight size={15} />
                     </button>
+                    <button
+                      className={styles.btnRollback}
+                      onClick={() => handleRollback(record)}
+                      title="送信済みに戻す"
+                    >
+                      <Undo2 size={13} />
+                      送信済みに戻す
+                    </button>
                   </div>
                 </div>
               )
@@ -545,6 +582,14 @@ export default function Home() {
                       <CheckCircle2 size={14} />
                       確定済みにする
                     </button>
+                    <button
+                      className={styles.btnRollback}
+                      onClick={() => handleRollback(record)}
+                      title="送信取り消し：送信準備完了に戻す"
+                    >
+                      <Undo2 size={13} />
+                      送信取り消し
+                    </button>
                   </div>
                 </div>
               )
@@ -553,82 +598,107 @@ export default function Home() {
         </section>
       )}
 
-      {/* 確定済み */}
+      {/* 確定済み（折りたたみ） */}
       {confirmed.length > 0 && (
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>
-            <CheckCircle2 size={16} />
-            確定済みの相談
-          </h2>
-          <div className={styles.cardList}>
-            {confirmed.map((record) => (
-              <div key={record.id} className={`${styles.consultCard} ${styles.confirmedCard}`}>
-                <div className={styles.consultCardTop}>
-                  <span className={`${styles.statusBadge} ${styles.confirmed}`}>確定済み</span>
-                  <button className={styles.btnDelete} onClick={() => setDeleteConfirm(record.id)} title="削除">
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-                <div className={styles.consultCardBody}>
-                  <h3 className={styles.consultTitle}>{record.request?.title || "（タイトルなし）"}</h3>
-                  {(record.request?.recipient?.name || record.request?.recipient?.email) && (
-                    <div className={styles.consultMeta}>
-                      {record.request.recipient?.name && (
-                        <span className={styles.consultMetaItem}>
-                          <User size={13} />
-                          {record.request.recipient.name}
+          <button
+            className={styles.collapsibleHeader}
+            onClick={() => toggleSection("confirmed")}
+          >
+            <CheckCircle2 size={16} style={{ color: "var(--color-excellent)" }} />
+            <span>確定済みの相談</span>
+            <span className={styles.collapsibleCount}>{confirmed.length}件</span>
+            <span style={{ marginLeft: "auto" }}>
+              {collapsedSections.has("confirmed") ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+            </span>
+          </button>
+          {!collapsedSections.has("confirmed") && (
+            <div className={styles.cardList}>
+              {confirmed.map((record) => (
+                <div key={record.id} className={`${styles.consultCard} ${styles.confirmedCard}`}>
+                  <div className={styles.consultCardTop}>
+                    <span className={`${styles.statusBadge} ${styles.confirmed}`}>確定済み</span>
+                    <button className={styles.btnDelete} onClick={() => setDeleteConfirm(record.id)} title="削除">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                  <div className={styles.consultCardBody}>
+                    <h3 className={styles.consultTitle}>{record.request?.title || "（タイトルなし）"}</h3>
+                    {(record.request?.recipient?.name || record.request?.recipient?.email) && (
+                      <div className={styles.consultMeta}>
+                        {record.request.recipient?.name && (
+                          <span className={styles.consultMetaItem}>
+                            <User size={13} />
+                            {record.request.recipient.name}
+                          </span>
+                        )}
+                        {record.request.recipient?.email && (
+                          <a href={`mailto:${record.request.recipient.email}`} className={styles.consultMetaItem} style={{ textDecoration: "none" }}>
+                            <Mail size={13} />
+                            {record.request.recipient.email}
+                          </a>
+                        )}
+                      </div>
+                    )}
+                    {record.confirmedSlot && (
+                      <div style={{
+                        marginTop: 8, padding: "8px 12px",
+                        background: "rgba(138,180,104,0.12)",
+                        border: "1.5px solid rgba(138,180,104,0.3)",
+                        borderRadius: 10, fontSize: "0.88rem", fontWeight: 700,
+                        color: "var(--color-excellent)",
+                      }}>
+                        ✓ {record.confirmedSlot}
+                      </div>
+                    )}
+                    {(record.recipientName || record.recipientContact) && (
+                      <div className={styles.recipientContact}>
+                        <span className={styles.recipientContactLabel}>相手：</span>
+                        <span className={styles.recipientContactValue}>
+                          {[record.recipientName, record.recipientContact].filter(Boolean).join(" / ")}
                         </span>
-                      )}
-                      {record.request.recipient?.email && (
-                        <a href={`mailto:${record.request.recipient.email}`} className={styles.consultMetaItem} style={{ textDecoration: "none" }}>
-                          <Mail size={13} />
-                          {record.request.recipient.email}
-                        </a>
-                      )}
-                    </div>
-                  )}
-                  {record.confirmedSlot && (
-                    <div style={{
-                      marginTop: 8, padding: "8px 12px",
-                      background: "rgba(138,180,104,0.12)",
-                      border: "1.5px solid rgba(138,180,104,0.3)",
-                      borderRadius: 10, fontSize: "0.88rem", fontWeight: 700,
-                      color: "var(--color-excellent)",
-                    }}>
-                      ✓ {record.confirmedSlot}
-                    </div>
-                  )}
-                  {(record.recipientName || record.recipientContact) && (
-                    <div className={styles.recipientContact}>
-                      <span className={styles.recipientContactLabel}>相手：</span>
-                      <span className={styles.recipientContactValue}>
-                        {[record.recipientName, record.recipientContact].filter(Boolean).join(" / ")}
-                      </span>
-                    </div>
-                  )}
+                      </div>
+                    )}
+                  </div>
+                  <div className={styles.consultCardFooter}>
+                    <button
+                      className={styles.btnChangeSchedule}
+                      onClick={() => setResetConfirm(record.id)}
+                    >
+                      <RefreshCw size={14} />
+                      日程を変更する
+                    </button>
+                    <button
+                      className={styles.btnRollback}
+                      onClick={() => handleRollback(record)}
+                      title="確定を取り消して送信済みに戻す"
+                    >
+                      <Undo2 size={13} />
+                      確定を取り消す
+                    </button>
+                  </div>
                 </div>
-                <div className={styles.consultCardFooter}>
-                  <button
-                    className={styles.btnChangeSchedule}
-                    onClick={() => setResetConfirm(record.id)}
-                  >
-                    <RefreshCw size={14} />
-                    日程を変更する
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
       )}
 
-      {/* 送信済み */}
+      {/* 送信済み（折りたたみ） */}
       {sent.length > 0 && (
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>
-            <CheckCircle2 size={16} />
-            送信済みの相談
-          </h2>
+          <button
+            className={styles.collapsibleHeader}
+            onClick={() => toggleSection("sent")}
+          >
+            <Send size={16} style={{ color: "var(--text-secondary)" }} />
+            <span>送信済みの相談</span>
+            <span className={styles.collapsibleCount}>{sent.length}件</span>
+            <span style={{ marginLeft: "auto" }}>
+              {collapsedSections.has("sent") ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+            </span>
+          </button>
+          {!collapsedSections.has("sent") && (
           <div className={styles.cardList}>
             {sent.map((record) => {
               const targetName = getTargetName(record)
@@ -727,11 +797,20 @@ export default function Home() {
                       <CheckCircle2 size={14} />
                       確定済みにする
                     </button>
+                    <button
+                      className={styles.btnRollback}
+                      onClick={() => handleRollback(record)}
+                      title="送信取り消し：送信準備完了に戻す"
+                    >
+                      <Undo2 size={13} />
+                      送信取り消し
+                    </button>
                   </div>
                 </div>
               )
             })}
           </div>
+          )}
         </section>
       )}
 
