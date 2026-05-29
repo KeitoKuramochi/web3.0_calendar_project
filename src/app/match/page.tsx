@@ -47,7 +47,7 @@ export default function MatchPage() {
   const [localRanges, setLocalRanges] = useState<TimeRange[]>([])
   const [slotsChanged, setSlotsChanged] = useState(false)
   const [addFormOpen, setAddFormOpen] = useState(false)
-  const [tempDate, setTempDate] = useState("")
+  const [tempDate, setTempDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [tempStart, setTempStart] = useState("10:00")
   const [tempEnd, setTempEnd] = useState("12:00")
   const [addMsg, setAddMsg] = useState<string | null>(null)

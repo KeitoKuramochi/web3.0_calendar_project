@@ -34,7 +34,7 @@ export default function RequestPage() {
   const [urgency, setUrgency] = useState<"high" | "normal" | "low">("normal")
   const [selectedTopics, setSelectedTopics] = useState<string[]>([])
 
-  const [tempDate, setTempDate] = useState("")
+  const [tempDate, setTempDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [tempTime, setTempTime] = useState("10:00")
   const [availableTimes, setAvailableTimes] = useState<string[]>([])
   const [availableRanges, setAvailableRanges] = useState<TimeRange[]>([])
