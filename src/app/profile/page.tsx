@@ -105,8 +105,8 @@ export default function ProfilePage() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1>プロフィール設定</h1>
-        <p>名前・所属を登録すると、AIが生成するメッセージの精度が上がります。</p>
+        <h1>あなたの情報</h1>
+        <p>メッセージの差出人として使われます。一度登録すれば毎回入力不要です。</p>
       </div>
 
       <div style={{ textAlign: "right", marginBottom: 8 }}>
@@ -127,42 +127,42 @@ export default function ProfilePage() {
           display: "flex", alignItems: "center", gap: 8,
         }}>
           <span>🌱</span>
-          まだプロフィールが設定されていません。名前とメールアドレスだけでも入力すると、メッセージ生成の精度が上がります。
+          名前とメールアドレスを入力してください。AIが生成するメッセージの差出人情報として使われます。
         </div>
       )}
 
       <form onSubmit={handleSave} className="glass-card fade-in">
         <div className={styles.formGrid}>
 
-          {/* ── 基本情報 ── */}
+          {/* ── 自分の情報 ── */}
           <div className={styles.formSectionHeader}>
-            <User size={15} /><span>基本情報</span>
+            <User size={15} /><span>自分の情報</span>
           </div>
 
           <div className={styles.formGroup}>
-            <label className={styles.label}><User size={15} />名前</label>
+            <label className={styles.label}><User size={15} />氏名</label>
             <input type="text" name="name" value={profile.name} onChange={handleChange} className={styles.input} placeholder="例: 佐藤 拓海" required />
           </div>
 
           <div className={styles.formGroup}>
             <label className={styles.label}><Mail size={15} />メールアドレス</label>
-            <input type="email" name="email" value={profile.email} onChange={handleChange} className={styles.input} placeholder="例: sato@univ.ac.jp" required />
+            <input type="email" name="email" value={profile.email} onChange={handleChange} className={styles.input} placeholder="例: s2200001xx@univ.ac.jp" required />
           </div>
 
-          {/* ── 役割・所属 ── */}
+          {/* ── 立場・所属 ── */}
           <div className={styles.formSectionHeader}>
-            <BookOpen size={15} /><span>役割・所属</span>
+            <BookOpen size={15} /><span>立場・所属</span>
           </div>
 
           <div className={styles.formGroupFull}>
-            <label className={styles.label}>ロール・役割</label>
+            <label className={styles.label}>あなたの立場</label>
             <input
               type="text"
               name="role"
               value={profile.role}
               onChange={handleChange}
               className={styles.input}
-              placeholder="例: 学部生、大学院生、研究室教員、TA、サークル代表…"
+              placeholder="例: 学部3年生、修士1年、TA…"
             />
             <div className={styles.suggestRow}>
               {POPULAR_ROLES.map((r) => (
@@ -176,25 +176,25 @@ export default function ProfilePage() {
           </div>
 
           <div className={styles.formGroupFull}>
-            <label className={styles.label}>所属・部署・学科など（自由記述）</label>
+            <label className={styles.label}>所属・学科・研究室</label>
             <input
               type="text"
               name="department"
               value={profile.department}
               onChange={handleChange}
               className={styles.input}
-              placeholder="例: 情報工学科3年、計算機アーキテクチャ研究室、学生支援本部…"
+              placeholder="例: 情報工学科、〇〇研究室、△△ゼミ3年…"
             />
           </div>
 
           <div className={styles.formGroupFull}>
-            <label className={styles.label}>自由記述（学年・専門・その他何でも）</label>
+            <label className={styles.label}>ひとこと（任意）</label>
             <textarea
               name="bio"
               value={profile.bio ?? ""}
               onChange={handleChange}
               className={styles.textarea}
-              placeholder="自由に書いてください。AIがここの内容も参考にしてメッセージ生成を行います。"
+              placeholder="例: 就活中で4月から〇〇社内定。卒論テーマは△△。AIが文面を調整する際の参考にします。"
             />
           </div>
 
