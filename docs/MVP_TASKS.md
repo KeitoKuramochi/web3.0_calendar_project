@@ -37,9 +37,10 @@
   - [ ] 「Googleでログイン」ボタンが表示される
   - [ ] 「Googleでログイン」ボタンをクリックすると `/onboarding` へ遷移する（Phase 1はダミー遷移でよい）
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[ ]`
-- **commit**: —
-- **Evaluator確認**: 未
+- **ステータス**: `[?]` Evaluator確認待ち
+- **commit**: 55ca97d
+- **自己評価**: プロダクト名・サービス説明文（3文）・GoogleロゴSVG付き「Googleでログイン」ボタンを実装。`<a href="/onboarding">` でダミー遷移。npm run build 通過確認済み。
+- **Evaluator確認**: 待ち
 
 ---
 
