@@ -139,8 +139,9 @@
   - [ ] ログアウトボタンをクリックするとセッションが削除され、`/` にリダイレクトされる
   - [ ] ログイン済みのまま `/` にアクセスするとダッシュボードへリダイレクトされる
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[ ]`
-- **commit**: —
+- **ステータス**: `[?]` 完了（Evaluator確認待ち）
+- **commit**: 223f040
+- **自己評価**: Hono側にGoogleOAuthフロー（/auth/login, /auth/callback, /auth/me, /auth/logout）を実装。jose を使った署名付きJWT cookie でセッション管理。astro.config.mjs に /api プロキシ設定追加。AuthGuard（ダッシュボード用）・HomeAuthGuard（ランディング用リダイレクト含む）Reactコンポーネントを作成し各ページに配置。「Googleでログイン」ボタンを /api/auth/login へ変更。npm run build 通過確認済み。
 - **Evaluator確認**: 未
 
 ---
