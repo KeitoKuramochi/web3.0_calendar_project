@@ -157,8 +157,9 @@
   - [ ] 正しい参加コードを入力して「参加」ボタンをクリックすると、`/student` へ遷移する
   - [ ] 誤った参加コードを入力すると「参加コードが正しくありません」というエラーメッセージが表示される
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[ ]`
-- **commit**: —
+- **ステータス**: `[?]` 完了（Evaluator確認待ち）
+- **commit**: 93c1fa0
+- **自己評価**: api/src/index.ts に POST /groups/create（研究室作成・joinCode発行・usersロールをteacherに更新）と POST /groups/join（参加コード検証・usersロールをstudentに更新・404でinvalid_codeエラー）を追加。frontend/src/components/Onboarding.tsx を新規作成（step: role/teacher-create/student-join/teacher-doneの4ステート管理、研究室名入力→作成→参加コード表示、参加コード入力→参加→/studentへ遷移、誤コードで「参加コードが正しくありません」エラー表示）。frontend/src/pages/onboarding.astro を `<Onboarding client:load />` に更新。npm run build 通過確認済み。
 - **Evaluator確認**: 未
 
 ---

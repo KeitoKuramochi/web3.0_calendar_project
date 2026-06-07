@@ -2,15 +2,15 @@
 
 > GeneratorがTASK完了ごとに更新する。
 
-最終更新: 2026-06-08 08:15 (Generator)
+最終更新: 2026-06-08 08:20 (Generator)
 
 ## 全体進捗
 
 - 総TASK数: 20
 - 完了: 6
-- Evaluator確認待ち: 2
+- Evaluator確認待ち: 3
 - 不合格/修正中: 0
-- 未着手: 12
+- 未着手: 11
 
 ## TASK別ステータス
 
@@ -24,10 +24,12 @@
 | TASK-006 | チャット画面 UI | [x] 合格 | ca4864b | Evaluator確認済み 2026-06-08 |
 | TASK-007 | Cloudflare D1 + Drizzle ORM セットアップ | [?] Evaluator確認待ち | 0827900 | Generator実装完了 2026-06-08 |
 | TASK-008 | Google OAuth 認証 | [?] Evaluator確認待ち | 3a80551 | credentials:include修正済み 2026-06-08 |
-| TASK-009〜020 | Phase 2・3（残り） | [ ] 未着手 | — | — |
+| TASK-009 | オンボーディング（研究室作成・参加コード） | [?] Evaluator確認待ち | 93c1fa0 | Generator実装完了 2026-06-08 |
+| TASK-010〜020 | Phase 2・3（残り） | [ ] 未着手 | — | — |
 
 ## 直近のアクティビティ
 
+- 2026-06-08: TASK-009 完了。オンボーディング実装。POST /groups/create・POST /groups/join APIエンドポイント追加。Onboarding.tsx Reactコンポーネント新規作成（ロール選択→研究室作成/参加コードUI）。onboarding.astro更新。npm run build 通過確認。commit: 93c1fa0
 - 2026-06-08: TASK-008 修正。AuthGuard.tsx・HomeAuthGuard.tsx の全fetchリクエストに credentials:include を追加。npm run build 通過確認。commit: 3a80551
 - 2026-06-08: TASK-008 完了。Google OAuth認証実装。Hono側にOAuthフロー（/auth/login, /auth/callback, /auth/me, /auth/logout）。jose JWT cookie セッション管理。astro.config.mjsにプロキシ設定。AuthGuard・HomeAuthGuard Reactコンポーネント作成。「Googleでログイン」→/api/auth/login へ変更。npm run build 通過確認。commit: 223f040
 - 2026-06-08: Evaluator評価完了。TASK-001〜006（Phase 1全タスク）合格。全ページ200応答確認、npm run build通過確認。
