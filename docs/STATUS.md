@@ -2,15 +2,15 @@
 
 > GeneratorがTASK完了ごとに更新する。
 
-最終更新: 2026-06-08 08:44 (Generator)
+最終更新: 2026-06-08 08:54 (Generator)
 
 ## 全体進捗
 
 - 総TASK数: 20
 - 完了: 7
-- Evaluator確認待ち: 5
+- Evaluator確認待ち: 6
 - 不合格/修正中: 0
-- 未着手: 8
+- 未着手: 7
 
 ## TASK別ステータス
 
@@ -28,10 +28,12 @@
 | TASK-010 | 先生の空き枠管理（D1保存・カレンダー反映） | [x] 合格 | 9241f87 | Evaluator確認済み 2026-06-08 |
 | TASK-011 | 面談リクエスト送信（学生側） | [?] Evaluator確認待ち | 9a029d2 | Generator実装完了 2026-06-08 |
 | TASK-012 | 面談リクエスト承認・差し戻しフロー | [?] Evaluator確認待ち | 47057a5 | Generator実装完了 2026-06-08 |
-| TASK-013〜020 | Phase 2・3（残り） | [ ] 未着手 | — | — |
+| TASK-013 | 課題管理（割り当て・完了報告） | [?] Evaluator確認待ち | 9ac2b1a | Generator実装完了 2026-06-08 |
+| TASK-014〜020 | Phase 2・3（残り） | [ ] 未着手 | — | — |
 
 ## 直近のアクティビティ
 
+- 2026-06-08: TASK-013 完了。assignmentsテーブル追加・drizzle-kit generate でマイグレーション生成・適用。GET/POST /assignments・PATCH /assignments/:id/done・GET /groups/members エンドポイント追加。TeacherDashboard.tsx に「課題を追加」ボタン・インラインフォーム・課題一覧（APIデータ）実装。StudentDashboard.tsx の「自分の課題」をAPIデータに切り替え・「完了報告」ボタン追加。ダミーデータ定数削除。npm run build 通過確認。commit: 9ac2b1a
 - 2026-06-08: TASK-012 完了。meetingRequestsスキーマにalt_start_time/alt_end_time追加・waiting_studentステータス追加。drizzle-kit generate でマイグレーション生成・適用。PATCH /meeting-requests/:id/approve, /reject, /select-alt エンドポイント追加。TeacherDashboard.tsx に承認・差し戻し（インラインフォーム）処理を接続。StudentDashboard.tsx に確定済み/選択待ちバッジ・代替案表示・再リクエストボタンを追加。npm run build 通過確認。commit: 47057a5
 - 2026-06-08: TASK-011 完了。meetingRequests テーブル追加、drizzle-kit generate でマイグレーション生成・適用。GET /teacher/slots・POST /meeting-requests・GET /meeting-requests エンドポイント追加。StudentDashboard.tsx 新規作成（空き枠クリック→リクエスト確認ダイアログ→送信→承認待ちリスト表示）。TeacherDashboard.tsx 承認待ちリストをD1から取得するよう更新（ダミーデータ削除）。student.astro を StudentDashboard client:load に更新。npm run build 通過確認。commit: 9a029d2
 - 2026-06-08: TASK-010 完了。slots テーブル追加、drizzle-kit generate でマイグレーション生成・適用。GET/POST /slots・DELETE /slots/:id エンドポイント追加。TeacherDashboard.tsx 新規作成（D1から空き枠取得・追加・削除UI・モーダルダイアログ）。teacher.astro を TeacherDashboard client:load に更新。npm run build 通過確認。commit: 9241f87

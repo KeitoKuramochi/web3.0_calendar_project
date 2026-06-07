@@ -240,8 +240,14 @@
   - [ ] 学生が「完了報告」ボタンをクリックすると課題のステータスが「完了」に変わる
   - [ ] 先生ダッシュボードでも同じ課題のステータスが「完了」に変わっている
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[ ]`
-- **commit**: —
+- **ステータス**: `[?]` 完了（Evaluator確認待ち）
+- **commit**: 9ac2b1a
+- **自己評価**:
+  - assignments テーブルをスキーマに追加（groupId/studentId/teacherId/title/dueDate/status/createdAt）。drizzle-kit generate で 0004_melodic_spirit.sql 生成、wrangler d1 execute --local で適用完了。
+  - GET /assignments（先生: 自分が割り当てた課題一覧、学生: 自分の課題一覧）・POST /assignments（先生のみ、studentId/title/dueDate をbodyで受け取り、グループ確認後INSERT）・PATCH /assignments/:id/done（学生のみ、status='done'に更新）・GET /groups/members（自分のグループの相手ロールのメンバー一覧）を index.ts に追加。
+  - TeacherDashboard.tsx: Assignment/GroupMember 型追加。AssignmentForm 型追加。fetchAssignments/fetchGroupMembers 関数追加。handleAssignmentSubmit/formatDueDate 関数追加。「課題を追加」ボタンとインラインフォーム（対象学生selectbox/課題名input/期限input）を実装。課題一覧をAPIデータで表示。ASSIGNMENTS ダミーデータ定数を削除。
+  - StudentDashboard.tsx: Assignment 型追加。fetchAssignments 関数追加。handleMarkDone/formatDueDate 関数追加。「自分の課題」セクションをAPIデータに切り替え。未完了課題に「完了報告」ボタンを追加。ASSIGNMENTS ダミーデータ定数を削除。
+  - npm run build 成功確認済み。
 - **Evaluator確認**: 未
 
 ---
