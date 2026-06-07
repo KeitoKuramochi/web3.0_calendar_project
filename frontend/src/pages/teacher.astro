@@ -1,0 +1,202 @@
+---
+import '../styles/global.css';
+
+// 今週の月曜〜日曜を計算（サーバーサイド）
+const today = new Date();
+const dayOfWeek = today.getDay(); // 0=日, 1=月, ..., 6=土
+const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+const monday = new Date(today);
+monday.setDate(today.getDate() + diffToMonday);
+
+const weekDays = ['月', '火', '水', '木', '金', '土', '日'];
+const weekDates = weekDays.map((label, i) => {
+  const d = new Date(monday);
+  d.setDate(monday.getDate() + i);
+  return {
+    label,
+    date: d,
+    dateStr: `${d.getMonth() + 1}/${d.getDate()}`,
+    isoDate: d.toISOString().slice(0, 10),
+  };
+});
+
+// ダミー空き枠: 月曜10:00-11:00、水曜14:00-15:00、金曜13:00-14:00
+const dummySlots = [
+  { isoDate: weekDates[0].isoDate, startHour: 10, label: '10:00–11:00' },
+  { isoDate: weekDates[2].isoDate, startHour: 14, label: '14:00–15:00' },
+  { isoDate: weekDates[4].isoDate, startHour: 13, label: '13:00–14:00' },
+];
+
+// 表示する時間帯 (9〜17時)
+const hours = Array.from({ length: 9 }, (_, i) => i + 9);
+
+// ダミー承認待ちリスト
+const pendingRequests = [
+  { id: 1, student: '田中 花子', datetime: `${weekDates[1].dateStr}（火）10:00–11:00` },
+  { id: 2, student: '鈴木 太郎', datetime: `${weekDates[3].dateStr}（木）15:00–16:00` },
+];
+
+// ダミー学生課題一覧
+const assignments = [
+  { student: '田中 花子', title: '研究計画書 第1稿', status: '未完了' },
+  { student: '鈴木 太郎', title: '文献調査レポート', status: '完了' },
+  { student: '佐藤 次郎', title: '実験データまとめ', status: '未完了' },
+];
+---
+
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>先生ダッシュボード — 研究室ボット</title>
+  </head>
+  <body class="bg-gray-50 min-h-screen">
+
+    <!-- ヘッダー -->
+    <header class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+      <h1 class="text-xl font-bold text-gray-900">先生ダッシュボード</h1>
+      <a
+        href="/chat"
+        class="bg-blue-600 text-white font-semibold px-5 py-2 rounded-lg shadow hover:bg-blue-700 transition-colors text-sm"
+      >
+        AIに話しかける
+      </a>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-4 py-8 space-y-10">
+
+      <!-- ===== 週ビューカレンダー ===== -->
+      <section>
+        <h2 class="text-lg font-bold text-gray-800 mb-4">今週の空き枠カレンダー</h2>
+        <div class="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
+          <table class="min-w-full text-sm border-collapse">
+            <thead>
+              <tr class="bg-gray-100">
+                <th class="w-16 py-3 px-2 text-center text-gray-500 font-medium border-r border-gray-200">時刻</th>
+                {weekDates.map((d) => (
+                  <th class="py-3 px-2 text-center text-gray-700 font-semibold border-r border-gray-200 last:border-r-0">
+                    <span class="block">{d.label}</span>
+                    <span class="block text-xs text-gray-400 font-normal">{d.dateStr}</span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {hours.map((hour) => (
+                <tr class="border-t border-gray-100">
+                  <td class="py-2 px-2 text-center text-gray-400 text-xs border-r border-gray-200">
+                    {hour}:00
+                  </td>
+                  {weekDates.map((d) => {
+                    const slot = dummySlots.find(
+                      (s) => s.isoDate === d.isoDate && s.startHour === hour
+                    );
+                    return (
+                      <td class="py-1 px-1 text-center border-r border-gray-100 last:border-r-0 h-10">
+                        {slot && (
+                          <span class="inline-block w-full rounded bg-green-100 text-green-800 text-xs font-medium px-1 py-1 leading-tight">
+                            空き
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p class="mt-2 text-xs text-gray-400">
+          <span class="inline-block bg-green-100 text-green-800 rounded px-2 py-0.5 font-medium">空き</span>
+          ダミーの空き枠: {dummySlots.map((s) => `${weekDates.find(d => d.isoDate === s.isoDate)?.label}曜 ${s.label}`).join('、')}
+        </p>
+      </section>
+
+      <!-- ===== 承認待ちリスト ===== -->
+      <section>
+        <h2 class="text-lg font-bold text-gray-800 mb-4">承認待ちリスト</h2>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <table class="min-w-full text-sm">
+            <thead>
+              <tr class="bg-gray-50 border-b border-gray-200">
+                <th class="py-3 px-4 text-left text-gray-600 font-semibold">学生名</th>
+                <th class="py-3 px-4 text-left text-gray-600 font-semibold">希望日時</th>
+                <th class="py-3 px-4 text-center text-gray-600 font-semibold">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pendingRequests.map((req) => (
+                <tr class="border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors">
+                  <td class="py-3 px-4 text-gray-800 font-medium">{req.student}</td>
+                  <td class="py-3 px-4 text-gray-600">{req.datetime}</td>
+                  <td class="py-3 px-4 text-center">
+                    <div class="flex gap-2 justify-center">
+                      <button
+                        type="button"
+                        class="bg-green-600 text-white text-xs font-semibold px-4 py-1.5 rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        承認
+                      </button>
+                      <button
+                        type="button"
+                        class="bg-red-500 text-white text-xs font-semibold px-4 py-1.5 rounded-lg hover:bg-red-600 transition-colors"
+                      >
+                        差し戻し
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===== 学生課題一覧 ===== -->
+      <section>
+        <h2 class="text-lg font-bold text-gray-800 mb-4">学生課題一覧</h2>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <table class="min-w-full text-sm">
+            <thead>
+              <tr class="bg-gray-50 border-b border-gray-200">
+                <th class="py-3 px-4 text-left text-gray-600 font-semibold">学生名</th>
+                <th class="py-3 px-4 text-left text-gray-600 font-semibold">課題名</th>
+                <th class="py-3 px-4 text-center text-gray-600 font-semibold">ステータス</th>
+              </tr>
+            </thead>
+            <tbody>
+              {assignments.map((a) => (
+                <tr class="border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors">
+                  <td class="py-3 px-4 text-gray-800 font-medium">{a.student}</td>
+                  <td class="py-3 px-4 text-gray-600">{a.title}</td>
+                  <td class="py-3 px-4 text-center">
+                    {a.status === '完了' ? (
+                      <span class="inline-block bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 rounded-full">
+                        完了
+                      </span>
+                    ) : (
+                      <span class="inline-block bg-yellow-100 text-yellow-700 text-xs font-semibold px-3 py-1 rounded-full">
+                        未完了
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===== チャット導線（下部） ===== -->
+      <section class="text-center pb-4">
+        <a
+          href="/chat"
+          class="inline-block bg-blue-600 text-white font-semibold px-8 py-3 rounded-lg shadow hover:bg-blue-700 transition-colors"
+        >
+          AIに話しかける
+        </a>
+      </section>
+
+    </main>
+  </body>
+</html>
