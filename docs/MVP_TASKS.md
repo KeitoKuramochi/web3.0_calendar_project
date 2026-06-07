@@ -53,9 +53,10 @@
   - [ ] 「先生として始める」をクリックすると `/teacher` へ遷移する
   - [ ] 「学生として始める」をクリックすると `/student` へ遷移する
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[ ]`
-- **commit**: —
-- **Evaluator確認**: 未
+- **ステータス**: `[?]` 完了（Evaluator確認待ち）
+- **commit**: 04444f0
+- **自己評価**: `/onboarding` にロール選択画面を実装。「先生として始める」→/teacher、「学生として始める」→/student へ遷移するaタグを配置。Tailwind CSSでシンプルにスタイリング。npm run build 通過確認済み。
+- **Evaluator確認**: 待ち
 
 ---
 
