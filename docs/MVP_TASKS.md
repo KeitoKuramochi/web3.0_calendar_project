@@ -173,8 +173,14 @@
   - [ ] ページをリロードしても追加した空き枠が表示されている
   - [ ] 空き枠をクリックして「削除」ボタンをクリックすると、その枠がカレンダーから消える
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[ ]`
-- **commit**: —
+- **ステータス**: `[?]` 完了（Evaluator確認待ち）
+- **commit**: 9241f87
+- **自己評価**:
+  - api/src/db/schema.ts に slots テーブル追加。drizzle-kit generate で 0001_nifty_cyclops.sql 生成、wrangler d1 execute --local で適用完了。
+  - GET /slots（自分のスロット一覧）・POST /slots（スロット追加）・DELETE /slots/:id（スロット削除・本人確認付き）を index.ts に追加。
+  - TeacherDashboard.tsx を新規作成。マウント時に GET /api/slots でD1から取得、空きセルクリックで追加ダイアログ表示→「追加」で POST、緑セルクリックで削除ダイアログ表示→「削除」で DELETE を実行し再描画する。
+  - teacher.astro を `<TeacherDashboard client:load />` に置き換え。承認待ちリスト・課題一覧はダミーデータのまま。
+  - npm run build 成功確認済み。
 - **Evaluator確認**: 未
 
 ---
