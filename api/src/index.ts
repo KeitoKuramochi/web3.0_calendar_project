@@ -514,11 +514,140 @@ app.get('/meeting-requests', async (c) => {
       startTime: slot ? Math.floor(slot.startTime.getTime() / 1000) : null,
       endTime: slot ? Math.floor(slot.endTime.getTime() / 1000) : null,
       status: r.status,
+      alternativeStartTime: r.alternativeStartTime ? Math.floor(r.alternativeStartTime.getTime() / 1000) : null,
+      alternativeEndTime: r.alternativeEndTime ? Math.floor(r.alternativeEndTime.getTime() / 1000) : null,
       createdAt: Math.floor(r.createdAt.getTime() / 1000),
     };
   });
 
   return c.json(data);
+});
+
+// PATCH /meeting-requests/:id/approve — 承認（先生のみ）
+app.patch('/meeting-requests/:id/approve', async (c) => {
+  const token = getCookie(c, 'session');
+  if (!token) return c.json({ error: 'unauthorized' }, 401);
+
+  const payload = await verifySession(token, c.env.SESSION_SECRET);
+  if (!payload) return c.json({ error: 'unauthorized' }, 401);
+
+  const userRole = payload.role as string | null;
+  if (userRole !== 'teacher') {
+    return c.json({ error: 'forbidden: teacher only' }, 403);
+  }
+
+  const userId = payload.id as string;
+  const requestId = c.req.param('id');
+  const db = drizzle(c.env.DB, { schema });
+
+  const existing = await db
+    .select()
+    .from(schema.meetingRequests)
+    .where(eq(schema.meetingRequests.id, requestId));
+
+  if (existing.length === 0) {
+    return c.json({ error: 'not_found' }, 404);
+  }
+
+  if (existing[0].teacherId !== userId) {
+    return c.json({ error: 'forbidden' }, 403);
+  }
+
+  await db
+    .update(schema.meetingRequests)
+    .set({ status: 'approved' })
+    .where(eq(schema.meetingRequests.id, requestId));
+
+  return c.json({ ok: true });
+});
+
+// PATCH /meeting-requests/:id/reject — 差し戻し（先生のみ）
+app.patch('/meeting-requests/:id/reject', async (c) => {
+  const token = getCookie(c, 'session');
+  if (!token) return c.json({ error: 'unauthorized' }, 401);
+
+  const payload = await verifySession(token, c.env.SESSION_SECRET);
+  if (!payload) return c.json({ error: 'unauthorized' }, 401);
+
+  const userRole = payload.role as string | null;
+  if (userRole !== 'teacher') {
+    return c.json({ error: 'forbidden: teacher only' }, 403);
+  }
+
+  const userId = payload.id as string;
+  const requestId = c.req.param('id');
+  const db = drizzle(c.env.DB, { schema });
+
+  const existing = await db
+    .select()
+    .from(schema.meetingRequests)
+    .where(eq(schema.meetingRequests.id, requestId));
+
+  if (existing.length === 0) {
+    return c.json({ error: 'not_found' }, 404);
+  }
+
+  if (existing[0].teacherId !== userId) {
+    return c.json({ error: 'forbidden' }, 403);
+  }
+
+  const body = await c.req.json<{ altStartTime: number; altEndTime: number }>();
+  if (!body.altStartTime || !body.altEndTime) {
+    return c.json({ error: 'altStartTime and altEndTime required' }, 400);
+  }
+
+  await db
+    .update(schema.meetingRequests)
+    .set({
+      status: 'waiting_student',
+      alternativeStartTime: new Date(body.altStartTime * 1000),
+      alternativeEndTime: new Date(body.altEndTime * 1000),
+    })
+    .where(eq(schema.meetingRequests.id, requestId));
+
+  return c.json({ ok: true });
+});
+
+// PATCH /meeting-requests/:id/select-alt — 学生が代替案を選択
+app.patch('/meeting-requests/:id/select-alt', async (c) => {
+  const token = getCookie(c, 'session');
+  if (!token) return c.json({ error: 'unauthorized' }, 401);
+
+  const payload = await verifySession(token, c.env.SESSION_SECRET);
+  if (!payload) return c.json({ error: 'unauthorized' }, 401);
+
+  const userRole = payload.role as string | null;
+  if (userRole !== 'student') {
+    return c.json({ error: 'forbidden: student only' }, 403);
+  }
+
+  const userId = payload.id as string;
+  const requestId = c.req.param('id');
+  const db = drizzle(c.env.DB, { schema });
+
+  const existing = await db
+    .select()
+    .from(schema.meetingRequests)
+    .where(eq(schema.meetingRequests.id, requestId));
+
+  if (existing.length === 0) {
+    return c.json({ error: 'not_found' }, 404);
+  }
+
+  if (existing[0].studentId !== userId) {
+    return c.json({ error: 'forbidden' }, 403);
+  }
+
+  await db
+    .update(schema.meetingRequests)
+    .set({
+      status: 'pending',
+      alternativeStartTime: null,
+      alternativeEndTime: null,
+    })
+    .where(eq(schema.meetingRequests.id, requestId));
+
+  return c.json({ ok: true });
 });
 
 // DELETE /slots/:id — 空き枠削除（認証必須・自分のものだけ）

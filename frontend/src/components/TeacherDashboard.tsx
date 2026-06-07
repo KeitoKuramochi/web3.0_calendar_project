@@ -17,7 +17,9 @@ type MeetingRequest = {
   slotId: string;
   startTime: number | null;
   endTime: number | null;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'waiting_student';
+  alternativeStartTime: number | null;
+  alternativeEndTime: number | null;
   createdAt: number;
 };
 
@@ -25,6 +27,12 @@ type DialogState =
   | { type: 'none' }
   | { type: 'add'; date: Date; hour: number }
   | { type: 'delete'; slot: Slot };
+
+type RejectForm = {
+  requestId: string;
+  date: string;
+  hour: number;
+};
 
 // 今週の月曜〜日曜を取得（ローカル日付基準）
 function getWeekDates(): { label: string; dateStr: string; date: Date }[] {
@@ -78,6 +86,7 @@ export default function TeacherDashboard() {
   const [dialog, setDialog] = useState<DialogState>({ type: 'none' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [rejectForm, setRejectForm] = useState<RejectForm | null>(null);
 
   const weekDates = getWeekDates();
 
@@ -113,6 +122,51 @@ export default function TeacherDashboard() {
       console.error('リクエスト取得失敗:', e);
     }
   }, []);
+
+  const handleApprove = async (requestId: string) => {
+    try {
+      const res = await fetch(`/api/meeting-requests/${requestId}/approve`, {
+        method: 'PATCH',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await fetchPendingRequests();
+    } catch (e) {
+      alert(`承認に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+
+  const handleShowRejectForm = (requestId: string) => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    setRejectForm({ requestId, date: `${yyyy}-${mm}-${dd}`, hour: 9 });
+  };
+
+  const handleRejectSubmit = async () => {
+    if (!rejectForm) return;
+    const { requestId, date, hour } = rejectForm;
+    const [year, month, day] = date.split('-').map(Number);
+    const altStart = new Date(year, month - 1, day, hour, 0, 0, 0);
+    const altEnd = new Date(year, month - 1, day, hour + 1, 0, 0, 0);
+    const altStartTime = Math.floor(altStart.getTime() / 1000);
+    const altEndTime = Math.floor(altEnd.getTime() / 1000);
+
+    try {
+      const res = await fetch(`/api/meeting-requests/${requestId}/reject`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ altStartTime, altEndTime }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setRejectForm(null);
+      await fetchPendingRequests();
+    } catch (e) {
+      alert(`差し戻しに失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
 
   useEffect(() => {
     fetchSlots();
@@ -271,20 +325,66 @@ export default function TeacherDashboard() {
                   <tr key={req.id} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors">
                     <td className="py-3 px-4 text-gray-800 font-medium">{req.studentName}</td>
                     <td className="py-3 px-4 text-gray-600">{formatRequestDateTime(req)}</td>
-                    <td className="py-3 px-4 text-center">
-                      <div className="flex gap-2 justify-center">
-                        <button
-                          type="button"
-                          className="bg-green-600 text-white text-xs font-semibold px-4 py-1.5 rounded-lg hover:bg-green-700 transition-colors"
-                        >
-                          承認
-                        </button>
-                        <button
-                          type="button"
-                          className="bg-red-500 text-white text-xs font-semibold px-4 py-1.5 rounded-lg hover:bg-red-600 transition-colors"
-                        >
-                          差し戻し
-                        </button>
+                    <td className="py-3 px-4">
+                      <div className="flex flex-col gap-2">
+                        <div className="flex gap-2 justify-center">
+                          <button
+                            type="button"
+                            onClick={() => handleApprove(req.id)}
+                            className="bg-green-600 text-white text-xs font-semibold px-4 py-1.5 rounded-lg hover:bg-green-700 transition-colors"
+                          >
+                            承認
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleShowRejectForm(req.id)}
+                            className="bg-red-500 text-white text-xs font-semibold px-4 py-1.5 rounded-lg hover:bg-red-600 transition-colors"
+                          >
+                            差し戻し
+                          </button>
+                        </div>
+                        {rejectForm?.requestId === req.id && (
+                          <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 space-y-2">
+                            <p className="text-xs font-semibold text-gray-600">代替日程を入力</p>
+                            <div className="flex flex-col gap-1">
+                              <label className="text-xs text-gray-500">日付</label>
+                              <input
+                                type="date"
+                                value={rejectForm.date}
+                                onChange={(e) => setRejectForm({ ...rejectForm, date: e.target.value })}
+                                className="border border-gray-300 rounded px-2 py-1 text-xs"
+                              />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <label className="text-xs text-gray-500">時間</label>
+                              <select
+                                value={rejectForm.hour}
+                                onChange={(e) => setRejectForm({ ...rejectForm, hour: Number(e.target.value) })}
+                                className="border border-gray-300 rounded px-2 py-1 text-xs"
+                              >
+                                {HOURS.map((h) => (
+                                  <option key={h} value={h}>{h}:00–{h + 1}:00</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="flex gap-2 justify-end">
+                              <button
+                                type="button"
+                                onClick={() => setRejectForm(null)}
+                                className="text-xs text-gray-500 border border-gray-300 px-3 py-1 rounded hover:bg-gray-100 transition-colors"
+                              >
+                                キャンセル
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleRejectSubmit}
+                                className="text-xs text-white bg-red-500 px-3 py-1 rounded hover:bg-red-600 transition-colors font-semibold"
+                              >
+                                差し戻す
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>

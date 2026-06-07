@@ -18,7 +18,9 @@ type MeetingRequest = {
   slotId: string;
   startTime: number | null;
   endTime: number | null;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'waiting_student';
+  alternativeStartTime: number | null;
+  alternativeEndTime: number | null;
   createdAt: number;
 };
 
@@ -60,13 +62,15 @@ function slotMatchesDayAndHour(slot: TeacherSlot, date: Date, hour: number): boo
 
 function statusLabel(status: MeetingRequest['status']): string {
   if (status === 'pending') return '承認待ち';
-  if (status === 'approved') return '承認済み';
-  return '差し戻し';
+  if (status === 'approved') return '確定済み';
+  if (status === 'waiting_student') return '選択待ち';
+  return '差し戻し済み';
 }
 
 function statusBadgeClass(status: MeetingRequest['status']): string {
   if (status === 'pending') return 'bg-yellow-100 text-yellow-700';
   if (status === 'approved') return 'bg-green-100 text-green-700';
+  if (status === 'waiting_student') return 'bg-blue-100 text-blue-700';
   return 'bg-red-100 text-red-700';
 }
 
@@ -158,6 +162,28 @@ export default function StudentDashboard() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleSelectAlt = async (requestId: string) => {
+    try {
+      const res = await fetch(`/api/meeting-requests/${requestId}/select-alt`, {
+        method: 'PATCH',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await fetchRequests();
+    } catch (e) {
+      alert(`選択に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+
+  const formatAltDateTime = (req: MeetingRequest) => {
+    if (!req.alternativeStartTime || !req.alternativeEndTime) return '代替日時不明';
+    const start = new Date(req.alternativeStartTime * 1000);
+    const end = new Date(req.alternativeEndTime * 1000);
+    const labels = ['月', '火', '水', '木', '金', '土', '日'];
+    const dayLabel = labels[start.getDay() === 0 ? 6 : start.getDay() - 1];
+    return `${start.getMonth() + 1}/${start.getDate()}（${dayLabel}） ${start.getHours()}:00–${end.getHours()}:00`;
   };
 
   const formatSlotDateTime = (slot: TeacherSlot) => {
@@ -266,9 +292,23 @@ export default function StudentDashboard() {
                     <td className="py-3 px-4 text-gray-800 font-medium">{req.teacherName}</td>
                     <td className="py-3 px-4 text-gray-600">{formatRequestDateTime(req)}</td>
                     <td className="py-3 px-4 text-center">
-                      <span className={`inline-block text-xs font-semibold px-3 py-1 rounded-full ${statusBadgeClass(req.status)}`}>
-                        {statusLabel(req.status)}
-                      </span>
+                      <div className="flex flex-col items-center gap-2">
+                        <span className={`inline-block text-xs font-semibold px-3 py-1 rounded-full ${statusBadgeClass(req.status)}`}>
+                          {statusLabel(req.status)}
+                        </span>
+                        {req.status === 'waiting_student' && (
+                          <div className="text-left w-full max-w-xs">
+                            <p className="text-xs text-gray-500 mb-1">代替案: {formatAltDateTime(req)}</p>
+                            <button
+                              type="button"
+                              onClick={() => handleSelectAlt(req.id)}
+                              className="text-xs text-white bg-blue-600 px-3 py-1 rounded hover:bg-blue-700 transition-colors font-semibold"
+                            >
+                              この日程で再リクエスト
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

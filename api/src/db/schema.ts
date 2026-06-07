@@ -53,6 +53,8 @@ export const meetingRequests = sqliteTable('meeting_requests', {
   studentId: text('student_id').notNull().references(() => users.id),
   teacherId: text('teacher_id').notNull().references(() => users.id),
   slotId: text('slot_id').notNull().references(() => slots.id),
-  status: text('status', { enum: ['pending', 'approved', 'rejected'] }).notNull().default('pending'),
+  status: text('status', { enum: ['pending', 'approved', 'rejected', 'waiting_student'] }).notNull().default('pending'),
+  alternativeStartTime: integer('alt_start_time', { mode: 'timestamp' }),
+  alternativeEndTime: integer('alt_end_time', { mode: 'timestamp' }),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
