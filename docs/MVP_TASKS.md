@@ -173,7 +173,7 @@
   - [ ] ページをリロードしても追加した空き枠が表示されている
   - [ ] 空き枠をクリックして「削除」ボタンをクリックすると、その枠がカレンダーから消える
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[?]` 完了（Evaluator確認待ち）
+- **ステータス**: `[x]`
 - **commit**: 9241f87
 - **自己評価**:
   - api/src/db/schema.ts に slots テーブル追加。drizzle-kit generate で 0001_nifty_cyclops.sql 生成、wrangler d1 execute --local で適用完了。
@@ -181,7 +181,7 @@
   - TeacherDashboard.tsx を新規作成。マウント時に GET /api/slots でD1から取得、空きセルクリックで追加ダイアログ表示→「追加」で POST、緑セルクリックで削除ダイアログ表示→「削除」で DELETE を実行し再描画する。
   - teacher.astro を `<TeacherDashboard client:load />` に置き換え。承認待ちリスト・課題一覧はダミーデータのまま。
   - npm run build 成功確認済み。
-- **Evaluator確認**: 未
+- **Evaluator確認**: 合格 (2026-06-08)
 
 ---
 
@@ -194,8 +194,15 @@
   - [ ] 確認ダイアログで「送信」をクリックすると、学生ダッシュボードに「承認待ち」ステータスの面談が表示される
   - [ ] 先生が `localhost:4321/teacher` を確認すると、承認待ちリストに当該リクエストが表示されている
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[ ]`
-- **commit**: —
+- **ステータス**: `[?]` 完了（Evaluator確認待ち）
+- **commit**: 9a029d2
+- **自己評価**:
+  - meetingRequests テーブルを schema.ts に追加。drizzle-kit generate で 0002_ancient_devos.sql 生成、wrangler d1 execute --local で適用完了。
+  - GET /teacher/slots（同グループの先生の空き枠を学生が取得）・POST /meeting-requests（学生から面談リクエスト送信、学生ロール必須）・GET /meeting-requests（先生は自分宛のリクエスト、学生は自分が送ったリクエストを取得）を index.ts に追加。
+  - StudentDashboard.tsx を新規作成（先生の空き枠カレンダー・空き枠クリックでリクエストボタン表示ダイアログ→「この枠でリクエストする」クリックで確認ダイアログ→「送信」でPOST /meeting-requests→面談リクエスト一覧に「承認待ち」表示）。
+  - TeacherDashboard.tsx の承認待ちリストを GET /meeting-requests で取得したD1データに切り替え（PENDING_REQUESTSダミーデータ削除）。
+  - student.astro を `<StudentDashboard client:load />` に置き換え。
+  - npm run build 成功確認済み。
 - **Evaluator確認**: 未
 
 ---
