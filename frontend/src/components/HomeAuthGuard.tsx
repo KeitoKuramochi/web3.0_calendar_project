@@ -14,7 +14,7 @@ export default function HomeAuthGuard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/auth/me')
+    fetch('/api/auth/me', { credentials: 'include' })
       .then((res) => {
         if (!res.ok) return null;
         return res.json<{ user: User | null }>();
@@ -41,7 +41,7 @@ export default function HomeAuthGuard() {
   }, []);
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     window.location.href = '/';
   };
 
