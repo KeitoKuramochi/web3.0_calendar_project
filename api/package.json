@@ -5,13 +5,17 @@
   "scripts": {
     "dev": "wrangler dev",
     "build": "wrangler deploy --dry-run --outdir=dist",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 execute calendar-db --local --file=migrations/0000_initial.sql"
   },
   "dependencies": {
+    "drizzle-orm": "^0.44.0",
     "hono": "^4.7.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250508.0",
+    "drizzle-kit": "^0.31.0",
     "typescript": "^5.8.0",
     "wrangler": "^4.16.0"
   }

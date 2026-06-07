@@ -22,9 +22,9 @@
   - [ ] `npm run dev:api` を実行するとWorkers（Hono）が `localhost:8787` で起動する
   - [ ] `localhost:4321` にアクセスするとAstroのデフォルトページまたは空のページが表示される
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[?]`
+- **ステータス**: `[x]`
 - **commit**: c2289e5
-- **Evaluator確認**: 待ち
+- **Evaluator確認**: 合格 (2026-06-08)
 
 ---
 
@@ -37,10 +37,10 @@
   - [ ] 「Googleでログイン」ボタンが表示される
   - [ ] 「Googleでログイン」ボタンをクリックすると `/onboarding` へ遷移する（Phase 1はダミー遷移でよい）
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[?]` Evaluator確認待ち
+- **ステータス**: `[x]`
 - **commit**: 55ca97d
 - **自己評価**: プロダクト名・サービス説明文（3文）・GoogleロゴSVG付き「Googleでログイン」ボタンを実装。`<a href="/onboarding">` でダミー遷移。npm run build 通過確認済み。
-- **Evaluator確認**: 待ち
+- **Evaluator確認**: 合格 (2026-06-08)
 
 ---
 
@@ -53,10 +53,10 @@
   - [ ] 「先生として始める」をクリックすると `/teacher` へ遷移する
   - [ ] 「学生として始める」をクリックすると `/student` へ遷移する
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[?]` 完了（Evaluator確認待ち）
+- **ステータス**: `[x]`
 - **commit**: 04444f0
 - **自己評価**: `/onboarding` にロール選択画面を実装。「先生として始める」→/teacher、「学生として始める」→/student へ遷移するaタグを配置。Tailwind CSSでシンプルにスタイリング。npm run build 通過確認済み。
-- **Evaluator確認**: 待ち
+- **Evaluator確認**: 合格 (2026-06-08)
 
 ---
 
@@ -71,10 +71,10 @@
   - [ ] 「学生課題一覧」セクションにダミーの学生名・課題名・ステータスが表示されている
   - [ ] `/chat` へ遷移する「AIに話しかける」ボタンまたはリンクが表示されている
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[?]` 完了（Evaluator確認待ち）
+- **ステータス**: `[x]`
 - **commit**: 176d68c
 - **自己評価**: `/teacher` に先生ダッシュボードを実装。週ビューカレンダー（今週月〜日の7列、9〜17時の時間帯）にダミー空き枠3件を緑色で表示。承認待ちリスト2件（学生名・希望日時・承認ボタン緑・差し戻しボタン赤）。学生課題一覧3件（学生名・課題名・ステータスバッジ）。ヘッダーと下部に「AIに話しかける」ボタン（href="/chat"）を配置。npm run build 通過確認済み。
-- **Evaluator確認**: 待ち
+- **Evaluator確認**: 合格 (2026-06-08)
 
 ---
 
@@ -87,10 +87,10 @@
   - [ ] 「自分の課題」セクションにダミーの課題名・期限・ステータスが表示されている
   - [ ] 「相談する（チャットへ）」ボタンが表示され、クリックすると `/chat` へ遷移する
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[?]` 完了（Evaluator確認待ち）
+- **ステータス**: `[x]`
 - **commit**: 7fbe7cb
 - **自己評価**: `/student` に学生ダッシュボードを実装。先生の空き枠週ビューカレンダー（今週月〜日の7列、9〜17時の時間帯）にダミー空き枠3件（火・木・土曜）を緑色で表示。自分の課題一覧3件（課題名・期限・ステータスバッジ）。ヘッダーと下部に「相談する（チャットへ）」ボタン（href="/chat"）を配置。npm run build 通過確認済み。
-- **Evaluator確認**: 待ち
+- **Evaluator確認**: 合格 (2026-06-08)
 
 ---
 
@@ -104,10 +104,10 @@
   - [ ] 送信後1〜2秒以内にエコーbot（「AIボット」表示）が同じ内容を返信する吹き出しが表示される
   - [ ] 複数回送受信してもメッセージが上から時系列に並ぶ
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[?]` 完了（Evaluator確認待ち）
+- **ステータス**: `[x]`
 - **commit**: ca4864b
 - **自己評価**: `/chat` にチャット画面を実装。`frontend/src/components/Chat.tsx`（Reactエコーbot）と `frontend/src/pages/chat.astro` を新規作成。自分のメッセージは右寄せ青吹き出し、AIボットのメッセージは左寄せグレー吹き出し（「AIボット」ラベル付き）。送信後1000msでエコー返信。タイピングアニメーション表示。Enterキーでも送信可。複数回送受信でメッセージが時系列に追加される。npm run build 通過確認済み。
-- **Evaluator確認**: 待ち
+- **Evaluator確認**: 合格 (2026-06-08)
 
 ---
 
@@ -122,8 +122,9 @@
   - [ ] `drizzle-kit migrate` がエラーなく完了し、D1にテーブルが作成されている
   - [ ] Honoのルートから `db.select()` でusersテーブルを照会すると空配列が返る
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[ ]`
-- **commit**: —
+- **ステータス**: `[?]` 完了（Evaluator確認待ち）
+- **commit**: —（コミット後に更新）
+- **自己評価**: wrangler.tomlにD1バインディング追加。api/src/db/schema.tsに5テーブル（users・groups・groupMembers・chatLog・memory）定義。drizzle-kit generateでmigrations/0000_volatile_the_call.sql生成。wrangler d1 execute --localでローカルD1にテーブル作成（9 commands executed）。api/src/index.tsに/db-checkルート追加（drizzle select from users）。npm run build 通過確認済み（wrangler出力でenv.DB D1 Database確認）。
 - **Evaluator確認**: 未
 
 ---
