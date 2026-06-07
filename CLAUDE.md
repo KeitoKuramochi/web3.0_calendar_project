@@ -1,85 +1,46 @@
 @AGENTS.md
-# Project Memory
 
-このプロジェクトの概要・技術スタック・構成・注意点は `AGENTS.md` にまとめてある。
-作業開始時は必ず `AGENTS.md` を読んでから判断すること。
+# 自律開発環境 — 3エージェント運用ルール
 
-毎回 `find` で全探索しない。
-まず以下だけ読む:
-1. AGENTS.md
-2. package.json
-3. 変更対象に関係する src 配下の局所ファイル
+このプロジェクトは **Planner / Generator / Evaluator** の3エージェント構成で自律的に開発を進める。
 
-# Investigation Rules
+## エージェントの役割分担
 
-- 最初からプロジェクト全体を find / grep で総当たりしない
-- まず AGENTS.md を読む
-- 次に package.json を読む
-- その後、目的に関係するディレクトリだけ調査する
-- 認証なら `src/app/api/auth`, `src/lib/auth`, `src/lib/db/schema.ts`
-- DBなら `src/lib/db/schema.ts`, `src/lib/storage.ts`
-- AI生成なら `src/lib/ai/`
-- メールなら `src/lib/email.ts`, `src/app/mail/`
-- 日程確定なら `src/app/schedule/[token]/`, `src/app/api/schedule/[token]/`
+| エージェント | 役割 | 使うファイル |
+|---|---|---|
+| Planner | アイデア → 仕様・タスク分解 | `idea.md` → `docs/PROJECT_PLAN.md`, `docs/REQUIREMENTS.md`, `docs/MVP_TASKS.md`, `docs/SPRINT_CONTRACT.md` |
+| Generator | タスクを1つずつ実装 | `docs/MVP_TASKS.md` → コード → `docs/STATUS.md` |
+| Evaluator | Playwright MCPで実際に操作して評価 | `docs/REQUIREMENTS.md`, `docs/SPRINT_CONTRACT.md`, `docs/EVALUATION_CRITERIA.md` |
 
-# SyncMatch AI — プロジェクト概要
+## 運用ルール
 
-大学生が教員・先輩などへの面談依頼をAIでサポートするアプリ。
-様々な人が使える将来性も考えてる
-相談内容の入力 → 日程スコアリング → メッセージ自動生成 → 確定リンクとメール文共有、という一連のフローを提供する。
+- **Plannerが仕様とTASKを作る** — `idea.md` を読み、実装者が判断不要になるレベルまで仕様を落とす
+- **GeneratorはTASKを1つずつ実装する** — 複数TASKの同時実装禁止
+- **EvaluatorはPlaywright MCPで実際に操作して評価する** — コードレビューだけでは不合格にならない
+- **作る役と評価する役を分ける** — Generatorが自己評価だけで完了扱いにしない
+- **1TASKごとに build と commit を行う** — buildが通らない状態でcommitしない
+- **危険な操作は人間に確認する** — 以下は人間の許可なしに実行しない:
+  - `git push` / 本番デプロイ
+  - 外部API接続の新規追加
+  - DB導入・スキーマ変更（Plannerが指示した場合を除く）
+  - 認証機能の導入
+  - `package.json` への依存関係追加
+- **.env、secret、API keyには触れない** — 読む・書く・変更すべて禁止
 
-## 技術スタック
-
-- **Next.js 16** (App Router) + TypeScript + React 19
-- **Neon PostgreSQL** + **Drizzle ORM** (スキーマは `src/lib/db/schema.ts`)
-- **NextAuth v5 beta** (Google OAuth)
-- **Claude API** (文章生成: `src/lib/ai/`)
-- **Resend** (メール通知: `src/lib/email.ts`)
-- **Vercel** デプロイ
-
-## ディレクトリ構成
+## ファイル構成
 
 ```
-src/
-├── app/
-│   ├── page.tsx           # ダッシュボード（相談一覧・ステータス管理）
-│   ├── profile/           # プロフィール設定
-│   ├── request/           # 相談リクエスト作成
-│   ├── match/             # 日程スコアリング・候補選択
-│   ├── mail/              # メッセージ生成・確認・送信
-│   ├── schedule/[token]/  # 相手向け日程確定ページ
-│   └── api/
-│       ├── auth/          # NextAuth エンドポイント
-│       ├── profile/       # GET/POST プロフィール
-│       ├── consultations/ # GET/POST 相談記録
-│       └── schedule/[token]/ # 日程確定API（Resend通知付き）
-├── lib/
-│   ├── ai/                # AIモジュール（parser, selector, analyzer, scorer, privacy, mailGen, mailCheck）
-│   ├── db/schema.ts       # DBスキーマ（profiles, consultations テーブル）
-│   ├── storage.ts         # getConsultations / upsertConsultation など
-│   └── email.ts           # sendConfirmedNotification / sendReschedulingNotification
-└── types/index.ts         # 全型定義（ConsultationRecord, ConsultRequest, UserProfile など）
+idea.md                        # 人間が書くアイデア（1〜4行）
+docs/
+  PROJECT_PLAN.md              # アプリ概要・目的・ユーザー定義
+  REQUIREMENTS.md              # 機能一覧・画面一覧・ユーザーフロー
+  MVP_TASKS.md                 # タスク一覧（状態管理付き）
+  STATUS.md                    # 全体進捗
+  SPRINT_CONTRACT.md           # 各TASKの完了条件
+  ERROR_FIX_LOOP.md            # エラー修正手順
+  EVALUATION_CRITERIA.md       # Evaluatorの評価基準
+.claude/agents/
+  planner.md                   # Plannerエージェント定義
+  generator.md                 # Generatorエージェント定義
+  evaluator.md                 # Evaluatorエージェント定義（Playwright MCP付き）
 ```
-
-## データモデルの要点
-
-- `ConsultationRecord` が中心的なデータ単位。`status` フィールドで進行状況を管理。
-- ステータス遷移: `draft` → `matched` → `composed` → `sent` / `waiting` → `confirmed` / `rescheduling`
-- `waiting`: スケジュール確定リンクを相手に送った状態（`scheduleToken` あり）
-- `sent`: メッセージを手動コピーして送信済み（確定リンクなし）
-- DBは JSONB で `ConsultationRecord` 全体を保存。`status` と `scheduleToken` のみ専用カラム。
-
-## 開発コマンド
-
-```bash
-npm run dev       # 開発サーバー起動 (localhost:3000)
-npm run build     # ビルド
-npx tsc --noEmit  # 型チェック（プッシュ前に必ず実行）
-npm run db:push   # DBスキーマをNeonに反映
-```
-
-## 注意事項
-
-- `RESEND_API_KEY` が未設定の場合はメール通知をスキップする（`src/lib/email.ts` のlazy初期化パターン）
-- `navigator.share()` はモバイルのみ有効。PCでは表示しない条件分岐が必要。
-- NextAuth v5 はまだbeta。`auth()` ヘルパーの使い方が v4 と異なる。
