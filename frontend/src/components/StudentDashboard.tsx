@@ -74,18 +74,25 @@ function statusBadgeClass(status: MeetingRequest['status']): string {
   return 'bg-red-100 text-red-700';
 }
 
-const HOURS = Array.from({ length: 9 }, (_, i) => i + 9); // 9〜17時
+type Assignment = {
+  id: string;
+  groupId: string;
+  studentId: string;
+  studentName: string;
+  teacherId: string;
+  teacherName: string;
+  title: string;
+  dueDate: number; // Unix秒
+  status: 'pending' | 'done';
+  createdAt: number;
+};
 
-// ダミー課題一覧（TASK-013以降で実装）
-const ASSIGNMENTS = [
-  { title: '研究計画書 第2稿', deadline: '2026-06-15', status: '未完了' },
-  { title: '文献調査レポート', deadline: '2026-06-10', status: '完了' },
-  { title: '実験データまとめ', deadline: '2026-06-20', status: '未完了' },
-];
+const HOURS = Array.from({ length: 9 }, (_, i) => i + 9); // 9〜17時
 
 export default function StudentDashboard() {
   const [teacherSlots, setTeacherSlots] = useState<TeacherSlot[]>([]);
   const [requests, setRequests] = useState<MeetingRequest[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [dialog, setDialog] = useState<DialogState>({ type: 'none' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -125,13 +132,27 @@ export default function StudentDashboard() {
     }
   }, []);
 
+  const fetchAssignments = useCallback(async () => {
+    try {
+      const res = await fetch('/api/assignments', { credentials: 'include' });
+      if (!res.ok) {
+        if (res.status === 401) return;
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const data = await res.json() as Assignment[];
+      setAssignments(data);
+    } catch (e) {
+      console.error('課題取得失敗:', e);
+    }
+  }, []);
+
   useEffect(() => {
     const init = async () => {
-      await Promise.all([fetchTeacherSlots(), fetchRequests()]);
+      await Promise.all([fetchTeacherSlots(), fetchRequests(), fetchAssignments()]);
       setLoading(false);
     };
     init();
-  }, [fetchTeacherSlots, fetchRequests]);
+  }, [fetchTeacherSlots, fetchRequests, fetchAssignments]);
 
   const handleSlotClick = (slot: TeacherSlot) => {
     setDialog({ type: 'request', slot });
@@ -175,6 +196,24 @@ export default function StudentDashboard() {
     } catch (e) {
       alert(`選択に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
     }
+  };
+
+  const handleMarkDone = async (assignmentId: string) => {
+    try {
+      const res = await fetch(`/api/assignments/${assignmentId}/done`, {
+        method: 'PATCH',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await fetchAssignments();
+    } catch (e) {
+      alert(`完了報告に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+
+  const formatDueDate = (unixSec: number) => {
+    const d = new Date(unixSec * 1000);
+    return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
   };
 
   const formatAltDateTime = (req: MeetingRequest) => {
@@ -322,34 +361,47 @@ export default function StudentDashboard() {
       <section>
         <h2 className="text-lg font-bold text-gray-800 mb-4">自分の課題</h2>
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="py-3 px-4 text-left text-gray-600 font-semibold">課題名</th>
-                <th className="py-3 px-4 text-left text-gray-600 font-semibold">期限</th>
-                <th className="py-3 px-4 text-center text-gray-600 font-semibold">ステータス</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ASSIGNMENTS.map((a, i) => (
-                <tr key={i} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors">
-                  <td className="py-3 px-4 text-gray-800 font-medium">{a.title}</td>
-                  <td className="py-3 px-4 text-gray-600">{a.deadline}</td>
-                  <td className="py-3 px-4 text-center">
-                    {a.status === '完了' ? (
-                      <span className="inline-block bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 rounded-full">
-                        完了
-                      </span>
-                    ) : (
-                      <span className="inline-block bg-yellow-100 text-yellow-700 text-xs font-semibold px-3 py-1 rounded-full">
-                        未完了
-                      </span>
-                    )}
-                  </td>
+          {assignments.length === 0 ? (
+            <p className="py-6 text-center text-sm text-gray-400">課題はまだありません</p>
+          ) : (
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="py-3 px-4 text-left text-gray-600 font-semibold">課題名</th>
+                  <th className="py-3 px-4 text-left text-gray-600 font-semibold">期限</th>
+                  <th className="py-3 px-4 text-center text-gray-600 font-semibold">ステータス</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {assignments.map((a) => (
+                  <tr key={a.id} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors">
+                    <td className="py-3 px-4 text-gray-800 font-medium">{a.title}</td>
+                    <td className="py-3 px-4 text-gray-600">{formatDueDate(a.dueDate)}</td>
+                    <td className="py-3 px-4 text-center">
+                      {a.status === 'done' ? (
+                        <span className="inline-block bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 rounded-full">
+                          完了
+                        </span>
+                      ) : (
+                        <div className="flex flex-col items-center gap-2">
+                          <span className="inline-block bg-yellow-100 text-yellow-700 text-xs font-semibold px-3 py-1 rounded-full">
+                            未完了
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleMarkDone(a.id)}
+                            className="text-xs text-white bg-green-600 px-3 py-1 rounded hover:bg-green-700 transition-colors font-semibold"
+                          >
+                            完了報告
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </section>
 

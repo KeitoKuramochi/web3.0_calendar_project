@@ -58,3 +58,14 @@ export const meetingRequests = sqliteTable('meeting_requests', {
   alternativeEndTime: integer('alt_end_time', { mode: 'timestamp' }),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
+
+export const assignments = sqliteTable('assignments', {
+  id: text('id').primaryKey(),
+  groupId: text('group_id').notNull().references(() => groups.id),
+  studentId: text('student_id').notNull().references(() => users.id),
+  teacherId: text('teacher_id').notNull().references(() => users.id),
+  title: text('title').notNull(),
+  dueDate: integer('due_date', { mode: 'timestamp' }).notNull(),
+  status: text('status', { enum: ['pending', 'done'] }).notNull().default('pending'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+});

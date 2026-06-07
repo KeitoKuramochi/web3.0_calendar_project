@@ -650,6 +650,229 @@ app.patch('/meeting-requests/:id/select-alt', async (c) => {
   return c.json({ ok: true });
 });
 
+// GET /groups/members — 自分のグループのメンバー一覧（認証必須）
+// 先生: 学生一覧を返す / 学生: 先生一覧を返す
+app.get('/groups/members', async (c) => {
+  const token = getCookie(c, 'session');
+  if (!token) return c.json({ error: 'unauthorized' }, 401);
+
+  const payload = await verifySession(token, c.env.SESSION_SECRET);
+  if (!payload) return c.json({ error: 'unauthorized' }, 401);
+
+  const userId = payload.id as string;
+  const userRole = payload.role as string | null;
+  const db = drizzle(c.env.DB, { schema });
+
+  // 自分が属するグループを取得
+  const myMemberships = await db
+    .select()
+    .from(schema.groupMembers)
+    .where(eq(schema.groupMembers.userId, userId));
+
+  const groupIds = myMemberships.map((m) => m.groupId);
+  if (groupIds.length === 0) {
+    return c.json([]);
+  }
+
+  // 先生なら学生、学生なら先生を返す
+  const targetRole = userRole === 'teacher' ? 'student' : 'teacher';
+
+  const members = await db
+    .select()
+    .from(schema.groupMembers)
+    .where(
+      and(
+        inArray(schema.groupMembers.groupId, groupIds),
+        eq(schema.groupMembers.role, targetRole)
+      )
+    );
+
+  if (members.length === 0) {
+    return c.json([]);
+  }
+
+  const memberUserIds = members.map((m) => m.userId);
+  const usersData = await db
+    .select()
+    .from(schema.users)
+    .where(inArray(schema.users.id, memberUserIds));
+
+  const data = usersData.map((u) => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    role: u.role,
+  }));
+
+  return c.json(data);
+});
+
+// GET /assignments — 認証済みユーザーの課題一覧
+// 先生: 自分が割り当てた課題（学生名付き）
+// 学生: 自分の課題（先生名付き）
+app.get('/assignments', async (c) => {
+  const token = getCookie(c, 'session');
+  if (!token) return c.json({ error: 'unauthorized' }, 401);
+
+  const payload = await verifySession(token, c.env.SESSION_SECRET);
+  if (!payload) return c.json({ error: 'unauthorized' }, 401);
+
+  const userId = payload.id as string;
+  const userRole = payload.role as string | null;
+  const db = drizzle(c.env.DB, { schema });
+
+  let items: (typeof schema.assignments.$inferSelect)[];
+
+  if (userRole === 'teacher') {
+    items = await db
+      .select()
+      .from(schema.assignments)
+      .where(eq(schema.assignments.teacherId, userId));
+  } else {
+    items = await db
+      .select()
+      .from(schema.assignments)
+      .where(eq(schema.assignments.studentId, userId));
+  }
+
+  if (items.length === 0) {
+    return c.json([]);
+  }
+
+  // 関連ユーザー情報を取得
+  const relatedUserIds = [
+    ...new Set([
+      ...items.map((a) => a.studentId),
+      ...items.map((a) => a.teacherId),
+    ]),
+  ];
+  const usersData = await db
+    .select()
+    .from(schema.users)
+    .where(inArray(schema.users.id, relatedUserIds));
+  const userMap = new Map(usersData.map((u) => [u.id, u]));
+
+  const data = items.map((a) => ({
+    id: a.id,
+    groupId: a.groupId,
+    studentId: a.studentId,
+    studentName: userMap.get(a.studentId)?.name ?? '学生',
+    teacherId: a.teacherId,
+    teacherName: userMap.get(a.teacherId)?.name ?? '先生',
+    title: a.title,
+    dueDate: Math.floor(a.dueDate.getTime() / 1000),
+    status: a.status,
+    createdAt: Math.floor(a.createdAt.getTime() / 1000),
+  }));
+
+  return c.json(data);
+});
+
+// POST /assignments — 課題追加（先生のみ）
+app.post('/assignments', async (c) => {
+  const token = getCookie(c, 'session');
+  if (!token) return c.json({ error: 'unauthorized' }, 401);
+
+  const payload = await verifySession(token, c.env.SESSION_SECRET);
+  if (!payload) return c.json({ error: 'unauthorized' }, 401);
+
+  const userRole = payload.role as string | null;
+  if (userRole !== 'teacher') {
+    return c.json({ error: 'forbidden: teacher only' }, 403);
+  }
+
+  const teacherId = payload.id as string;
+  const body = await c.req.json<{ studentId: string; title: string; dueDate: number }>();
+
+  if (!body.studentId || !body.title || !body.dueDate) {
+    return c.json({ error: 'studentId, title and dueDate required' }, 400);
+  }
+
+  const db = drizzle(c.env.DB, { schema });
+
+  // 自分が属するグループを取得
+  const myMemberships = await db
+    .select()
+    .from(schema.groupMembers)
+    .where(eq(schema.groupMembers.userId, teacherId));
+
+  const groupIds = myMemberships.map((m) => m.groupId);
+  if (groupIds.length === 0) {
+    return c.json({ error: 'no group found' }, 400);
+  }
+
+  // 対象学生が同じグループに属しているか確認
+  const studentMemberships = await db
+    .select()
+    .from(schema.groupMembers)
+    .where(
+      and(
+        inArray(schema.groupMembers.groupId, groupIds),
+        eq(schema.groupMembers.userId, body.studentId),
+        eq(schema.groupMembers.role, 'student')
+      )
+    );
+
+  if (studentMemberships.length === 0) {
+    return c.json({ error: 'student not in group' }, 400);
+  }
+
+  const groupId = studentMemberships[0].groupId;
+  const assignmentId = crypto.randomUUID();
+  const now = new Date();
+
+  await db.insert(schema.assignments).values({
+    id: assignmentId,
+    groupId,
+    studentId: body.studentId,
+    teacherId,
+    title: body.title,
+    dueDate: new Date(body.dueDate * 1000),
+    status: 'pending',
+    createdAt: now,
+  });
+
+  return c.json({ id: assignmentId, ok: true });
+});
+
+// PATCH /assignments/:id/done — 完了報告（学生のみ）
+app.patch('/assignments/:id/done', async (c) => {
+  const token = getCookie(c, 'session');
+  if (!token) return c.json({ error: 'unauthorized' }, 401);
+
+  const payload = await verifySession(token, c.env.SESSION_SECRET);
+  if (!payload) return c.json({ error: 'unauthorized' }, 401);
+
+  const userRole = payload.role as string | null;
+  if (userRole !== 'student') {
+    return c.json({ error: 'forbidden: student only' }, 403);
+  }
+
+  const userId = payload.id as string;
+  const assignmentId = c.req.param('id');
+  const db = drizzle(c.env.DB, { schema });
+
+  const existing = await db
+    .select()
+    .from(schema.assignments)
+    .where(eq(schema.assignments.id, assignmentId));
+
+  if (existing.length === 0) {
+    return c.json({ error: 'not_found' }, 404);
+  }
+
+  if (existing[0].studentId !== userId) {
+    return c.json({ error: 'forbidden' }, 403);
+  }
+
+  await db
+    .update(schema.assignments)
+    .set({ status: 'done' })
+    .where(eq(schema.assignments.id, assignmentId));
+
+  return c.json({ ok: true });
+});
+
 // DELETE /slots/:id — 空き枠削除（認証必須・自分のものだけ）
 app.delete('/slots/:id', async (c) => {
   const token = getCookie(c, 'session');

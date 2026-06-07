@@ -23,6 +23,26 @@ type MeetingRequest = {
   createdAt: number;
 };
 
+type Assignment = {
+  id: string;
+  groupId: string;
+  studentId: string;
+  studentName: string;
+  teacherId: string;
+  teacherName: string;
+  title: string;
+  dueDate: number; // Unix秒
+  status: 'pending' | 'done';
+  createdAt: number;
+};
+
+type GroupMember = {
+  id: string;
+  name: string;
+  email: string;
+  role: string | null;
+};
+
 type DialogState =
   | { type: 'none' }
   | { type: 'add'; date: Date; hour: number }
@@ -32,6 +52,12 @@ type RejectForm = {
   requestId: string;
   date: string;
   hour: number;
+};
+
+type AssignmentForm = {
+  studentId: string;
+  title: string;
+  dueDate: string;
 };
 
 // 今週の月曜〜日曜を取得（ローカル日付基準）
@@ -73,20 +99,22 @@ function slotMatchesDayAndHour(slot: Slot, date: Date, hour: number): boolean {
 
 const HOURS = Array.from({ length: 9 }, (_, i) => i + 9); // 9〜17時
 
-// ダミー学生課題一覧（TASK-013以降で実装）
-const ASSIGNMENTS = [
-  { student: '田中 花子', title: '研究計画書 第1稿', status: '未完了' },
-  { student: '鈴木 太郎', title: '文献調査レポート', status: '完了' },
-  { student: '佐藤 次郎', title: '実験データまとめ', status: '未完了' },
-];
-
 export default function TeacherDashboard() {
   const [slots, setSlots] = useState<Slot[]>([]);
   const [pendingRequests, setPendingRequests] = useState<MeetingRequest[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
   const [dialog, setDialog] = useState<DialogState>({ type: 'none' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rejectForm, setRejectForm] = useState<RejectForm | null>(null);
+  const [showAssignmentForm, setShowAssignmentForm] = useState(false);
+  const [assignmentForm, setAssignmentForm] = useState<AssignmentForm>({
+    studentId: '',
+    title: '',
+    dueDate: '',
+  });
+  const [assignmentSubmitting, setAssignmentSubmitting] = useState(false);
 
   const weekDates = getWeekDates();
 
@@ -120,6 +148,34 @@ export default function TeacherDashboard() {
       setPendingRequests(data.filter((r) => r.status === 'pending'));
     } catch (e) {
       console.error('リクエスト取得失敗:', e);
+    }
+  }, []);
+
+  const fetchAssignments = useCallback(async () => {
+    try {
+      const res = await fetch('/api/assignments', { credentials: 'include' });
+      if (!res.ok) {
+        if (res.status === 401) return;
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const data = await res.json() as Assignment[];
+      setAssignments(data);
+    } catch (e) {
+      console.error('課題取得失敗:', e);
+    }
+  }, []);
+
+  const fetchGroupMembers = useCallback(async () => {
+    try {
+      const res = await fetch('/api/groups/members', { credentials: 'include' });
+      if (!res.ok) {
+        if (res.status === 401) return;
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const data = await res.json() as GroupMember[];
+      setGroupMembers(data);
+    } catch (e) {
+      console.error('グループメンバー取得失敗:', e);
     }
   }, []);
 
@@ -171,7 +227,9 @@ export default function TeacherDashboard() {
   useEffect(() => {
     fetchSlots();
     fetchPendingRequests();
-  }, [fetchSlots, fetchPendingRequests]);
+    fetchAssignments();
+    fetchGroupMembers();
+  }, [fetchSlots, fetchPendingRequests, fetchAssignments, fetchGroupMembers]);
 
   const handleCellClick = (date: Date, hour: number) => {
     // 既存スロットがあるかチェック
@@ -220,6 +278,39 @@ export default function TeacherDashboard() {
     } catch (e) {
       alert(`削除に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
     }
+  };
+
+  const handleAssignmentSubmit = async () => {
+    const { studentId, title, dueDate } = assignmentForm;
+    if (!studentId || !title || !dueDate) {
+      alert('すべての項目を入力してください');
+      return;
+    }
+    const [year, month, day] = dueDate.split('-').map(Number);
+    const dueDateUnix = Math.floor(new Date(year, month - 1, day, 23, 59, 59).getTime() / 1000);
+
+    setAssignmentSubmitting(true);
+    try {
+      const res = await fetch('/api/assignments', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId, title, dueDate: dueDateUnix }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setShowAssignmentForm(false);
+      setAssignmentForm({ studentId: '', title: '', dueDate: '' });
+      await fetchAssignments();
+    } catch (e) {
+      alert(`課題の追加に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setAssignmentSubmitting(false);
+    }
+  };
+
+  const formatDueDate = (unixSec: number) => {
+    const d = new Date(unixSec * 1000);
+    return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
   };
 
   const formatDateTime = (date: Date, hour: number) => {
@@ -397,36 +488,107 @@ export default function TeacherDashboard() {
 
       {/* 学生課題一覧 */}
       <section>
-        <h2 className="text-lg font-bold text-gray-800 mb-4">学生課題一覧</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-gray-800">学生課題一覧</h2>
+          <button
+            type="button"
+            onClick={() => setShowAssignmentForm((v) => !v)}
+            className="bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            課題を追加
+          </button>
+        </div>
+
+        {showAssignmentForm && (
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-4 space-y-3">
+            <p className="text-sm font-semibold text-gray-700">新しい課題を追加</p>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-gray-500">対象学生</label>
+              <select
+                value={assignmentForm.studentId}
+                onChange={(e) => setAssignmentForm({ ...assignmentForm, studentId: e.target.value })}
+                className="border border-gray-300 rounded px-2 py-1.5 text-sm"
+              >
+                <option value="">-- 学生を選択 --</option>
+                {groupMembers.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-gray-500">課題名</label>
+              <input
+                type="text"
+                value={assignmentForm.title}
+                onChange={(e) => setAssignmentForm({ ...assignmentForm, title: e.target.value })}
+                placeholder="課題名を入力"
+                className="border border-gray-300 rounded px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-gray-500">期限</label>
+              <input
+                type="date"
+                value={assignmentForm.dueDate}
+                onChange={(e) => setAssignmentForm({ ...assignmentForm, dueDate: e.target.value })}
+                className="border border-gray-300 rounded px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => { setShowAssignmentForm(false); setAssignmentForm({ studentId: '', title: '', dueDate: '' }); }}
+                className="text-sm text-gray-500 border border-gray-300 px-4 py-1.5 rounded hover:bg-gray-100 transition-colors"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={handleAssignmentSubmit}
+                disabled={assignmentSubmitting}
+                className="text-sm text-white bg-blue-600 px-4 py-1.5 rounded hover:bg-blue-700 transition-colors font-semibold disabled:opacity-50"
+              >
+                {assignmentSubmitting ? '追加中...' : '追加'}
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="py-3 px-4 text-left text-gray-600 font-semibold">学生名</th>
-                <th className="py-3 px-4 text-left text-gray-600 font-semibold">課題名</th>
-                <th className="py-3 px-4 text-center text-gray-600 font-semibold">ステータス</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ASSIGNMENTS.map((a, i) => (
-                <tr key={i} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors">
-                  <td className="py-3 px-4 text-gray-800 font-medium">{a.student}</td>
-                  <td className="py-3 px-4 text-gray-600">{a.title}</td>
-                  <td className="py-3 px-4 text-center">
-                    {a.status === '完了' ? (
-                      <span className="inline-block bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 rounded-full">
-                        完了
-                      </span>
-                    ) : (
-                      <span className="inline-block bg-yellow-100 text-yellow-700 text-xs font-semibold px-3 py-1 rounded-full">
-                        未完了
-                      </span>
-                    )}
-                  </td>
+          {assignments.length === 0 ? (
+            <p className="py-6 text-center text-sm text-gray-400">課題はまだ追加されていません</p>
+          ) : (
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="py-3 px-4 text-left text-gray-600 font-semibold">学生名</th>
+                  <th className="py-3 px-4 text-left text-gray-600 font-semibold">課題名</th>
+                  <th className="py-3 px-4 text-left text-gray-600 font-semibold">期限</th>
+                  <th className="py-3 px-4 text-center text-gray-600 font-semibold">ステータス</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {assignments.map((a) => (
+                  <tr key={a.id} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors">
+                    <td className="py-3 px-4 text-gray-800 font-medium">{a.studentName}</td>
+                    <td className="py-3 px-4 text-gray-600">{a.title}</td>
+                    <td className="py-3 px-4 text-gray-600">{formatDueDate(a.dueDate)}</td>
+                    <td className="py-3 px-4 text-center">
+                      {a.status === 'done' ? (
+                        <span className="inline-block bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 rounded-full">
+                          完了
+                        </span>
+                      ) : (
+                        <span className="inline-block bg-yellow-100 text-yellow-700 text-xs font-semibold px-3 py-1 rounded-full">
+                          未完了
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </section>
 

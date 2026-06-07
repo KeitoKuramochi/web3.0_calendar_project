@@ -29,6 +29,13 @@
       "when": 1780875734099,
       "tag": "0003_famous_pixie",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1780876197311,
+      "tag": "0004_melodic_spirit",
+      "breakpoints": true
     }
   ]
 }
