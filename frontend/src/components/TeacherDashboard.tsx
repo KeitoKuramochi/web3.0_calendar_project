@@ -54,8 +54,8 @@ const HOURS = Array.from({ length: 9 }, (_, i) => i + 9); // 9〜17時
 
 // ダミー承認待ちリスト（TASK-011以降で実装）
 const PENDING_REQUESTS = [
-  { id: 1, student: '田中 花子', datetime: '承認待ち（TASK-011実装後）' },
-  { id: 2, student: '鈴木 太郎', datetime: '承認待ち（TASK-011実装後）' },
+  { id: 1, student: '田中 花子', datetime: '日時調整中' },
+  { id: 2, student: '鈴木 太郎', datetime: '日時調整中' },
 ];
 
 // ダミー学生課題一覧（TASK-013以降で実装）
