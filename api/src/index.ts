@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { drizzle } from 'drizzle-orm/d1';
-import { eq } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import * as schema from './db/schema';
 import { signSession, verifySession } from './auth';
 
@@ -348,6 +348,177 @@ app.post('/slots', async (c) => {
   });
 
   return c.json({ id: slotId, ok: true });
+});
+
+// GET /teacher/slots — 学生が閲覧できる先生の空き枠一覧（認証必須）
+app.get('/teacher/slots', async (c) => {
+  const token = getCookie(c, 'session');
+  if (!token) return c.json({ error: 'unauthorized' }, 401);
+
+  const payload = await verifySession(token, c.env.SESSION_SECRET);
+  if (!payload) return c.json({ error: 'unauthorized' }, 401);
+
+  const userId = payload.id as string;
+  const db = drizzle(c.env.DB, { schema });
+
+  // 同じgroupに所属する先生のIDをgroupMembersから取得
+  const myMemberships = await db
+    .select()
+    .from(schema.groupMembers)
+    .where(eq(schema.groupMembers.userId, userId));
+
+  const groupIds = myMemberships.map((m) => m.groupId);
+  if (groupIds.length === 0) {
+    return c.json([]);
+  }
+
+  // 同じグループの先生メンバーを取得
+  const teacherMembers = await db
+    .select()
+    .from(schema.groupMembers)
+    .where(
+      and(
+        inArray(schema.groupMembers.groupId, groupIds),
+        eq(schema.groupMembers.role, 'teacher')
+      )
+    );
+
+  const teacherIds = teacherMembers.map((m) => m.userId);
+  if (teacherIds.length === 0) {
+    return c.json([]);
+  }
+
+  // 先生のスロットを取得
+  const result = await db
+    .select()
+    .from(schema.slots)
+    .where(inArray(schema.slots.teacherId, teacherIds));
+
+  // 先生の情報も取得
+  const teachers = await db
+    .select()
+    .from(schema.users)
+    .where(inArray(schema.users.id, teacherIds));
+
+  const teacherMap = new Map(teachers.map((t) => [t.id, t]));
+
+  const data = result.map((s) => ({
+    id: s.id,
+    teacherId: s.teacherId,
+    teacherName: teacherMap.get(s.teacherId)?.name ?? '先生',
+    startTime: Math.floor(s.startTime.getTime() / 1000),
+    endTime: Math.floor(s.endTime.getTime() / 1000),
+    createdAt: Math.floor(s.createdAt.getTime() / 1000),
+  }));
+
+  return c.json(data);
+});
+
+// POST /meeting-requests — 面談リクエスト送信（認証必須・学生のみ）
+app.post('/meeting-requests', async (c) => {
+  const token = getCookie(c, 'session');
+  if (!token) return c.json({ error: 'unauthorized' }, 401);
+
+  const payload = await verifySession(token, c.env.SESSION_SECRET);
+  if (!payload) return c.json({ error: 'unauthorized' }, 401);
+
+  const userRole = payload.role as string | null;
+  if (userRole !== 'student') {
+    return c.json({ error: 'forbidden: student only' }, 403);
+  }
+
+  const studentId = payload.id as string;
+  const body = await c.req.json<{ slotId: string; teacherId: string }>();
+
+  if (!body.slotId || !body.teacherId) {
+    return c.json({ error: 'slotId and teacherId required' }, 400);
+  }
+
+  const db = drizzle(c.env.DB, { schema });
+  const now = new Date();
+  const requestId = crypto.randomUUID();
+
+  await db.insert(schema.meetingRequests).values({
+    id: requestId,
+    studentId,
+    teacherId: body.teacherId,
+    slotId: body.slotId,
+    status: 'pending',
+    createdAt: now,
+  });
+
+  return c.json({ id: requestId, ok: true });
+});
+
+// GET /meeting-requests — 自分に関連するリクエスト一覧（認証必須）
+// 先生: 自分宛のリクエスト / 学生: 自分が送ったリクエスト
+app.get('/meeting-requests', async (c) => {
+  const token = getCookie(c, 'session');
+  if (!token) return c.json({ error: 'unauthorized' }, 401);
+
+  const payload = await verifySession(token, c.env.SESSION_SECRET);
+  if (!payload) return c.json({ error: 'unauthorized' }, 401);
+
+  const userId = payload.id as string;
+  const userRole = payload.role as string | null;
+  const db = drizzle(c.env.DB, { schema });
+
+  let requests: (typeof schema.meetingRequests.$inferSelect)[];
+
+  if (userRole === 'teacher') {
+    requests = await db
+      .select()
+      .from(schema.meetingRequests)
+      .where(eq(schema.meetingRequests.teacherId, userId));
+  } else {
+    requests = await db
+      .select()
+      .from(schema.meetingRequests)
+      .where(eq(schema.meetingRequests.studentId, userId));
+  }
+
+  if (requests.length === 0) {
+    return c.json([]);
+  }
+
+  // スロット情報を取得
+  const slotIds = requests.map((r) => r.slotId);
+  const slotsData = await db
+    .select()
+    .from(schema.slots)
+    .where(inArray(schema.slots.id, slotIds));
+  const slotMap = new Map(slotsData.map((s) => [s.id, s]));
+
+  // ユーザー情報を取得（学生名・先生名）
+  const userIds = [
+    ...new Set([
+      ...requests.map((r) => r.studentId),
+      ...requests.map((r) => r.teacherId),
+    ]),
+  ];
+  const usersData = await db
+    .select()
+    .from(schema.users)
+    .where(inArray(schema.users.id, userIds));
+  const userMap = new Map(usersData.map((u) => [u.id, u]));
+
+  const data = requests.map((r) => {
+    const slot = slotMap.get(r.slotId);
+    return {
+      id: r.id,
+      studentId: r.studentId,
+      studentName: userMap.get(r.studentId)?.name ?? '学生',
+      teacherId: r.teacherId,
+      teacherName: userMap.get(r.teacherId)?.name ?? '先生',
+      slotId: r.slotId,
+      startTime: slot ? Math.floor(slot.startTime.getTime() / 1000) : null,
+      endTime: slot ? Math.floor(slot.endTime.getTime() / 1000) : null,
+      status: r.status,
+      createdAt: Math.floor(r.createdAt.getTime() / 1000),
+    };
+  });
+
+  return c.json(data);
 });
 
 // DELETE /slots/:id — 空き枠削除（認証必須・自分のものだけ）

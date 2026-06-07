@@ -47,3 +47,12 @@ export const slots = sqliteTable('slots', {
   endTime: integer('end_time', { mode: 'timestamp' }).notNull(),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
+
+export const meetingRequests = sqliteTable('meeting_requests', {
+  id: text('id').primaryKey(),
+  studentId: text('student_id').notNull().references(() => users.id),
+  teacherId: text('teacher_id').notNull().references(() => users.id),
+  slotId: text('slot_id').notNull().references(() => slots.id),
+  status: text('status', { enum: ['pending', 'approved', 'rejected'] }).notNull().default('pending'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+});

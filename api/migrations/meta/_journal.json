@@ -15,6 +15,13 @@
       "when": 1780874522752,
       "tag": "0001_nifty_cyclops",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1780875165690,
+      "tag": "0002_ancient_devos",
+      "breakpoints": true
     }
   ]
 }

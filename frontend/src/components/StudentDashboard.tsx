@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 
-type Slot = {
+type TeacherSlot = {
   id: string;
   teacherId: string;
+  teacherName: string;
   startTime: number; // Unix秒
   endTime: number;   // Unix秒
   createdAt: number;
@@ -23,8 +24,8 @@ type MeetingRequest = {
 
 type DialogState =
   | { type: 'none' }
-  | { type: 'add'; date: Date; hour: number }
-  | { type: 'delete'; slot: Slot };
+  | { type: 'request'; slot: TeacherSlot }
+  | { type: 'confirm'; slot: TeacherSlot };
 
 // 今週の月曜〜日曜を取得（ローカル日付基準）
 function getWeekDates(): { label: string; dateStr: string; date: Date }[] {
@@ -46,14 +47,8 @@ function getWeekDates(): { label: string; dateStr: string; date: Date }[] {
   });
 }
 
-// 日付と時間からUnix秒を作る
-function toUnixSec(date: Date, hour: number): number {
-  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour, 0, 0, 0);
-  return Math.floor(d.getTime() / 1000);
-}
-
 // スロットが指定した日・時間に該当するか
-function slotMatchesDayAndHour(slot: Slot, date: Date, hour: number): boolean {
+function slotMatchesDayAndHour(slot: TeacherSlot, date: Date, hour: number): boolean {
   const start = new Date(slot.startTime * 1000);
   return (
     start.getFullYear() === date.getFullYear() &&
@@ -63,27 +58,40 @@ function slotMatchesDayAndHour(slot: Slot, date: Date, hour: number): boolean {
   );
 }
 
+function statusLabel(status: MeetingRequest['status']): string {
+  if (status === 'pending') return '承認待ち';
+  if (status === 'approved') return '承認済み';
+  return '差し戻し';
+}
+
+function statusBadgeClass(status: MeetingRequest['status']): string {
+  if (status === 'pending') return 'bg-yellow-100 text-yellow-700';
+  if (status === 'approved') return 'bg-green-100 text-green-700';
+  return 'bg-red-100 text-red-700';
+}
+
 const HOURS = Array.from({ length: 9 }, (_, i) => i + 9); // 9〜17時
 
-// ダミー学生課題一覧（TASK-013以降で実装）
+// ダミー課題一覧（TASK-013以降で実装）
 const ASSIGNMENTS = [
-  { student: '田中 花子', title: '研究計画書 第1稿', status: '未完了' },
-  { student: '鈴木 太郎', title: '文献調査レポート', status: '完了' },
-  { student: '佐藤 次郎', title: '実験データまとめ', status: '未完了' },
+  { title: '研究計画書 第2稿', deadline: '2026-06-15', status: '未完了' },
+  { title: '文献調査レポート', deadline: '2026-06-10', status: '完了' },
+  { title: '実験データまとめ', deadline: '2026-06-20', status: '未完了' },
 ];
 
-export default function TeacherDashboard() {
-  const [slots, setSlots] = useState<Slot[]>([]);
-  const [pendingRequests, setPendingRequests] = useState<MeetingRequest[]>([]);
+export default function StudentDashboard() {
+  const [teacherSlots, setTeacherSlots] = useState<TeacherSlot[]>([]);
+  const [requests, setRequests] = useState<MeetingRequest[]>([]);
   const [dialog, setDialog] = useState<DialogState>({ type: 'none' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const weekDates = getWeekDates();
 
-  const fetchSlots = useCallback(async () => {
+  const fetchTeacherSlots = useCallback(async () => {
     try {
-      const res = await fetch('/api/slots', { credentials: 'include' });
+      const res = await fetch('/api/teacher/slots', { credentials: 'include' });
       if (!res.ok) {
         if (res.status === 401) {
           setError('ログインが必要です');
@@ -91,16 +99,14 @@ export default function TeacherDashboard() {
         }
         throw new Error(`HTTP ${res.status}`);
       }
-      const data = await res.json() as Slot[];
-      setSlots(data);
+      const data = await res.json() as TeacherSlot[];
+      setTeacherSlots(data);
     } catch (e) {
       setError(`空き枠の取得に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
-    } finally {
-      setLoading(false);
     }
   }, []);
 
-  const fetchPendingRequests = useCallback(async () => {
+  const fetchRequests = useCallback(async () => {
     try {
       const res = await fetch('/api/meeting-requests', { credentials: 'include' });
       if (!res.ok) {
@@ -108,75 +114,58 @@ export default function TeacherDashboard() {
         throw new Error(`HTTP ${res.status}`);
       }
       const data = await res.json() as MeetingRequest[];
-      setPendingRequests(data.filter((r) => r.status === 'pending'));
+      setRequests(data);
     } catch (e) {
+      // リクエスト取得失敗は非致命的
       console.error('リクエスト取得失敗:', e);
     }
   }, []);
 
   useEffect(() => {
-    fetchSlots();
-    fetchPendingRequests();
-  }, [fetchSlots, fetchPendingRequests]);
+    const init = async () => {
+      await Promise.all([fetchTeacherSlots(), fetchRequests()]);
+      setLoading(false);
+    };
+    init();
+  }, [fetchTeacherSlots, fetchRequests]);
 
-  const handleCellClick = (date: Date, hour: number) => {
-    // 既存スロットがあるかチェック
-    const existing = slots.find((s) => slotMatchesDayAndHour(s, date, hour));
-    if (existing) {
-      setDialog({ type: 'delete', slot: existing });
-    } else {
-      setDialog({ type: 'add', date, hour });
-    }
+  const handleSlotClick = (slot: TeacherSlot) => {
+    setDialog({ type: 'request', slot });
   };
 
-  const handleAddSlot = async () => {
-    if (dialog.type !== 'add') return;
+  const handleRequestClick = () => {
+    if (dialog.type !== 'request') return;
+    setDialog({ type: 'confirm', slot: dialog.slot });
+  };
 
-    const startTime = toUnixSec(dialog.date, dialog.hour);
-    const endTime = toUnixSec(dialog.date, dialog.hour + 1);
+  const handleSubmit = async () => {
+    if (dialog.type !== 'confirm') return;
+    const { slot } = dialog;
 
+    setSubmitting(true);
     try {
-      const res = await fetch('/api/slots', {
+      const res = await fetch('/api/meeting-requests', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ startTime, endTime }),
+        body: JSON.stringify({ slotId: slot.id, teacherId: slot.teacherId }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setDialog({ type: 'none' });
-      await fetchSlots();
+      await fetchRequests();
     } catch (e) {
-      alert(`追加に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+      alert(`送信に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleDeleteSlot = async () => {
-    if (dialog.type !== 'delete') return;
-
-    const slotId = dialog.slot.id;
-
-    try {
-      const res = await fetch(`/api/slots/${slotId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setDialog({ type: 'none' });
-      await fetchSlots();
-    } catch (e) {
-      alert(`削除に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  };
-
-  const formatDateTime = (date: Date, hour: number) => {
-    const labels = ['月', '火', '水', '木', '金', '土', '日'];
-    const dayLabel = labels[date.getDay() === 0 ? 6 : date.getDay() - 1];
-    return `${date.getMonth() + 1}/${date.getDate()}（${dayLabel}） ${hour}:00–${hour + 1}:00`;
-  };
-
-  const formatSlotDateTime = (slot: Slot) => {
+  const formatSlotDateTime = (slot: TeacherSlot) => {
     const start = new Date(slot.startTime * 1000);
-    return formatDateTime(start, start.getHours());
+    const end = new Date(slot.endTime * 1000);
+    const labels = ['月', '火', '水', '木', '金', '土', '日'];
+    const dayLabel = labels[start.getDay() === 0 ? 6 : start.getDay() - 1];
+    return `${start.getMonth() + 1}/${start.getDate()}（${dayLabel}） ${start.getHours()}:00–${end.getHours()}:00`;
   };
 
   const formatRequestDateTime = (req: MeetingRequest) => {
@@ -191,9 +180,9 @@ export default function TeacherDashboard() {
   return (
     <main className="max-w-5xl mx-auto px-4 py-8 space-y-10">
 
-      {/* 週ビューカレンダー */}
+      {/* 先生の空き枠カレンダー */}
       <section>
-        <h2 className="text-lg font-bold text-gray-800 mb-4">今週の空き枠カレンダー</h2>
+        <h2 className="text-lg font-bold text-gray-800 mb-4">先生の空き枠カレンダー（今週）</h2>
         {loading && <p className="text-sm text-gray-400">読み込み中...</p>}
         {error && <p className="text-sm text-red-500">{error}</p>}
         {!loading && !error && (
@@ -223,13 +212,13 @@ export default function TeacherDashboard() {
                         {hour}:00
                       </td>
                       {weekDates.map((d) => {
-                        const slot = slots.find((s) => slotMatchesDayAndHour(s, d.date, hour));
+                        const slot = teacherSlots.find((s) => slotMatchesDayAndHour(s, d.date, hour));
                         return (
                           <td
                             key={d.dateStr}
-                            className="py-1 px-1 text-center border-r border-gray-100 last:border-r-0 h-10 cursor-pointer hover:bg-gray-50 transition-colors"
-                            onClick={() => handleCellClick(d.date, hour)}
-                            title={slot ? 'クリックして削除' : 'クリックして追加'}
+                            className={`py-1 px-1 text-center border-r border-gray-100 last:border-r-0 h-10 ${slot ? 'cursor-pointer hover:bg-green-50 transition-colors' : ''}`}
+                            onClick={() => slot && handleSlotClick(slot)}
+                            title={slot ? 'クリックしてリクエスト' : undefined}
                           >
                             {slot ? (
                               <span className="inline-block w-full rounded bg-green-100 text-green-800 text-xs font-medium px-1 py-1 leading-tight">
@@ -244,48 +233,42 @@ export default function TeacherDashboard() {
                 </tbody>
               </table>
             </div>
-            <p className="mt-2 text-xs text-gray-400">
-              空きセルをクリックして空き枠を追加、緑のセルをクリックして削除できます。
-            </p>
+            {teacherSlots.length === 0 && (
+              <p className="mt-2 text-xs text-gray-400">先生の空き枠がまだ登録されていません。</p>
+            )}
+            {teacherSlots.length > 0 && (
+              <p className="mt-2 text-xs text-gray-400">
+                空き枠をクリックして面談リクエストを送ることができます。
+              </p>
+            )}
           </>
         )}
       </section>
 
-      {/* 承認待ちリスト */}
+      {/* 自分の面談リクエスト一覧 */}
       <section>
-        <h2 className="text-lg font-bold text-gray-800 mb-4">承認待ちリスト</h2>
+        <h2 className="text-lg font-bold text-gray-800 mb-4">面談リクエスト一覧</h2>
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          {pendingRequests.length === 0 ? (
-            <p className="py-6 text-center text-sm text-gray-400">承認待ちのリクエストはありません</p>
+          {requests.length === 0 ? (
+            <p className="py-6 text-center text-sm text-gray-400">面談リクエストはありません</p>
           ) : (
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="py-3 px-4 text-left text-gray-600 font-semibold">学生名</th>
-                  <th className="py-3 px-4 text-left text-gray-600 font-semibold">希望日時</th>
-                  <th className="py-3 px-4 text-center text-gray-600 font-semibold">操作</th>
+                  <th className="py-3 px-4 text-left text-gray-600 font-semibold">先生名</th>
+                  <th className="py-3 px-4 text-left text-gray-600 font-semibold">日時</th>
+                  <th className="py-3 px-4 text-center text-gray-600 font-semibold">ステータス</th>
                 </tr>
               </thead>
               <tbody>
-                {pendingRequests.map((req) => (
+                {requests.map((req) => (
                   <tr key={req.id} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors">
-                    <td className="py-3 px-4 text-gray-800 font-medium">{req.studentName}</td>
+                    <td className="py-3 px-4 text-gray-800 font-medium">{req.teacherName}</td>
                     <td className="py-3 px-4 text-gray-600">{formatRequestDateTime(req)}</td>
                     <td className="py-3 px-4 text-center">
-                      <div className="flex gap-2 justify-center">
-                        <button
-                          type="button"
-                          className="bg-green-600 text-white text-xs font-semibold px-4 py-1.5 rounded-lg hover:bg-green-700 transition-colors"
-                        >
-                          承認
-                        </button>
-                        <button
-                          type="button"
-                          className="bg-red-500 text-white text-xs font-semibold px-4 py-1.5 rounded-lg hover:bg-red-600 transition-colors"
-                        >
-                          差し戻し
-                        </button>
-                      </div>
+                      <span className={`inline-block text-xs font-semibold px-3 py-1 rounded-full ${statusBadgeClass(req.status)}`}>
+                        {statusLabel(req.status)}
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -295,23 +278,23 @@ export default function TeacherDashboard() {
         </div>
       </section>
 
-      {/* 学生課題一覧 */}
+      {/* 自分の課題 */}
       <section>
-        <h2 className="text-lg font-bold text-gray-800 mb-4">学生課題一覧</h2>
+        <h2 className="text-lg font-bold text-gray-800 mb-4">自分の課題</h2>
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="py-3 px-4 text-left text-gray-600 font-semibold">学生名</th>
                 <th className="py-3 px-4 text-left text-gray-600 font-semibold">課題名</th>
+                <th className="py-3 px-4 text-left text-gray-600 font-semibold">期限</th>
                 <th className="py-3 px-4 text-center text-gray-600 font-semibold">ステータス</th>
               </tr>
             </thead>
             <tbody>
               {ASSIGNMENTS.map((a, i) => (
                 <tr key={i} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors">
-                  <td className="py-3 px-4 text-gray-800 font-medium">{a.student}</td>
-                  <td className="py-3 px-4 text-gray-600">{a.title}</td>
+                  <td className="py-3 px-4 text-gray-800 font-medium">{a.title}</td>
+                  <td className="py-3 px-4 text-gray-600">{a.deadline}</td>
                   <td className="py-3 px-4 text-center">
                     {a.status === '完了' ? (
                       <span className="inline-block bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 rounded-full">
@@ -330,15 +313,26 @@ export default function TeacherDashboard() {
         </div>
       </section>
 
-      {/* 追加ダイアログ */}
-      {dialog.type === 'add' && (
+      {/* チャット導線 */}
+      <section className="text-center pb-4">
+        <a
+          href="/chat"
+          className="inline-block bg-blue-600 text-white font-semibold px-8 py-3 rounded-lg shadow hover:bg-blue-700 transition-colors"
+        >
+          相談する（チャットへ）
+        </a>
+      </section>
+
+      {/* リクエストボタン表示ダイアログ */}
+      {dialog.type === 'request' && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl p-6 w-80 max-w-full">
-            <h3 className="text-base font-bold text-gray-800 mb-3">空き枠を追加</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              <span className="font-medium">{formatDateTime(dialog.date, dialog.hour)}</span>
-              <br />
-              この時間帯を空き枠として追加しますか？
+            <h3 className="text-base font-bold text-gray-800 mb-3">先生の空き枠</h3>
+            <p className="text-sm text-gray-600 mb-2">
+              <span className="font-medium">{formatSlotDateTime(dialog.slot)}</span>
+            </p>
+            <p className="text-sm text-gray-500 mb-4">
+              担当: {dialog.slot.teacherName}
             </p>
             <div className="flex gap-3 justify-end">
               <button
@@ -346,44 +340,50 @@ export default function TeacherDashboard() {
                 onClick={() => setDialog({ type: 'none' })}
                 className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                キャンセル
+                閉じる
               </button>
               <button
                 type="button"
-                onClick={handleAddSlot}
-                className="px-4 py-2 text-sm text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors font-semibold"
+                onClick={handleRequestClick}
+                className="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors font-semibold"
               >
-                追加
+                この枠でリクエストする
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* 削除ダイアログ */}
-      {dialog.type === 'delete' && (
+      {/* 送信確認ダイアログ */}
+      {dialog.type === 'confirm' && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl p-6 w-80 max-w-full">
-            <h3 className="text-base font-bold text-gray-800 mb-3">空き枠を削除</h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <h3 className="text-base font-bold text-gray-800 mb-3">面談リクエストの確認</h3>
+            <p className="text-sm text-gray-600 mb-1">
               <span className="font-medium">{formatSlotDateTime(dialog.slot)}</span>
-              <br />
-              この空き枠を削除しますか？
+            </p>
+            <p className="text-sm text-gray-500 mb-4">
+              担当: {dialog.slot.teacherName}
+            </p>
+            <p className="text-sm text-gray-700 mb-4">
+              この時間帯で面談リクエストを送信しますか？
             </p>
             <div className="flex gap-3 justify-end">
               <button
                 type="button"
                 onClick={() => setDialog({ type: 'none' })}
                 className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                disabled={submitting}
               >
                 キャンセル
               </button>
               <button
                 type="button"
-                onClick={handleDeleteSlot}
-                className="px-4 py-2 text-sm text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors font-semibold"
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors font-semibold disabled:opacity-50"
               >
-                削除
+                {submitting ? '送信中...' : '送信'}
               </button>
             </div>
           </div>
