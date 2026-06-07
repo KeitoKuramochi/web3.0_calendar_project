@@ -177,4 +177,118 @@ app.post('/auth/logout', (c) => {
   return c.json({ ok: true });
 });
 
+// POST /groups/create — 研究室作成（先生）
+app.post('/groups/create', async (c) => {
+  const token = getCookie(c, 'session');
+  if (!token) return c.json({ error: 'unauthorized' }, 401);
+
+  const payload = await verifySession(token, c.env.SESSION_SECRET);
+  if (!payload) return c.json({ error: 'unauthorized' }, 401);
+
+  const userId = payload.id as string;
+
+  const body = await c.req.json<{ name: string }>();
+  const name = body.name?.trim();
+  if (!name) return c.json({ error: 'name_required' }, 400);
+
+  const db = drizzle(c.env.DB, { schema });
+  const now = new Date();
+
+  const joinCode = Math.random().toString(36).slice(2, 10).toUpperCase();
+  const groupId = crypto.randomUUID();
+  const memberId = crypto.randomUUID();
+
+  await db.insert(schema.groups).values({
+    id: groupId,
+    name,
+    createdBy: userId,
+    joinCode,
+    createdAt: now,
+  });
+
+  await db.insert(schema.groupMembers).values({
+    id: memberId,
+    groupId,
+    userId,
+    role: 'teacher',
+    joinedAt: now,
+  });
+
+  await db
+    .update(schema.users)
+    .set({ role: 'teacher' })
+    .where(eq(schema.users.id, userId));
+
+  const newPayload: Record<string, unknown> = {
+    ...payload,
+    role: 'teacher',
+  };
+  const newToken = await signSession(newPayload, c.env.SESSION_SECRET);
+  setCookie(c, 'session', newToken, {
+    httpOnly: true,
+    path: '/',
+    maxAge: 60 * 60 * 24 * 7,
+    sameSite: 'Lax',
+  });
+
+  return c.json({ joinCode });
+});
+
+// POST /groups/join — 研究室参加（学生）
+app.post('/groups/join', async (c) => {
+  const token = getCookie(c, 'session');
+  if (!token) return c.json({ error: 'unauthorized' }, 401);
+
+  const payload = await verifySession(token, c.env.SESSION_SECRET);
+  if (!payload) return c.json({ error: 'unauthorized' }, 401);
+
+  const userId = payload.id as string;
+
+  const body = await c.req.json<{ joinCode: string }>();
+  const joinCode = body.joinCode?.trim().toUpperCase();
+  if (!joinCode) return c.json({ error: 'join_code_required' }, 400);
+
+  const db = drizzle(c.env.DB, { schema });
+  const now = new Date();
+
+  const found = await db
+    .select()
+    .from(schema.groups)
+    .where(eq(schema.groups.joinCode, joinCode));
+
+  if (found.length === 0) {
+    return c.json({ error: 'invalid_code' }, 404);
+  }
+
+  const group = found[0];
+  const memberId = crypto.randomUUID();
+
+  await db.insert(schema.groupMembers).values({
+    id: memberId,
+    groupId: group.id,
+    userId,
+    role: 'student',
+    joinedAt: now,
+  });
+
+  await db
+    .update(schema.users)
+    .set({ role: 'student' })
+    .where(eq(schema.users.id, userId));
+
+  const newPayload: Record<string, unknown> = {
+    ...payload,
+    role: 'student',
+  };
+  const newToken = await signSession(newPayload, c.env.SESSION_SECRET);
+  setCookie(c, 'session', newToken, {
+    httpOnly: true,
+    path: '/',
+    maxAge: 60 * 60 * 24 * 7,
+    sameSite: 'Lax',
+  });
+
+  return c.json({ ok: true });
+});
+
 export default app;
