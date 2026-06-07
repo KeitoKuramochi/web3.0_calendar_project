@@ -217,8 +217,15 @@
   - [ ] 代替日程を入力して「差し戻す」ボタンをクリックすると、学生ダッシュボードに代替案が表示され「選択待ち」ステータスになる
   - [ ] 学生が代替案を選択すると、先生ダッシュボードに再度「承認待ち」で表示される
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[ ]`
-- **commit**: —
+- **ステータス**: `[?]` 完了（Evaluator確認待ち）
+- **commit**: 47057a5
+- **自己評価**:
+  - meetingRequests スキーマに alt_start_time / alt_end_time カラムを追加し、status enum に waiting_student を追加。drizzle-kit generate で 0003_famous_pixie.sql 生成、wrangler d1 execute --local で適用完了。
+  - PATCH /meeting-requests/:id/approve（先生のみ、status='approved'に更新）・PATCH /meeting-requests/:id/reject（先生のみ、altStartTime/altEndTimeをbodyで受け取り、status='waiting_student'にしてalt日時を保存）・PATCH /meeting-requests/:id/select-alt（学生のみ、status='pending'に戻し、alt日時をnullにクリア）を index.ts に追加。
+  - GET /meeting-requests のレスポンスに alternativeStartTime / alternativeEndTime を追加。
+  - TeacherDashboard.tsx: MeetingRequest 型に waiting_student・alt日時フィールドを追加。RejectForm 型追加。handleApprove / handleShowRejectForm / handleRejectSubmit 関数追加。承認待ちリストに「承認」ボタン（handleApprove接続）と「差し戻し」ボタン（インラインフォーム表示）を実装。
+  - StudentDashboard.tsx: MeetingRequest 型に waiting_student・alt日時フィールドを追加。statusLabel/statusBadgeClass に 確定済み/選択待ち を追加。handleSelectAlt / formatAltDateTime 関数追加。waiting_student 時に代替案表示と「この日程で再リクエスト」ボタンを表示。
+  - npm run build 成功確認済み。
 - **Evaluator確認**: 未
 
 ---
