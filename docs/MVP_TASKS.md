@@ -123,7 +123,7 @@
   - [ ] Honoのルートから `db.select()` でusersテーブルを照会すると空配列が返る
   - [ ] `npm run build` がエラーなく完了する
 - **ステータス**: `[?]` 完了（Evaluator確認待ち）
-- **commit**: —（コミット後に更新）
+- **commit**: 0827900
 - **自己評価**: wrangler.tomlにD1バインディング追加。api/src/db/schema.tsに5テーブル（users・groups・groupMembers・chatLog・memory）定義。drizzle-kit generateでmigrations/0000_volatile_the_call.sql生成。wrangler d1 execute --localでローカルD1にテーブル作成（9 commands executed）。api/src/index.tsに/db-checkルート追加（drizzle select from users）。npm run build 通過確認済み（wrangler出力でenv.DB D1 Database確認）。
 - **Evaluator確認**: 未
 

@@ -22,7 +22,7 @@
 | TASK-004 | 先生ダッシュボード UI | [x] 合格 | 176d68c | Evaluator確認済み 2026-06-08 |
 | TASK-005 | 学生ダッシュボード UI | [x] 合格 | 7fbe7cb | Evaluator確認済み 2026-06-08 |
 | TASK-006 | チャット画面 UI | [x] 合格 | ca4864b | Evaluator確認済み 2026-06-08 |
-| TASK-007 | Cloudflare D1 + Drizzle ORM セットアップ | [?] Evaluator確認待ち | — | Generator実装完了 2026-06-08 |
+| TASK-007 | Cloudflare D1 + Drizzle ORM セットアップ | [?] Evaluator確認待ち | 0827900 | Generator実装完了 2026-06-08 |
 | TASK-008〜020 | Phase 2・3（残り） | [ ] 未着手 | — | — |
 
 ## 直近のアクティビティ
