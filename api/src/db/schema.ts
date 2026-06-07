@@ -39,3 +39,11 @@ export const memory = sqliteTable('memory', {
   data: text('data').notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 });
+
+export const slots = sqliteTable('slots', {
+  id: text('id').primaryKey(),
+  teacherId: text('teacher_id').notNull().references(() => users.id),
+  startTime: integer('start_time', { mode: 'timestamp' }).notNull(),
+  endTime: integer('end_time', { mode: 'timestamp' }).notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+});

@@ -8,6 +8,13 @@
       "when": 1780873207631,
       "tag": "0000_volatile_the_call",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1780874522752,
+      "tag": "0001_nifty_cyclops",
+      "breakpoints": true
     }
   ]
 }

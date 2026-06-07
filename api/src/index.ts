@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import * as schema from './db/schema';
 import { signSession, verifySession } from './auth';
 
+
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v2/userinfo';
@@ -287,6 +288,96 @@ app.post('/groups/join', async (c) => {
     maxAge: 60 * 60 * 24 * 7,
     sameSite: 'Lax',
   });
+
+  return c.json({ ok: true });
+});
+
+// GET /slots — 自分の空き枠一覧（認証必須）
+app.get('/slots', async (c) => {
+  const token = getCookie(c, 'session');
+  if (!token) return c.json({ error: 'unauthorized' }, 401);
+
+  const payload = await verifySession(token, c.env.SESSION_SECRET);
+  if (!payload) return c.json({ error: 'unauthorized' }, 401);
+
+  const userId = payload.id as string;
+  const db = drizzle(c.env.DB, { schema });
+
+  const result = await db
+    .select()
+    .from(schema.slots)
+    .where(eq(schema.slots.teacherId, userId));
+
+  // startTime/endTime はUnix秒で返す
+  const data = result.map((s) => ({
+    id: s.id,
+    teacherId: s.teacherId,
+    startTime: Math.floor(s.startTime.getTime() / 1000),
+    endTime: Math.floor(s.endTime.getTime() / 1000),
+    createdAt: Math.floor(s.createdAt.getTime() / 1000),
+  }));
+
+  return c.json(data);
+});
+
+// POST /slots — 空き枠追加（認証必須）
+app.post('/slots', async (c) => {
+  const token = getCookie(c, 'session');
+  if (!token) return c.json({ error: 'unauthorized' }, 401);
+
+  const payload = await verifySession(token, c.env.SESSION_SECRET);
+  if (!payload) return c.json({ error: 'unauthorized' }, 401);
+
+  const userId = payload.id as string;
+
+  const body = await c.req.json<{ startTime: number; endTime: number }>();
+  if (!body.startTime || !body.endTime) {
+    return c.json({ error: 'startTime and endTime required' }, 400);
+  }
+
+  const db = drizzle(c.env.DB, { schema });
+  const now = new Date();
+  const slotId = crypto.randomUUID();
+
+  await db.insert(schema.slots).values({
+    id: slotId,
+    teacherId: userId,
+    startTime: new Date(body.startTime * 1000),
+    endTime: new Date(body.endTime * 1000),
+    createdAt: now,
+  });
+
+  return c.json({ id: slotId, ok: true });
+});
+
+// DELETE /slots/:id — 空き枠削除（認証必須・自分のものだけ）
+app.delete('/slots/:id', async (c) => {
+  const token = getCookie(c, 'session');
+  if (!token) return c.json({ error: 'unauthorized' }, 401);
+
+  const payload = await verifySession(token, c.env.SESSION_SECRET);
+  if (!payload) return c.json({ error: 'unauthorized' }, 401);
+
+  const userId = payload.id as string;
+  const slotId = c.req.param('id');
+
+  const db = drizzle(c.env.DB, { schema });
+
+  // 自分のスロットか確認
+  const existing = await db
+    .select()
+    .from(schema.slots)
+    .where(eq(schema.slots.id, slotId));
+
+  if (existing.length === 0) {
+    return c.json({ error: 'not_found' }, 404);
+  }
+
+  if (existing[0].teacherId !== userId) {
+    return c.json({ error: 'forbidden' }, 403);
+  }
+
+  await db.delete(schema.slots).where(eq(schema.slots.id, slotId));
 
   return c.json({ ok: true });
 });
