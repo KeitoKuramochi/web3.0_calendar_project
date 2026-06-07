@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import AuthGuard from '../components/AuthGuard';
 
 // 今週の月曜〜日曜を計算（サーバーサイド）
 const today = new Date();
@@ -55,12 +56,15 @@ const assignments = [
     <!-- ヘッダー -->
     <header class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
       <h1 class="text-xl font-bold text-gray-900">先生ダッシュボード</h1>
-      <a
-        href="/chat"
-        class="bg-blue-600 text-white font-semibold px-5 py-2 rounded-lg shadow hover:bg-blue-700 transition-colors text-sm"
-      >
-        AIに話しかける
-      </a>
+      <div class="flex items-center gap-4">
+        <AuthGuard client:load />
+        <a
+          href="/chat"
+          class="bg-blue-600 text-white font-semibold px-5 py-2 rounded-lg shadow hover:bg-blue-700 transition-colors text-sm"
+        >
+          AIに話しかける
+        </a>
+      </div>
     </header>
 
     <main class="max-w-5xl mx-auto px-4 py-8 space-y-10">
