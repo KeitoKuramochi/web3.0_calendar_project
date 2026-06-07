@@ -22,9 +22,9 @@
   - [ ] `npm run dev:api` を実行するとWorkers（Hono）が `localhost:8787` で起動する
   - [ ] `localhost:4321` にアクセスするとAstroのデフォルトページまたは空のページが表示される
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[ ]`
-- **commit**: —
-- **Evaluator確認**: 未
+- **ステータス**: `[?]`
+- **commit**: c2289e5
+- **Evaluator確認**: 待ち
 
 ---
 
