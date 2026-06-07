@@ -1,0 +1,35 @@
+---
+import '../styles/global.css';
+---
+
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ロール選択 — 研究室ボット</title>
+  </head>
+  <body class="bg-gray-50 min-h-screen flex items-center justify-center">
+    <div class="max-w-lg w-full mx-auto px-6 py-16 text-center">
+      <div class="mb-10">
+        <h1 class="text-3xl font-bold text-gray-900 mb-3">ロール選択</h1>
+        <p class="text-base text-gray-500">
+          あなたの役割を選んでください。
+        </p>
+      </div>
+      <div class="flex flex-col gap-4">
+        <a
+          href="/teacher"
+          class="block bg-blue-600 text-white font-semibold px-8 py-4 rounded-lg shadow hover:bg-blue-700 transition-colors text-lg"
+        >
+          先生として始める
+        </a>
+        <a
+          href="/student"
+          class="block bg-green-600 text-white font-semibold px-8 py-4 rounded-lg shadow hover:bg-green-700 transition-colors text-lg"
+        >
+          学生として始める
+        </a>
+      </div>
+    </div>
+  </body>
+</html>
