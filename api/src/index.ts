@@ -36,6 +36,12 @@ const app = new Hono<{ Bindings: Bindings }>();
 
 app.get('/', (c) => c.json({ ok: true }));
 
+app.get('/debug-oauth', (c) => {
+  const origin = new URL(c.req.url).origin;
+  const redirectUri = c.env.REDIRECT_URI ?? `${origin}/auth/callback`;
+  return c.json({ origin, redirectUri, hasRedirectUriEnv: !!c.env.REDIRECT_URI });
+});
+
 app.get('/db-check', async (c) => {
   const db = drizzle(c.env.DB, { schema });
   const result = await db.select().from(schema.users);
