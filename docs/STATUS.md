@@ -2,7 +2,7 @@
 
 > GeneratorがTASK完了ごとに更新する。
 
-最終更新: 2026-06-08 09:55 (Generator)
+最終更新: 2026-06-08 10:00 (Generator)
 
 ## 全体進捗
 
@@ -30,11 +30,12 @@
 | TASK-012 | 面談リクエスト承認・差し戻しフロー | [?] Evaluator確認待ち | 47057a5 | Generator実装完了 2026-06-08 |
 | TASK-013 | 課題管理（割り当て・完了報告） | [x] 合格 | 9ac2b1a | Evaluator確認済み 2026-06-08 |
 | TASK-014 | Gemini Flash 2.0 チャット接続 | [?] Evaluator確認待ち | 485c041 | Generator実装完了 2026-06-08 |
-| TASK-015 | chatLog永久保存 + memory自動更新 | [?] Evaluator確認待ち | 7f4a078 | Generator実装完了 2026-06-08 |
+| TASK-015 | chatLog永久保存 + memory自動更新 | [?] Evaluator確認待ち | 0cc2d75 | Evaluator修正対応 2026-06-08 |
 | TASK-016〜020 | Phase 3（残り） | [ ] 未着手 | — | — |
 
 ## 直近のアクティビティ
 
+- 2026-06-08: TASK-015 修正対応（Evaluator不合格対応）。POST /chat でuserメッセージをGemini呼び出し前にchatLogへ先に保存するよう変更（Gemini失敗時でもuserログが残る）。POST /chat/end-session でGemini要約失敗時のフォールバック追加（chatLogテキスト2000文字をmemory.dataに保存し ok:true を返す）。npm run build 通過確認。commit: 0cc2d75
 - 2026-06-08: TASK-015 完了。POST /chat にchatLog保存（user/assistantペアINSERT）・memory参照（systemInstruction動的切り替え）を追加。GET /chat/history エンドポイント追加（直近20件古い順）。POST /chat/end-session エンドポイント追加（Gemini要約→memoryテーブルupsert）。Chat.tsx に履歴初期ロード・「会話を終了する」ボタン・保存完了通知を追加。npm run build 通過確認。commit: 7f4a078
 - 2026-06-08: TASK-014 完了。Bindings型にGEMINI_API_KEY追加。POST /chat エンドポイント追加（認証必須・Gemini 2.0 Flash fetch直呼び・systemInstruction付き）。Chat.tsx をエコーbotからAPI呼び出しに変更（会話履歴送信・ローディング表示・エラーハンドリング）。npm run build 通過確認。commit: 485c041
 - 2026-06-08: TASK-013 完了。assignmentsテーブル追加・drizzle-kit generate でマイグレーション生成・適用。GET/POST /assignments・PATCH /assignments/:id/done・GET /groups/members エンドポイント追加。TeacherDashboard.tsx に「課題を追加」ボタン・インラインフォーム・課題一覧（APIデータ）実装。StudentDashboard.tsx の「自分の課題」をAPIデータに切り替え・「完了報告」ボタン追加。ダミーデータ定数削除。npm run build 通過確認。commit: 9ac2b1a

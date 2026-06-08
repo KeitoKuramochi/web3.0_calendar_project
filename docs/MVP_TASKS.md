@@ -283,12 +283,14 @@
   - [ ] 次の会話開始時に、前回のmemoryの内容をGeminiが参照した発言（「前回は〜でしたね」など）をすることがある
   - [ ] `npm run build` がエラーなく完了する
 - **ステータス**: `[?]` 完了（Evaluator確認待ち）
-- **commit**: 7f4a078
+- **commit**: 0cc2d75
 - **自己評価**:
   - POST /chat に chatLog保存（user/assistantペアをINSERT）とmemoryRecord参照（systemInstruction差し替え）を追加。
   - GET /chat/history エンドポイントを追加（直近20件をDESC取得→reverse()で古い順に返す）。
   - POST /chat/end-session エンドポイントを追加（直近30件取得→Geminiで要約→memoryテーブルにonConflictDoUpdateでupsert）。
   - Chat.tsx: useEffect マウント時に GET /api/chat/history を呼び過去履歴を表示。「会話を終了する」ボタンを追加し POST /api/chat/end-session を呼び「会話履歴を保存しました」メッセージを表示。sessionEnded状態で入力を無効化。
+  - [修正] userメッセージをGemini呼び出し前にchatLogへ先に保存するよう変更。Gemini成功後にassistantの返答もchatLogに保存。
+  - [修正] POST /chat/end-session でGemini要約失敗時にフォールバックとしてchatLogテキスト（2000文字まで）をmemory.dataに保存し `{"ok":true}` を返すよう変更。
   - npm run build 成功確認済み（frontend + api 両方通過）。
 - **Evaluator確認**: 未
 
