@@ -9,7 +9,6 @@ import { signSession, verifySession } from './auth';
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v2/userinfo';
-const REDIRECT_URI = 'http://localhost:4321/api/auth/callback';
 
 type Bindings = {
   DB: D1Database;
@@ -20,6 +19,8 @@ type Bindings = {
   RESEND_API_KEY?: string;
   AI?: Ai;
   VECTORIZE_INDEX?: VectorizeIndex;
+  REDIRECT_URI?: string;
+  FRONTEND_URL?: string;
 };
 
 type SessionUser = {
@@ -43,9 +44,10 @@ app.get('/db-check', async (c) => {
 
 // GET /auth/login → Google OAuth にリダイレクト
 app.get('/auth/login', (c) => {
+  const redirectUri = c.env.REDIRECT_URI ?? 'http://localhost:4321/api/auth/callback';
   const params = new URLSearchParams({
     client_id: c.env.GOOGLE_CLIENT_ID,
-    redirect_uri: REDIRECT_URI,
+    redirect_uri: redirectUri,
     response_type: 'code',
     scope: 'openid email profile',
     access_type: 'offline',
@@ -66,7 +68,7 @@ app.get('/auth/callback', async (c) => {
       code,
       client_id: c.env.GOOGLE_CLIENT_ID,
       client_secret: c.env.GOOGLE_CLIENT_SECRET,
-      redirect_uri: REDIRECT_URI,
+      redirect_uri: c.env.REDIRECT_URI ?? 'http://localhost:4321/api/auth/callback',
       grant_type: 'authorization_code',
     }),
   });
@@ -143,12 +145,13 @@ app.get('/auth/callback', async (c) => {
   });
 
   // ロールに応じてリダイレクト
+  const frontendUrl = c.env.FRONTEND_URL ?? '';
   if (userRole === 'teacher') {
-    return c.redirect('/teacher');
+    return c.redirect(`${frontendUrl}/teacher`);
   } else if (userRole === 'student') {
-    return c.redirect('/student');
+    return c.redirect(`${frontendUrl}/student`);
   } else {
-    return c.redirect('/onboarding');
+    return c.redirect(`${frontendUrl}/onboarding`);
   }
 });
 
