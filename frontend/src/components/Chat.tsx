@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 
-type MessageRole = 'user' | 'bot';
+type MessageRole = 'user' | 'model';
 
 interface Message {
   id: number;
@@ -12,17 +12,17 @@ interface Message {
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
-  const [isBotTyping, setIsBotTyping] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isBotTyping]);
+  }, [messages, isLoading]);
 
-  function handleSend() {
+  async function handleSend() {
     const text = inputText.trim();
-    if (!text) return;
+    if (!text || isLoading) return;
 
     const userMessage: Message = {
       id: Date.now(),
@@ -31,25 +31,50 @@ export default function Chat() {
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const nextMessages = [...messages, userMessage];
+    setMessages(nextMessages);
     setInputText('');
-    setIsBotTyping(true);
+    setIsLoading(true);
 
-    setTimeout(() => {
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: nextMessages.map((m) => ({
+            role: m.role,
+            content: m.text,
+          })),
+        }),
+      });
+
+      const data = await res.json<{ reply?: string; error?: string }>();
+      const replyText = data.reply ?? '返答を取得できませんでした';
+
       const botMessage: Message = {
         id: Date.now() + 1,
-        role: 'bot',
-        text,
+        role: 'model',
+        text: replyText,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, botMessage]);
-      setIsBotTyping(false);
-    }, 1000);
+    } catch {
+      const errorMessage: Message = {
+        id: Date.now() + 1,
+        role: 'model',
+        text: '通信エラーが発生しました。再度お試しください。',
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-      handleSend();
+      void handleSend();
     }
   }
 
@@ -78,7 +103,7 @@ export default function Chat() {
 
       {/* メッセージ一覧 */}
       <main className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
-        {messages.length === 0 && !isBotTyping && (
+        {messages.length === 0 && !isLoading && (
           <div className="text-center text-gray-400 text-sm mt-12">
             <p className="text-2xl mb-2">💬</p>
             <p>AIボットにメッセージを送ってみましょう</p>
@@ -113,14 +138,14 @@ export default function Chat() {
           )
         )}
 
-        {/* タイピングインジケーター */}
-        {isBotTyping && (
+        {/* ローディングインジケーター（送信中） */}
+        {isLoading && (
           <div className="flex items-end gap-2">
             <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mb-0.5">
               AI
             </div>
             <div>
-              <p className="text-xs text-gray-500 mb-1 ml-1">AIボット</p>
+              <p className="text-xs text-gray-500 mb-1 ml-1">AIボットが入力中...</p>
               <div className="bg-white px-4 py-3 rounded-2xl rounded-bl-sm shadow-sm border border-gray-100 flex gap-1 items-center">
                 <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                 <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -146,8 +171,8 @@ export default function Chat() {
         />
         <button
           type="button"
-          onClick={handleSend}
-          disabled={!inputText.trim() || isBotTyping}
+          onClick={() => void handleSend()}
+          disabled={!inputText.trim() || isLoading}
           className="bg-blue-600 text-white font-semibold px-5 py-2.5 rounded-xl text-sm shadow hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
         >
           送信

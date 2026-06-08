@@ -16,6 +16,7 @@ type Bindings = {
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
   SESSION_SECRET: string;
+  GEMINI_API_KEY: string;
 };
 
 type SessionUser = {
@@ -871,6 +872,67 @@ app.patch('/assignments/:id/done', async (c) => {
     .where(eq(schema.assignments.id, assignmentId));
 
   return c.json({ ok: true });
+});
+
+// POST /chat — Gemini Flash 2.0 チャット（認証必須）
+app.post('/chat', async (c) => {
+  const token = getCookie(c, 'session');
+  if (!token) return c.json({ error: 'unauthorized' }, 401);
+
+  const payload = await verifySession(token, c.env.SESSION_SECRET);
+  if (!payload) return c.json({ error: 'unauthorized' }, 401);
+
+  const body = await c.req.json<{
+    messages: { role: 'user' | 'model'; content: string }[];
+  }>();
+
+  if (!body.messages || body.messages.length === 0) {
+    return c.json({ error: 'messages required' }, 400);
+  }
+
+  const apiKey = c.env.GEMINI_API_KEY;
+  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+  const geminiBody = {
+    contents: body.messages.map((m) => ({
+      role: m.role,
+      parts: [{ text: m.content }],
+    })),
+    systemInstruction: {
+      parts: [
+        {
+          text: '研究室の進捗管理ボットです。先生と学生のコミュニケーションをサポートします。日本語で簡潔に回答してください。',
+        },
+      ],
+    },
+    generationConfig: {
+      maxOutputTokens: 1024,
+      temperature: 0.7,
+    },
+  };
+
+  const res = await fetch(GEMINI_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(geminiBody),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error('Gemini API error:', errText);
+    return c.json({ error: 'gemini_api_error' }, 500);
+  }
+
+  const data = await res.json<{
+    candidates?: {
+      content?: { parts?: { text?: string }[] };
+    }[];
+  }>();
+
+  const reply =
+    data.candidates?.[0]?.content?.parts?.[0]?.text ?? '返答を取得できませんでした';
+
+  return c.json({ reply });
 });
 
 // DELETE /slots/:id — 空き枠削除（認証必須・自分のものだけ）
