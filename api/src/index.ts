@@ -17,6 +17,7 @@ type Bindings = {
   GOOGLE_CLIENT_SECRET: string;
   SESSION_SECRET: string;
   GEMINI_API_KEY: string;
+  RESEND_API_KEY?: string;
 };
 
 type SessionUser = {
@@ -1276,4 +1277,126 @@ app.delete('/slots/:id', async (c) => {
   return c.json({ ok: true });
 });
 
-export default app;
+export default {
+  fetch: app.fetch,
+  async scheduled(
+    _event: ScheduledEvent,
+    env: Bindings,
+    ctx: ExecutionContext,
+  ) {
+    ctx.waitUntil(runDailyReminder(env));
+  },
+};
+
+async function runDailyReminder(env: Bindings): Promise<void> {
+  const db = drizzle(env.DB, { schema });
+
+  // 翌日の範囲を計算（UTC基準）
+  const now = new Date();
+  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const tomorrowStart = new Date(
+    Date.UTC(
+      tomorrow.getUTCFullYear(),
+      tomorrow.getUTCMonth(),
+      tomorrow.getUTCDate(),
+      0,
+      0,
+      0,
+    ),
+  );
+  const tomorrowEnd = new Date(
+    Date.UTC(
+      tomorrow.getUTCFullYear(),
+      tomorrow.getUTCMonth(),
+      tomorrow.getUTCDate(),
+      23,
+      59,
+      59,
+    ),
+  );
+
+  // status='approved' の面談リクエストを全件取得
+  const meetings = await db
+    .select()
+    .from(schema.meetingRequests)
+    .where(eq(schema.meetingRequests.status, 'approved'));
+
+  for (const meeting of meetings) {
+    const slotRows = await db
+      .select()
+      .from(schema.slots)
+      .where(eq(schema.slots.id, meeting.slotId));
+
+    const slot = slotRows[0];
+    if (!slot) continue;
+
+    const slotDate = slot.startTime;
+    if (slotDate < tomorrowStart || slotDate > tomorrowEnd) continue;
+
+    // ユーザー情報取得
+    const studentRows = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.id, meeting.studentId));
+
+    const teacherRows = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.id, meeting.teacherId));
+
+    const student = studentRows[0];
+    const teacher = teacherRows[0];
+
+    if (!student || !teacher) continue;
+
+    const dateStr = slotDate.toLocaleString('ja-JP', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const subject = `【面談リマインド】明日 ${dateStr} に面談があります`;
+    const bodyForStudent = `${student.name} さん、\n\n明日 ${dateStr} に ${teacher.name} 先生との面談があります。`;
+    const bodyForTeacher = `${teacher.name} 先生、\n\n明日 ${dateStr} に ${student.name} さんとの面談があります。`;
+
+    await sendReminder(env, student.email, subject, bodyForStudent);
+    await sendReminder(env, teacher.email, subject, bodyForTeacher);
+  }
+}
+
+async function sendReminder(
+  env: Bindings,
+  to: string,
+  subject: string,
+  body: string,
+): Promise<void> {
+  console.log(`[リマインド] 送信先: ${to} | 件名: ${subject}`);
+
+  if (!env.RESEND_API_KEY) {
+    console.log('[リマインド] メール送信スキップ: RESEND_API_KEY が未設定');
+    return;
+  }
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: 'noreply@example.com',
+      to,
+      subject,
+      text: body,
+    }),
+  });
+
+  if (!res.ok) {
+    console.error(`[リマインド] メール送信失敗: ${res.status}`);
+  } else {
+    console.log(`[リマインド] メール送信成功: ${to}`);
+  }
+}
