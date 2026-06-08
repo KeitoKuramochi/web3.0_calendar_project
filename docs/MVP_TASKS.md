@@ -240,7 +240,7 @@
   - [ ] 学生が「完了報告」ボタンをクリックすると課題のステータスが「完了」に変わる
   - [ ] 先生ダッシュボードでも同じ課題のステータスが「完了」に変わっている
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[?]` 完了（Evaluator確認待ち）
+- **ステータス**: `[x]`
 - **commit**: 9ac2b1a
 - **自己評価**:
   - assignments テーブルをスキーマに追加（groupId/studentId/teacherId/title/dueDate/status/createdAt）。drizzle-kit generate で 0004_melodic_spirit.sql 生成、wrangler d1 execute --local で適用完了。
@@ -248,7 +248,7 @@
   - TeacherDashboard.tsx: Assignment/GroupMember 型追加。AssignmentForm 型追加。fetchAssignments/fetchGroupMembers 関数追加。handleAssignmentSubmit/formatDueDate 関数追加。「課題を追加」ボタンとインラインフォーム（対象学生selectbox/課題名input/期限input）を実装。課題一覧をAPIデータで表示。ASSIGNMENTS ダミーデータ定数を削除。
   - StudentDashboard.tsx: Assignment 型追加。fetchAssignments 関数追加。handleMarkDone/formatDueDate 関数追加。「自分の課題」セクションをAPIデータに切り替え。未完了課題に「完了報告」ボタンを追加。ASSIGNMENTS ダミーデータ定数を削除。
   - npm run build 成功確認済み。
-- **Evaluator確認**: 未
+- **Evaluator確認**: 合格 (2026-06-08)
 
 ---
 
@@ -262,8 +262,13 @@
   - [ ] 返答がストリーミング（文字が順番に表示される）で描画される、またはローディング後に一括表示される
   - [ ] 「こんにちは」「進捗を報告したい」などの一般的な入力に対してGeminiが文脈に沿った返答をする
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[ ]`
-- **commit**: —
+- **ステータス**: `[?]` 完了（Evaluator確認待ち）
+- **commit**: 485c041
+- **自己評価**:
+  - Bindings 型に `GEMINI_API_KEY: string` を追加。
+  - `POST /chat` エンドポイントを api/src/index.ts に追加（認証必須・Gemini 2.0 Flash をfetchで直呼び・systemInstruction付き・エラー時500返却）。
+  - Chat.tsx のエコーbot（setTimeout）を削除し、`POST /api/chat` を呼ぶ非同期処理に変更。会話履歴を `{ role: 'user'|'model', content }` 配列でAPIに送信。ローディング中は「AIボットが入力中...」バウンスアニメーションを表示。通信エラー時はエラーメッセージをbot吹き出しで表示。credentials: 'include' 設定済み。`any` 未使用、TypeScript strict対応。
+  - npm run build 成功確認済み（frontend + api 両方通過）。
 - **Evaluator確認**: 未
 
 ---
