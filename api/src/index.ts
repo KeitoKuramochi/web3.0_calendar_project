@@ -1128,24 +1128,24 @@ app.post('/chat', async (c) => {
 
 今週の日付（月〜日）: 月曜${mon}, 火曜${tue}, 水曜${wed}, 木曜${thu}, 金曜${fri}, 土曜${sat}, 日曜${sun}
 
-【重要】ユーザーが空き枠の追加を求めたら、必ず返答の最初の行にJSONを出力してください。
-複数日の場合は1行に1つのJSONを出力してください。
+【空き枠登録の手順】
+ステップ1: 先生が「○曜日が空いてる」と言ったら、時間を聞く → 「何時から何時まで空いていますか？」
+ステップ2: 先生が時間を答えたら（例：「9時から12時」）、各日のJSONを1行ずつ出力する
 
-空き枠追加の例（月曜と火曜が空いている場合）:
-{"action":"add_slot","startTime":"${mon}T09:00","endTime":"${mon}T17:00"}
-{"action":"add_slot","startTime":"${tue}T09:00","endTime":"${tue}T17:00"}
-月曜日と火曜日の空き枠を登録しました。
+【JSONの形式】（時間が確定したときだけ出力する）
+{"action":"add_slot","startTime":"YYYY-MM-DDTHH:mm","endTime":"YYYY-MM-DDTHH:mm"}
 
-空き枠削除の例:
-{"action":"delete_slot","date":"${mon}","startHour":9}
-月曜日9時の空き枠を削除しました。
+例：先生が月曜と火曜、9時〜12時を伝えたとき:
+{"action":"add_slot","startTime":"${mon}T09:00","endTime":"${mon}T12:00"}
+{"action":"add_slot","startTime":"${tue}T09:00","endTime":"${tue}T12:00"}
+月曜と火曜の9〜12時を登録しました！
 
 【ルール】
-- 「月曜」「来週の火曜」など曜日で言われたら今週の日付を使ってJSONを出力すること
-- 時間が指定されない場合は09:00〜17:00を使うこと
+- 時間が不明なときはJSONを出力せず必ず時間を聞くこと
+- 複数日の場合はJSON行を複数出力すること（1日1行）
+- 空き枠削除: {"action":"delete_slot","date":"YYYY-MM-DD","startHour":数字}
 - 自動承認設定: {"action":"set_auto_rule","studentName":"名前"}
-- 通常会話（質問・雑談）にはJSONを出力しないこと
-- JSONの後に必ず日本語の返答を書くこと`;
+- 通常会話にはJSONを出力しないこと`;
   }
 
   // 学生ロールの場合: 相談分岐のsystemInstructionを追加
@@ -1239,66 +1239,77 @@ app.post('/chat', async (c) => {
     return c.json({ error: 'ai_not_configured' }, 500);
   }
 
-  // 先生ロールの場合: 返答の先頭からJSONアクションをパースして空き枠操作を実行
+  // 先生ロールの場合: 返答の全行からJSONアクションをパースして空き枠操作を実行
   let actionName: string | null = null;
   let displayReply = rawReply;
 
   if (userRole === 'teacher') {
-    const lines = rawReply.split('\n');
-    const firstLine = lines[0].trim();
-
     type SlotAction =
       | { action: 'add_slot'; startTime: string; endTime: string }
       | { action: 'delete_slot'; date: string; startHour: number }
       | { action: 'set_auto_rule'; studentName: string };
 
-    let parsedAction: SlotAction | null = null;
-    try {
-      const parsed = JSON.parse(firstLine) as SlotAction;
-      if (
-        parsed.action === 'add_slot' ||
-        parsed.action === 'delete_slot' ||
-        parsed.action === 'set_auto_rule'
-      ) {
-        parsedAction = parsed;
+    const lines = rawReply.split('\n');
+    const jsonLines: number[] = [];
+    const parsedActions: SlotAction[] = [];
+
+    // 全行をスキャンしてJSONを抽出
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line.startsWith('{')) continue;
+      try {
+        const parsed = JSON.parse(line) as SlotAction;
+        if (
+          parsed.action === 'add_slot' ||
+          parsed.action === 'delete_slot' ||
+          parsed.action === 'set_auto_rule'
+        ) {
+          parsedActions.push(parsed);
+          jsonLines.push(i);
+        }
+      } catch {
+        // JSONでなければスキップ
       }
-    } catch {
-      // JSONでなければスキップ
     }
 
-    if (parsedAction !== null) {
-      displayReply = lines.slice(1).join('\n').trim();
-      actionName = parsedAction.action;
+    // JSONが見つかった場合: JSON行を除いたテキストを表示用に使う
+    if (parsedActions.length > 0) {
+      displayReply = lines
+        .filter((_, i) => !jsonLines.includes(i))
+        .join('\n')
+        .trim();
+      actionName = parsedActions[0].action;
 
-      if (parsedAction.action === 'add_slot') {
-        const start = new Date(parsedAction.startTime);
-        const end = new Date(parsedAction.endTime);
-        if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-          await db.insert(schema.slots).values({
-            id: crypto.randomUUID(),
-            teacherId: userId,
-            startTime: start,
-            endTime: end,
-            createdAt: new Date(),
+      for (const parsedAction of parsedActions) {
+        if (parsedAction.action === 'add_slot') {
+          const start = new Date(parsedAction.startTime);
+          const end = new Date(parsedAction.endTime);
+          if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+            await db.insert(schema.slots).values({
+              id: crypto.randomUUID(),
+              teacherId: userId,
+              startTime: start,
+              endTime: end,
+              createdAt: new Date(),
+            });
+          }
+        } else if (parsedAction.action === 'delete_slot') {
+          const targetDate = new Date(parsedAction.date);
+          const existingSlots = await db
+            .select()
+            .from(schema.slots)
+            .where(eq(schema.slots.teacherId, userId));
+          const toDelete = existingSlots.filter((s) => {
+            const d = new Date(s.startTime.getTime());
+            return (
+              d.toDateString() === targetDate.toDateString() &&
+              d.getHours() === parsedAction.startHour
+            );
           });
-        }
-      } else if (parsedAction.action === 'delete_slot') {
-        const targetDate = new Date(parsedAction.date);
-        const existingSlots = await db
-          .select()
-          .from(schema.slots)
-          .where(eq(schema.slots.teacherId, userId));
-        const toDelete = existingSlots.filter((s) => {
-          const d = new Date(s.startTime.getTime());
-          return (
-            d.toDateString() === targetDate.toDateString() &&
-            d.getHours() === (parsedAction as { action: 'delete_slot'; date: string; startHour: number }).startHour
-          );
-        });
-        for (const s of toDelete) {
-          await db.delete(schema.slots).where(eq(schema.slots.id, s.id));
-        }
-      } else if (parsedAction.action === 'set_auto_rule') {
+          for (const s of toDelete) {
+            await db.delete(schema.slots).where(eq(schema.slots.id, s.id));
+          }
+        } else if (parsedAction.action === 'set_auto_rule') {
         // 先生のmemoryのauto_rulesに学生名を追加
         try {
           const teacherMemory = await db
@@ -1339,6 +1350,7 @@ app.post('/chat', async (c) => {
         } catch (e) {
           console.error('set_auto_rule memory update error:', e);
           // エラー時はスキップ
+        }
         }
       }
     }
