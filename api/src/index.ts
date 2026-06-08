@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { drizzle } from 'drizzle-orm/d1';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, desc } from 'drizzle-orm';
 import * as schema from './db/schema';
 import { signSession, verifySession } from './auth';
 
@@ -882,6 +882,8 @@ app.post('/chat', async (c) => {
   const payload = await verifySession(token, c.env.SESSION_SECRET);
   if (!payload) return c.json({ error: 'unauthorized' }, 401);
 
+  const userId = payload.id as string;
+
   const body = await c.req.json<{
     messages: { role: 'user' | 'model'; content: string }[];
   }>();
@@ -889,6 +891,19 @@ app.post('/chat', async (c) => {
   if (!body.messages || body.messages.length === 0) {
     return c.json({ error: 'messages required' }, 400);
   }
+
+  const db = drizzle(c.env.DB, { schema });
+
+  // memoryテーブルからユーザーのmemoryを取得
+  const memoryRecord = await db
+    .select()
+    .from(schema.memory)
+    .where(eq(schema.memory.userId, userId))
+    .get();
+
+  const systemText = memoryRecord
+    ? `研究室の進捗管理ボットです。以下はこのユーザーについての記録です:\n${memoryRecord.data}\n\n日本語で簡潔に回答してください。`
+    : '研究室の進捗管理ボットです。先生と学生のコミュニケーションをサポートします。日本語で簡潔に回答してください。';
 
   const apiKey = c.env.GEMINI_API_KEY;
   const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
@@ -899,11 +914,7 @@ app.post('/chat', async (c) => {
       parts: [{ text: m.content }],
     })),
     systemInstruction: {
-      parts: [
-        {
-          text: '研究室の進捗管理ボットです。先生と学生のコミュニケーションをサポートします。日本語で簡潔に回答してください。',
-        },
-      ],
+      parts: [{ text: systemText }],
     },
     generationConfig: {
       maxOutputTokens: 1024,
@@ -932,7 +943,158 @@ app.post('/chat', async (c) => {
   const reply =
     data.candidates?.[0]?.content?.parts?.[0]?.text ?? '返答を取得できませんでした';
 
+  // ユーザーメッセージとアシスタントの返答をchatLogに保存
+  const lastUserMessage = body.messages[body.messages.length - 1];
+  if (lastUserMessage && lastUserMessage.role === 'user') {
+    const now = new Date();
+    await db.insert(schema.chatLog).values([
+      {
+        id: crypto.randomUUID(),
+        userId,
+        role: 'user',
+        content: lastUserMessage.content,
+        createdAt: now,
+      },
+      {
+        id: crypto.randomUUID(),
+        userId,
+        role: 'assistant',
+        content: reply,
+        createdAt: new Date(now.getTime() + 1),
+      },
+    ]);
+  }
+
   return c.json({ reply });
+});
+
+// GET /chat/history — 直近20件の会話履歴（認証必須）
+app.get('/chat/history', async (c) => {
+  const token = getCookie(c, 'session');
+  if (!token) return c.json({ error: 'unauthorized' }, 401);
+
+  const payload = await verifySession(token, c.env.SESSION_SECRET);
+  if (!payload) return c.json({ error: 'unauthorized' }, 401);
+
+  const userId = payload.id as string;
+  const db = drizzle(c.env.DB, { schema });
+
+  const rows = await db
+    .select()
+    .from(schema.chatLog)
+    .where(eq(schema.chatLog.userId, userId))
+    .orderBy(desc(schema.chatLog.createdAt))
+    .limit(20);
+
+  // 古い順に並び替えて返す
+  const history = rows.reverse().map((r) => ({
+    id: r.id,
+    role: r.role,
+    content: r.content,
+    createdAt: Math.floor(r.createdAt.getTime() / 1000),
+  }));
+
+  return c.json(history);
+});
+
+// POST /chat/end-session — 会話終了・memory更新（認証必須）
+app.post('/chat/end-session', async (c) => {
+  const token = getCookie(c, 'session');
+  if (!token) return c.json({ error: 'unauthorized' }, 401);
+
+  const payload = await verifySession(token, c.env.SESSION_SECRET);
+  if (!payload) return c.json({ error: 'unauthorized' }, 401);
+
+  const userId = payload.id as string;
+  const db = drizzle(c.env.DB, { schema });
+
+  // chatLogから直近30件を取得
+  const rows = await db
+    .select()
+    .from(schema.chatLog)
+    .where(eq(schema.chatLog.userId, userId))
+    .orderBy(desc(schema.chatLog.createdAt))
+    .limit(30);
+
+  if (rows.length === 0) {
+    return c.json({ ok: true });
+  }
+
+  const historyText = rows
+    .reverse()
+    .map((r) => `${r.role === 'user' ? 'ユーザー' : 'アシスタント'}: ${r.content}`)
+    .join('\n');
+
+  const apiKey = c.env.GEMINI_API_KEY;
+  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+  const summaryBody = {
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          {
+            text: `以下の会話履歴を要約してください。ユーザーの特徴・相談パターン・重要事項をJSON形式のテキストで返してください。\n\n会話履歴:\n${historyText}`,
+          },
+        ],
+      },
+    ],
+    systemInstruction: {
+      parts: [
+        {
+          text: '会話履歴を分析してユーザーの特徴をJSONで要約するアシスタントです。',
+        },
+      ],
+    },
+    generationConfig: {
+      maxOutputTokens: 512,
+      temperature: 0.3,
+    },
+  };
+
+  const summaryRes = await fetch(GEMINI_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(summaryBody),
+  });
+
+  if (!summaryRes.ok) {
+    return c.json({ error: 'summary_failed' }, 500);
+  }
+
+  const summaryData = await summaryRes.json<{
+    candidates?: {
+      content?: { parts?: { text?: string }[] };
+    }[];
+  }>();
+
+  const summaryText =
+    summaryData.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+
+  if (!summaryText) {
+    return c.json({ ok: true });
+  }
+
+  const now = new Date();
+
+  // memoryテーブルにupsert（userId唯一）
+  await db
+    .insert(schema.memory)
+    .values({
+      id: crypto.randomUUID(),
+      userId,
+      data: summaryText,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: schema.memory.userId,
+      set: {
+        data: summaryText,
+        updatedAt: now,
+      },
+    });
+
+  return c.json({ ok: true });
 });
 
 // DELETE /slots/:id — 空き枠削除（認証必須・自分のものだけ）

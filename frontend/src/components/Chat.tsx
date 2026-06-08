@@ -13,8 +13,34 @@ export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isEnding, setIsEnding] = useState(false);
+  const [sessionEnded, setSessionEnded] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // マウント時に過去の会話履歴を取得
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch('/api/chat/history', {
+          credentials: 'include',
+        });
+        if (!res.ok) return;
+        const history = await res.json<
+          { id: string; role: 'user' | 'assistant'; content: string; createdAt: number }[]
+        >();
+        const loaded: Message[] = history.map((h, i) => ({
+          id: i,
+          role: h.role === 'assistant' ? 'model' : 'user',
+          text: h.content,
+          timestamp: new Date(h.createdAt * 1000),
+        }));
+        setMessages(loaded);
+      } catch {
+        // 履歴取得失敗は無視して空状態で開始
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -22,7 +48,7 @@ export default function Chat() {
 
   async function handleSend() {
     const text = inputText.trim();
-    if (!text || isLoading) return;
+    if (!text || isLoading || sessionEnded) return;
 
     const userMessage: Message = {
       id: Date.now(),
@@ -72,6 +98,29 @@ export default function Chat() {
     }
   }
 
+  async function handleEndSession() {
+    if (isEnding || sessionEnded) return;
+    setIsEnding(true);
+    try {
+      await fetch('/api/chat/end-session', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      setSessionEnded(true);
+      const notice: Message = {
+        id: Date.now() + 2,
+        role: 'model',
+        text: '会話履歴を保存しました。次回の会話でも内容を参照できます。',
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, notice]);
+    } catch {
+      // 失敗しても画面を壊さない
+    } finally {
+      setIsEnding(false);
+    }
+  }
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
       void handleSend();
@@ -93,12 +142,22 @@ export default function Chat() {
           <p className="font-semibold text-gray-900 text-sm leading-tight">AIボット</p>
           <p className="text-xs text-gray-400 leading-tight">研究室アシスタント</p>
         </div>
-        <a
-          href="/student"
-          className="ml-auto text-sm text-gray-500 hover:text-gray-700 transition-colors"
-        >
-          ← ダッシュボードへ
-        </a>
+        <div className="ml-auto flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => void handleEndSession()}
+            disabled={isEnding || sessionEnded}
+            className="text-sm text-gray-500 hover:text-red-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {sessionEnded ? '保存済み' : isEnding ? '保存中...' : '会話を終了する'}
+          </button>
+          <a
+            href="/student"
+            className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            ← ダッシュボードへ
+          </a>
+        </div>
       </header>
 
       {/* メッセージ一覧 */}
@@ -166,13 +225,14 @@ export default function Chat() {
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="メッセージを入力..."
-          className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
+          disabled={sessionEnded}
+          placeholder={sessionEnded ? '会話が終了しました' : 'メッセージを入力...'}
+          className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition disabled:bg-gray-100 disabled:cursor-not-allowed"
         />
         <button
           type="button"
           onClick={() => void handleSend()}
-          disabled={!inputText.trim() || isLoading}
+          disabled={!inputText.trim() || isLoading || sessionEnded}
           className="bg-blue-600 text-white font-semibold px-5 py-2.5 rounded-xl text-sm shadow hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
         >
           送信
