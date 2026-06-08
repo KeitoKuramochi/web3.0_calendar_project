@@ -1097,15 +1097,17 @@ app.post('/chat', async (c) => {
 
   // 先生の場合: ラボの学生・課題・面談状況を取得してチャットコンテキストに追加
   let labContextText = '';
+  let labStudents: { id: string; name: string }[] = [];
+  let teacherGroupId = '';
   if (userRole === 'teacher') {
     const teacherGroups = await db
       .select()
       .from(schema.groupMembers)
       .where(eq(schema.groupMembers.userId, userId));
     const groupIds = teacherGroups.map((g) => g.groupId);
+    if (groupIds.length > 0) teacherGroupId = groupIds[0];
 
     if (groupIds.length > 0) {
-      // 学生一覧
       const studentMembers = await db
         .select()
         .from(schema.groupMembers)
@@ -1116,20 +1118,18 @@ app.post('/chat', async (c) => {
       const studentIds = studentMembers.map((s) => s.userId);
 
       if (studentIds.length > 0) {
-        // 学生名を取得
         const studentUsers = await db
           .select()
           .from(schema.users)
           .where(inArray(schema.users.id, studentIds));
         const studentNameMap = new Map(studentUsers.map((u) => [u.id, u.name ?? u.email]));
+        labStudents = studentUsers.map((u) => ({ id: u.id, name: u.name ?? u.email ?? '' }));
 
-        // 課題一覧（先生が作成したもの）
-        const assignments = await db
+        const chatAssignments = await db
           .select()
           .from(schema.assignments)
           .where(eq(schema.assignments.teacherId, userId));
 
-        // 面談リクエスト（直近30件）
         const meetingReqs = await db
           .select()
           .from(schema.meetingRequests)
@@ -1137,47 +1137,37 @@ app.post('/chat', async (c) => {
           .orderBy(desc(schema.meetingRequests.createdAt))
           .limit(30);
 
-        // 学生メモリ
         const studentMemories = await db
           .select()
           .from(schema.memory)
           .where(inArray(schema.memory.userId, studentIds));
         const memoryMap = new Map(studentMemories.map((m) => [m.userId, m.data]));
 
-        // 学生ごとにサマリーを作る
         const studentSummaries = studentIds.map((sid) => {
           const name = studentNameMap.get(sid) ?? sid;
-          const myAssignments = assignments.filter((a) => a.studentId === sid);
+          const myAssignments = chatAssignments.filter((a) => a.studentId === sid);
           const pending = myAssignments.filter((a) => a.status === 'pending');
           const done = myAssignments.filter((a) => a.status === 'done');
-          const myMeetings = meetingReqs.filter((r) => r.studentId === sid);
-          const pendingMeetings = myMeetings.filter((r) => r.status === 'pending');
+          const pendingMeetings = meetingReqs.filter((r) => r.studentId === sid && r.status === 'pending');
           const mem = memoryMap.get(sid);
           let memSummary = '';
           if (mem) {
             try {
               const parsed = JSON.parse(mem) as Record<string, unknown>;
-              if (typeof parsed.summary === 'string') memSummary = parsed.summary.slice(0, 200);
+              if (typeof parsed.summary === 'string') memSummary = parsed.summary.slice(0, 150);
             } catch {
-              memSummary = mem.slice(0, 200);
+              memSummary = mem.slice(0, 150);
             }
           }
-          const lines = [`【${name}】`];
-          if (myAssignments.length > 0) {
-            lines.push(`  課題: 完了${done.length}件 / 未完了${pending.length}件`);
-            if (pending.length > 0) {
-              lines.push(`  未完了: ${pending.map((a) => a.title).join(', ')}`);
-            }
-          } else {
-            lines.push('  課題: なし');
-          }
-          if (pendingMeetings.length > 0) lines.push(`  面談リクエスト待ち: ${pendingMeetings.length}件`);
-          if (memSummary) lines.push(`  メモ: ${memSummary}`);
+          const lines = [`[${name}] 課題:完了${done.length}/未完了${pending.length}`];
+          if (pending.length > 0) lines.push(`  未完了: ${pending.map((a) => a.title).join(', ')}`);
+          if (pendingMeetings.length > 0) lines.push(`  面談待ち:${pendingMeetings.length}件`);
+          if (memSummary) lines.push(`  メモ:${memSummary}`);
           return lines.join('\n');
         });
 
         if (studentSummaries.length > 0) {
-          labContextText = `\n\n【ラボの学生状況】\n${studentSummaries.join('\n')}`;
+          labContextText = `\n【学生状況】\n${studentSummaries.join('\n')}`;
         }
       }
     }
@@ -1204,40 +1194,44 @@ app.post('/chat', async (c) => {
   });
   const [mon, tue, wed, thu, fri, sat, sun] = weekDates;
 
-  let systemText = memoryRecord
-    ? `研究室の進捗管理ボットです。以下はこのユーザーについての記録です:\n${memoryRecord.data}\n\n今日は${today}（${todayISO}）です。日本語で簡潔に回答してください。`
-    : `研究室の進捗管理ボットです。先生と学生のコミュニケーションをサポートします。今日は${today}（${todayISO}）です。日本語で簡潔に回答してください。`;
-
-  if (labContextText) {
-    systemText += labContextText;
-  }
+  const baseText = memoryRecord
+    ? `研究室の進捗管理ボットです。今日は${today}（${todayISO}）。日本語で答えてください。\n先生の記録: ${memoryRecord.data}`
+    : `研究室の進捗管理ボットです。今日は${today}（${todayISO}）。日本語で答えてください。`;
 
   // 先生ロールの場合: 空き枠操作のsystemInstructionを追加
+  let systemText = baseText;
   if (userRole === 'teacher') {
     systemText += `
 
-あなたは先生の空き枠管理アシスタントです。日本語で返答してください。
+あなたは先生の空き枠管理・学生進捗管理アシスタントです。
 
-今週の日付（月〜日）: 月曜${mon}, 火曜${tue}, 水曜${wed}, 木曜${thu}, 金曜${fri}, 土曜${sat}, 日曜${sun}
+今週の日付: 月曜${mon}, 火曜${tue}, 水曜${wed}, 木曜${thu}, 金曜${fri}
 
-【空き枠登録の手順】
-ステップ1: 先生が「○曜日が空いてる」と言ったら、時間を聞く → 「何時から何時まで空いていますか？」
-ステップ2: 先生が時間を答えたら（例：「9時から12時」）、各日のJSONを1行ずつ出力する
+【アクションJSON】各アクションは返答の先頭に1行ずつ出力する。
+空き枠追加: {"action":"add_slot","startTime":"YYYY-MM-DDTHH:mm","endTime":"YYYY-MM-DDTHH:mm"}
+空き枠削除: {"action":"delete_slot","date":"YYYY-MM-DD","startHour":数字}
+課題追加:   {"action":"create_assignment","studentName":"名前","title":"課題タイトル","dueWeeks":週数}
+自動承認:   {"action":"set_auto_rule","studentName":"名前"}
 
-【JSONの形式】（時間が確定したときだけ出力する）
-{"action":"add_slot","startTime":"YYYY-MM-DDTHH:mm","endTime":"YYYY-MM-DDTHH:mm"}
-
-例：先生が月曜と火曜、9時〜12時を伝えたとき:
+【空き枠登録ルール】
+- 「月曜が空いてる」など時間が不明 → JSONなし、「何時から何時まで空いていますか？」と聞く
+- 日付と時間が揃ったら → 各日のJSONを1行ずつ出力
+- 例(月曜9-12時, 火曜9-17時):
 {"action":"add_slot","startTime":"${mon}T09:00","endTime":"${mon}T12:00"}
-{"action":"add_slot","startTime":"${tue}T09:00","endTime":"${tue}T12:00"}
-月曜と火曜の9〜12時を登録しました！
+{"action":"add_slot","startTime":"${tue}T09:00","endTime":"${tue}T17:00"}
+月曜9〜12時、火曜9〜17時を登録しました！
 
-【ルール】
-- 時間が不明なときはJSONを出力せず必ず時間を聞くこと
-- 複数日の場合はJSON行を複数出力すること（1日1行）
-- 空き枠削除: {"action":"delete_slot","date":"YYYY-MM-DD","startHour":数字}
-- 自動承認設定: {"action":"set_auto_rule","studentName":"名前"}
-- 通常会話にはJSONを出力しないこと`;
+【課題登録ルール】
+- 「○○に□□するように伝えといて」→ create_assignmentを出力し実際に登録する
+- dueWeeksが不明なら1を使う
+- 例(倉持に来週までに論文選ぶよう伝えて):
+{"action":"create_assignment","studentName":"倉持","title":"論文を選ぶ","dueWeeks":1}
+倉持さんに課題「論文を選ぶ（来週まで）」を登録しました！
+
+【一般ルール】
+- JSONの後に必ず日本語の返答を書く
+- 通常会話（質問・進捗確認）にはJSONを出力しない
+${labContextText}`;
   }
 
   // 学生ロールの場合: 相談分岐のsystemInstructionを追加
@@ -1302,14 +1296,13 @@ app.post('/chat', async (c) => {
     });
   }
 
-  // systemTextを2000文字以内に制限
-  const trimmedSystem = systemText.slice(0, 2000);
+  const trimmedSystem = systemText.slice(0, 8000);
 
   const messages = [
     { role: 'system' as const, content: trimmedSystem },
-    ...body.messages.slice(-4).map((m) => ({
+    ...body.messages.slice(-6).map((m) => ({
       role: m.role as 'user' | 'assistant',
-      content: m.content.slice(0, 300),
+      content: m.content.slice(0, 500),
     })),
   ];
 
@@ -1319,7 +1312,7 @@ app.post('/chat', async (c) => {
     try {
       const aiRes = await (c.env.AI.run as (model: string, opts: object) => Promise<{ response?: string }>)(
         '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
-        { messages, max_tokens: 512, stream: false }
+        { messages, max_tokens: 1024, stream: false }
       );
       console.log('AI response:', JSON.stringify(aiRes));
       rawReply = aiRes.response || '返答を取得できませんでした';
@@ -1339,7 +1332,8 @@ app.post('/chat', async (c) => {
     type SlotAction =
       | { action: 'add_slot'; startTime: string; endTime: string }
       | { action: 'delete_slot'; date: string; startHour: number }
-      | { action: 'set_auto_rule'; studentName: string };
+      | { action: 'set_auto_rule'; studentName: string }
+      | { action: 'create_assignment'; studentName: string; title: string; dueWeeks: number };
 
     const lines = rawReply.split('\n');
     const jsonLines: number[] = [];
@@ -1354,7 +1348,8 @@ app.post('/chat', async (c) => {
         if (
           parsed.action === 'add_slot' ||
           parsed.action === 'delete_slot' ||
-          parsed.action === 'set_auto_rule'
+          parsed.action === 'set_auto_rule' ||
+          parsed.action === 'create_assignment'
         ) {
           parsedActions.push(parsed);
           jsonLines.push(i);
@@ -1400,6 +1395,25 @@ app.post('/chat', async (c) => {
           });
           for (const s of toDelete) {
             await db.delete(schema.slots).where(eq(schema.slots.id, s.id));
+          }
+        } else if (parsedAction.action === 'create_assignment') {
+          // 学生名から学生IDを検索（部分一致）
+          const targetStudent = labStudents.find((s) =>
+            s.name.includes(parsedAction.studentName) || parsedAction.studentName.includes(s.name)
+          );
+          if (targetStudent && teacherGroupId) {
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + (parsedAction.dueWeeks ?? 1) * 7);
+            await db.insert(schema.assignments).values({
+              id: crypto.randomUUID(),
+              groupId: teacherGroupId,
+              studentId: targetStudent.id,
+              teacherId: userId,
+              title: parsedAction.title,
+              dueDate,
+              status: 'pending',
+              createdAt: new Date(),
+            });
           }
         } else if (parsedAction.action === 'set_auto_rule') {
         // 先生のmemoryのauto_rulesに学生名を追加
