@@ -10,3 +10,16 @@ crons = ["0 23 * * *"]
 binding = "DB"
 database_name = "calendar-db"
 database_id = "559a678a-dffc-445b-b8a6-7852d33e4dbf"
+
+# Workers AI binding（本番時に有効化）
+# 有効化手順: 以下のコメントを外す
+# [ai]
+# binding = "AI"
+
+# Vectorize binding（本番時に有効化）
+# 有効化手順:
+#   1. wrangler vectorize create calendar-memory-index --dimensions=768 --metric=cosine
+#   2. 以下のコメントを外す
+# [[vectorize]]
+# binding = "VECTORIZE_INDEX"
+# index_name = "calendar-memory-index"

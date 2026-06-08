@@ -18,6 +18,8 @@ type Bindings = {
   SESSION_SECRET: string;
   GEMINI_API_KEY: string;
   RESEND_API_KEY?: string;
+  AI?: Ai;
+  VECTORIZE_INDEX?: VectorizeIndex;
 };
 
 type SessionUser = {
@@ -950,6 +952,41 @@ JSONの後に改行し、ユーザーへの日本語メッセージを続けて�
 bot解決パスでは絶対にJSONを含めないでください。`;
   }
 
+  // RAG: Vectorize + Workers AI が利用可能な場合、ベクトル検索で関連過去会話を取得
+  // フォールバック: memory テーブルのデータは systemText に既に含まれている
+  if (c.env.AI && c.env.VECTORIZE_INDEX) {
+    const queryMessage = body.messages[body.messages.length - 1];
+    if (queryMessage && queryMessage.role === 'user') {
+      try {
+        const embeddingResult = await c.env.AI.run(
+          '@cf/baai/bge-base-en-v1.5',
+          { text: queryMessage.content },
+        );
+        const vectorData = (embeddingResult as { data?: number[][] }).data;
+        const queryVector = vectorData?.[0];
+        if (queryVector && queryVector.length > 0) {
+          const searchResult = await c.env.VECTORIZE_INDEX.query(queryVector, {
+            topK: 3,
+            returnMetadata: true,
+          });
+          const relatedLogs = searchResult.matches
+            .filter((m) => m.score > 0.7)
+            .map((m) => {
+              const meta = m.metadata as Record<string, string> | undefined;
+              return meta?.content ?? '';
+            })
+            .filter((text) => text.length > 0);
+          if (relatedLogs.length > 0) {
+            systemText += `\n\n関連する過去の会話:\n${relatedLogs.join('\n')}`;
+          }
+        }
+      } catch (e) {
+        console.error('Vectorize search error:', e);
+        // エラー時はフォールバック（memoryのみ）で続行
+      }
+    }
+  }
+
   // userメッセージをGemini呼び出し前にchatLogへ保存
   const lastUserMessage = body.messages[body.messages.length - 1];
   const userLogId = crypto.randomUUID();
@@ -1088,14 +1125,57 @@ bot解決パスでは絶対にJSONを含めないでください。`;
   const reply = displayReply;
 
   // Gemini成功時: assistantの返答もchatLogに保存
+  const assistantLogId = crypto.randomUUID();
   if (lastUserMessage && lastUserMessage.role === 'user') {
     await db.insert(schema.chatLog).values({
-      id: crypto.randomUUID(),
+      id: assistantLogId,
       userId,
       role: 'assistant',
       content: reply,
       createdAt: new Date(userLogTime.getTime() + 1),
     });
+  }
+
+  // Workers AI + Vectorize が利用可能な場合、chatLogをベクトル化して保存
+  if (c.env.AI && c.env.VECTORIZE_INDEX && lastUserMessage && lastUserMessage.role === 'user') {
+    try {
+      // userメッセージをベクトル化
+      const userEmbResult = await c.env.AI.run(
+        '@cf/baai/bge-base-en-v1.5',
+        { text: lastUserMessage.content },
+      );
+      const userVectorData = (userEmbResult as { data?: number[][] }).data;
+      const userVector = userVectorData?.[0];
+      if (userVector && userVector.length > 0) {
+        await c.env.VECTORIZE_INDEX.upsert([
+          {
+            id: userLogId,
+            values: userVector,
+            metadata: { content: lastUserMessage.content, userId, role: 'user' },
+          },
+        ]);
+      }
+
+      // assistantの返答をベクトル化
+      const assistantEmbResult = await c.env.AI.run(
+        '@cf/baai/bge-base-en-v1.5',
+        { text: reply },
+      );
+      const assistantVectorData = (assistantEmbResult as { data?: number[][] }).data;
+      const assistantVector = assistantVectorData?.[0];
+      if (assistantVector && assistantVector.length > 0) {
+        await c.env.VECTORIZE_INDEX.upsert([
+          {
+            id: assistantLogId,
+            values: assistantVector,
+            metadata: { content: reply, userId, role: 'assistant' },
+          },
+        ]);
+      }
+    } catch (e) {
+      console.error('Vectorize upsert error:', e);
+      // エラー時はスキップ（chatLog自体は保存済み）
+    }
   }
 
   return c.json({ reply, action: actionName });
