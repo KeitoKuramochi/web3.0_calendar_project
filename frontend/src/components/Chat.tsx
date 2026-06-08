@@ -15,6 +15,7 @@ export default function Chat() {
   const [isLoading, setIsLoading] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
   const [sessionEnded, setSessionEnded] = useState(false);
+  const [showCalendarLink, setShowCalendarLink] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -75,7 +76,7 @@ export default function Chat() {
         }),
       });
 
-      const data = await res.json<{ reply?: string; error?: string }>();
+      const data = await res.json<{ reply?: string; error?: string; action?: string }>();
       const replyText = data.reply ?? '返答を取得できませんでした';
 
       const botMessage: Message = {
@@ -85,6 +86,10 @@ export default function Chat() {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, botMessage]);
+
+      if (data.action === 'ready_for_meeting') {
+        setShowCalendarLink(true);
+      }
     } catch {
       const errorMessage: Message = {
         id: Date.now() + 1,
@@ -216,6 +221,19 @@ export default function Chat() {
 
         <div ref={bottomRef} />
       </main>
+
+      {/* 先生のカレンダーへのリンク（面談準備完了後に表示） */}
+      {showCalendarLink && (
+        <div className="bg-blue-50 border-t border-blue-200 px-4 py-3 flex items-center gap-3">
+          <p className="text-sm text-blue-800 flex-1">面談の準備が整いました。先生のカレンダーから希望日時を選んでください。</p>
+          <a
+            href="/student"
+            className="bg-blue-600 text-white font-semibold px-4 py-2 rounded-xl text-sm shadow hover:bg-blue-700 transition-colors flex-shrink-0"
+          >
+            先生のカレンダーを見る
+          </a>
+        </div>
+      )}
 
       {/* 入力エリア */}
       <footer className="bg-white border-t border-gray-200 px-4 py-3 flex gap-3 items-center shadow-sm">

@@ -928,6 +928,27 @@ JSONの後に改行し、ユーザーへの日本語メッセージを続けて�
 日時は必ずISO 8601形式（YYYY-MM-DDTHH:mm）で記述してください。今日の日付を基準に計算してください。`;
   }
 
+  // 学生ロールの場合: 相談分岐のsystemInstructionを追加
+  if (userRole === 'student') {
+    systemText += `
+
+あなたは研究室の進捗管理ボットです。学生の相談を受け付けます。
+
+判定ルール:
+- 技術的な問題（エラー、コード、ツール操作など）→ bot解決パス: その場で解決策を提供してください
+- 研究の方向性・指導教員との相談が必要な内容 → 面談準備パス
+
+面談準備パスの場合:
+1. 最初に「先生との面談が必要そうです。準備を手伝います。」と返答
+2. 続けて準備質問を1問ずつ出す（全部で2〜3問）
+3. 会話の中で「現在の状況」「困っていること」「先生に相談したいこと」を確認する
+4. 準備が整ったら返答の末尾に以下のJSONを1行で含めてください:
+   {"action":"ready_for_meeting"}
+   その後に「準備が整いました。先生のカレンダーから希望日時を選んでください。」と続けてください
+
+bot解決パスでは絶対にJSONを含めないでください。`;
+  }
+
   // userメッセージをGemini呼び出し前にchatLogへ保存
   const lastUserMessage = body.messages[body.messages.length - 1];
   const userLogId = crypto.randomUUID();
@@ -1038,6 +1059,28 @@ JSONの後に改行し、ユーザーへの日本語メッセージを続けて�
           await db.delete(schema.slots).where(eq(schema.slots.id, s.id));
         }
       }
+    }
+  }
+
+  // 学生ロールの場合: 返答の末尾から {"action":"ready_for_meeting"} をパース
+  if (userRole === 'student') {
+    const lines = rawReply.split('\n');
+    // 末尾行から順にJSONを探す
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      try {
+        const parsed = JSON.parse(line) as { action?: string };
+        if (parsed.action === 'ready_for_meeting') {
+          actionName = 'ready_for_meeting';
+          // JSON行を除いた本文をdisplayReplyとする
+          const withoutJson = [...lines.slice(0, i), ...lines.slice(i + 1)].join('\n').trim();
+          displayReply = withoutJson;
+        }
+      } catch {
+        // JSONでなければスキップ
+      }
+      break;
     }
   }
 
