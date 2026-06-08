@@ -883,6 +883,7 @@ app.post('/chat', async (c) => {
   if (!payload) return c.json({ error: 'unauthorized' }, 401);
 
   const userId = payload.id as string;
+  const userRole = payload.role as string | null;
 
   const body = await c.req.json<{
     messages: { role: 'user' | 'model'; content: string }[];
@@ -901,9 +902,31 @@ app.post('/chat', async (c) => {
     .where(eq(schema.memory.userId, userId))
     .get();
 
-  const systemText = memoryRecord
-    ? `研究室の進捗管理ボットです。以下はこのユーザーについての記録です:\n${memoryRecord.data}\n\n日本語で簡潔に回答してください。`
-    : '研究室の進捗管理ボットです。先生と学生のコミュニケーションをサポートします。日本語で簡潔に回答してください。';
+  const today = new Date().toLocaleDateString('ja-JP', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    weekday: 'long',
+  });
+
+  let systemText = memoryRecord
+    ? `研究室の進捗管理ボットです。以下はこのユーザーについての記録です:\n${memoryRecord.data}\n\n今日は${today}です。日本語で簡潔に回答してください。`
+    : `研究室の進捗管理ボットです。先生と学生のコミュニケーションをサポートします。今日は${today}です。日本語で簡潔に回答してください。`;
+
+  // 先生ロールの場合: 空き枠操作のsystemInstructionを追加
+  if (userRole === 'teacher') {
+    systemText += `
+
+あなたは先生の空き枠管理もサポートします。
+空き枠の操作が必要な場合、返答の**先頭**に以下のJSON（1行）を含めてください：
+- 追加: {"action":"add_slot","startTime":"YYYY-MM-DDTHH:mm","endTime":"YYYY-MM-DDTHH:mm"}
+- 削除: {"action":"delete_slot","date":"YYYY-MM-DD","startHour":14}
+- 確認が必要: JSONなし（テキストのみ）
+
+JSONの後に改行し、ユーザーへの日本語メッセージを続けてください。
+曖昧な表現（「来週後半のどこか」など具体的な日時が特定できない場合）はJSONを含めずに確認してください。
+日時は必ずISO 8601形式（YYYY-MM-DDTHH:mm）で記述してください。今日の日付を基準に計算してください。`;
+  }
 
   // userメッセージをGemini呼び出し前にchatLogへ保存
   const lastUserMessage = body.messages[body.messages.length - 1];
@@ -954,8 +977,71 @@ app.post('/chat', async (c) => {
     }[];
   }>();
 
-  const reply =
+  const rawReply =
     data.candidates?.[0]?.content?.parts?.[0]?.text ?? '返答を取得できませんでした';
+
+  // 先生ロールの場合: 返答の先頭からJSONアクションをパースして空き枠操作を実行
+  let actionName: string | null = null;
+  let displayReply = rawReply;
+
+  if (userRole === 'teacher') {
+    const lines = rawReply.split('\n');
+    const firstLine = lines[0].trim();
+
+    type SlotAction =
+      | { action: 'add_slot'; startTime: string; endTime: string }
+      | { action: 'delete_slot'; date: string; startHour: number };
+
+    let parsedAction: SlotAction | null = null;
+    try {
+      const parsed = JSON.parse(firstLine) as SlotAction;
+      if (
+        parsed.action === 'add_slot' ||
+        parsed.action === 'delete_slot'
+      ) {
+        parsedAction = parsed;
+      }
+    } catch {
+      // JSONでなければスキップ
+    }
+
+    if (parsedAction !== null) {
+      displayReply = lines.slice(1).join('\n').trim();
+      actionName = parsedAction.action;
+
+      if (parsedAction.action === 'add_slot') {
+        const start = new Date(parsedAction.startTime);
+        const end = new Date(parsedAction.endTime);
+        if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+          await db.insert(schema.slots).values({
+            id: crypto.randomUUID(),
+            teacherId: userId,
+            startTime: start,
+            endTime: end,
+            createdAt: new Date(),
+          });
+        }
+      } else if (parsedAction.action === 'delete_slot') {
+        const targetDate = new Date(parsedAction.date);
+        const existing = await db
+          .select()
+          .from(schema.slots)
+          .where(eq(schema.slots.teacherId, userId));
+        const toDelete = existing.filter((s) => {
+          const d = new Date(s.startTime.getTime());
+          return (
+            d.toDateString() === targetDate.toDateString() &&
+            d.getHours() === parsedAction.startHour
+          );
+        });
+        for (const s of toDelete) {
+          await db.delete(schema.slots).where(eq(schema.slots.id, s.id));
+        }
+      }
+    }
+  }
+
+  const reply = displayReply;
 
   // Gemini成功時: assistantの返答もchatLogに保存
   if (lastUserMessage && lastUserMessage.role === 'user') {
@@ -968,7 +1054,7 @@ app.post('/chat', async (c) => {
     });
   }
 
-  return c.json({ reply });
+  return c.json({ reply, action: actionName });
 });
 
 // GET /chat/history — 直近20件の会話履歴（認証必須）
