@@ -1181,11 +1181,16 @@ JSONを出力した後は必ず改行して、日本語の返答を続けてく�
   let rawReply = '返答を取得できませんでした';
 
   if (c.env.AI) {
-    const aiRes = await c.env.AI.run('@cf/meta/llama-3.1-8b-instruct' as Parameters<typeof c.env.AI.run>[0], {
-      messages,
-      max_tokens: 1024,
-    }) as { response?: string };
-    rawReply = aiRes.response ?? '返答を取得できませんでした';
+    try {
+      const aiRes = await (c.env.AI.run as (model: string, opts: object) => Promise<{ response?: string }>)(
+        '@cf/meta/llama-3.1-8b-instruct',
+        { messages, max_tokens: 1024, stream: false }
+      );
+      rawReply = aiRes.response ?? '返答を取得できませんでした';
+    } catch (e) {
+      console.error('Workers AI error:', e);
+      return c.json({ error: 'ai_error', detail: String(e) }, 500);
+    }
   } else {
     return c.json({ error: 'ai_not_configured' }, 500);
   }
@@ -1436,14 +1441,22 @@ app.post('/chat/end-session', async (c) => {
   let summaryText = '';
 
   if (c.env.AI) {
-    const summaryRes = await c.env.AI.run('@cf/meta/llama-3.1-8b-instruct' as Parameters<typeof c.env.AI.run>[0], {
-      messages: [
-        { role: 'system' as const, content: '会話履歴を分析してユーザーの特徴をJSONで要約するアシスタントです。' },
-        { role: 'user' as const, content: `以下の会話履歴を要約してください。ユーザーの特徴・相談パターン・重要事項をJSON形式のテキストで返してください。\n\n会話履歴:\n${historyText}` },
-      ],
-      max_tokens: 512,
-    }) as { response?: string };
-    summaryText = summaryRes.response ?? '';
+    try {
+      const summaryRes = await (c.env.AI.run as (model: string, opts: object) => Promise<{ response?: string }>)(
+        '@cf/meta/llama-3.1-8b-instruct',
+        {
+          messages: [
+            { role: 'system', content: '会話履歴を分析してユーザーの特徴をJSONで要約するアシスタントです。' },
+            { role: 'user', content: `以下の会話履歴を要約してください。ユーザーの特徴・相談パターン・重要事項をJSON形式のテキストで返してください。\n\n会話履歴:\n${historyText}` },
+          ],
+          max_tokens: 512,
+          stream: false,
+        }
+      );
+      summaryText = summaryRes.response ?? '';
+    } catch (e) {
+      console.error('Workers AI summary error:', e);
+    }
   } else {
     // フォールバック: chatLogのテキストをそのままmemory.dataに保存
     const fallbackData = JSON.stringify({ summary: historyText.slice(0, 2000) });
