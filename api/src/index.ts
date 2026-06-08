@@ -442,16 +442,118 @@ app.post('/meeting-requests', async (c) => {
   const now = new Date();
   const requestId = crypto.randomUUID();
 
+  // 先生のmemoryを参照してauto_rulesに学生名が含まれるか確認
+  let autoApproved = false;
+  try {
+    const studentRecord = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.id, studentId))
+      .get();
+
+    const teacherMemory = await db
+      .select()
+      .from(schema.memory)
+      .where(eq(schema.memory.userId, body.teacherId))
+      .get();
+
+    if (studentRecord && teacherMemory) {
+      let memData: Record<string, unknown>;
+      try {
+        memData = JSON.parse(teacherMemory.data) as Record<string, unknown>;
+      } catch {
+        memData = {};
+      }
+      const autoRules = Array.isArray(memData.auto_rules) ? (memData.auto_rules as string[]) : [];
+      const studentName = studentRecord.name;
+      // 学生名の一部がauto_rulesに含まれているか確認（名前・姓での部分一致）
+      if (autoRules.some((rule) => studentName.includes(rule) || rule.includes(studentName))) {
+        autoApproved = true;
+      }
+    }
+  } catch (e) {
+    console.error('auto_approve check error:', e);
+    // エラー時はスキップ（通常のpending状態で作成）
+  }
+
+  const requestStatus = autoApproved ? 'approved' : 'pending';
+
   await db.insert(schema.meetingRequests).values({
     id: requestId,
     studentId,
     teacherId: body.teacherId,
     slotId: body.slotId,
-    status: 'pending',
+    status: requestStatus,
     createdAt: now,
   });
 
-  return c.json({ id: requestId, ok: true });
+  // 学生のmemoryに好みの時間帯を記録
+  try {
+    const slotRows = await db
+      .select()
+      .from(schema.slots)
+      .where(eq(schema.slots.id, body.slotId));
+
+    if (slotRows.length > 0) {
+      const slot = slotRows[0];
+      const startHour = slot.startTime.getHours();
+      const dayOfWeek = slot.startTime.getDay();
+      const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+      const dayName = dayNames[dayOfWeek];
+
+      const studentMemory = await db
+        .select()
+        .from(schema.memory)
+        .where(eq(schema.memory.userId, studentId))
+        .get();
+
+      const memNow = new Date();
+      if (studentMemory) {
+        let memData: Record<string, unknown>;
+        try {
+          memData = JSON.parse(studentMemory.data) as Record<string, unknown>;
+        } catch {
+          memData = { summary: studentMemory.data };
+        }
+        // 好みの時間帯リストに追加
+        const preferredSlots = Array.isArray(memData.preferred_slots)
+          ? (memData.preferred_slots as string[])
+          : [];
+        preferredSlots.push(`${dayName}曜 ${startHour}時`);
+        // 最大10件まで保持
+        if (preferredSlots.length > 10) {
+          preferredSlots.splice(0, preferredSlots.length - 10);
+        }
+        memData.preferred_slots = preferredSlots;
+
+        // リクエスト回数を記録
+        const requestCount = typeof memData.request_count === 'number' ? memData.request_count : 0;
+        memData.request_count = requestCount + 1;
+
+        const newData = JSON.stringify(memData);
+        await db
+          .update(schema.memory)
+          .set({ data: newData, updatedAt: memNow })
+          .where(eq(schema.memory.userId, studentId));
+      } else {
+        const newData = JSON.stringify({
+          preferred_slots: [`${dayName}曜 ${startHour}時`],
+          request_count: 1,
+        });
+        await db.insert(schema.memory).values({
+          id: crypto.randomUUID(),
+          userId: studentId,
+          data: newData,
+          updatedAt: memNow,
+        });
+      }
+    }
+  } catch (e) {
+    console.error('student memory update error:', e);
+    // エラー時はスキップ
+  }
+
+  return c.json({ id: requestId, ok: true, autoApproved });
 });
 
 // GET /meeting-requests — 自分に関連するリクエスト一覧（認証必須）
@@ -561,6 +663,71 @@ app.patch('/meeting-requests/:id/approve', async (c) => {
     .update(schema.meetingRequests)
     .set({ status: 'approved' })
     .where(eq(schema.meetingRequests.id, requestId));
+
+  // 学生のmemoryに承認された面談パターンを追記
+  try {
+    const req = existing[0];
+    const slotRows = await db
+      .select()
+      .from(schema.slots)
+      .where(eq(schema.slots.id, req.slotId));
+
+    if (slotRows.length > 0) {
+      const slot = slotRows[0];
+      const approvedAt = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
+      const slotStr = slot.startTime.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
+
+      const studentMemory = await db
+        .select()
+        .from(schema.memory)
+        .where(eq(schema.memory.userId, req.studentId))
+        .get();
+
+      const memNow = new Date();
+      if (studentMemory) {
+        let memData: Record<string, unknown>;
+        try {
+          memData = JSON.parse(studentMemory.data) as Record<string, unknown>;
+        } catch {
+          memData = { summary: studentMemory.data };
+        }
+        const approvedMeetings = Array.isArray(memData.approved_meetings)
+          ? (memData.approved_meetings as string[])
+          : [];
+        approvedMeetings.push(`${slotStr}（承認日: ${approvedAt}）`);
+        // 最大10件まで保持
+        if (approvedMeetings.length > 10) {
+          approvedMeetings.splice(0, approvedMeetings.length - 10);
+        }
+        memData.approved_meetings = approvedMeetings;
+
+        // 完遂率の計算（承認回数 / リクエスト回数）
+        const requestCount = typeof memData.request_count === 'number' ? memData.request_count : 1;
+        memData.approval_rate = `${approvedMeetings.length}/${requestCount}`;
+
+        const newData = JSON.stringify(memData);
+        await db
+          .update(schema.memory)
+          .set({ data: newData, updatedAt: memNow })
+          .where(eq(schema.memory.userId, req.studentId));
+      } else {
+        const newData = JSON.stringify({
+          approved_meetings: [`${slotStr}（承認日: ${approvedAt}）`],
+          request_count: 1,
+          approval_rate: '1/1',
+        });
+        await db.insert(schema.memory).values({
+          id: crypto.randomUUID(),
+          userId: req.studentId,
+          data: newData,
+          updatedAt: memNow,
+        });
+      }
+    }
+  } catch (e) {
+    console.error('approve memory update error:', e);
+    // エラー時はスキップ
+  }
 
   return c.json({ ok: true });
 });
@@ -928,7 +1095,15 @@ app.post('/chat', async (c) => {
 
 JSONの後に改行し、ユーザーへの日本語メッセージを続けてください。
 曖昧な表現（「来週後半のどこか」など具体的な日時が特定できない場合）はJSONを含めずに確認してください。
-日時は必ずISO 8601形式（YYYY-MM-DDTHH:mm）で記述してください。今日の日付を基準に計算してください。`;
+日時は必ずISO 8601形式（YYYY-MM-DDTHH:mm）で記述してください。今日の日付を基準に計算してください。
+
+また、自動承認ルールの設定もサポートします。
+学生が過去に面談をよくキャンセルした場合は慎重に対応すること。
+「〇〇さんのリクエストは今後自動承認で」のような発言があった場合、返答の**先頭**に以下のJSON（1行）を含めてください：
+- 自動承認ルール設定: {"action":"set_auto_rule","studentName":"学生名"}
+例: {"action":"set_auto_rule","studentName":"田中"}
+その後に改行し、「承知しました。〇〇さんのリクエストを自動承認するよう設定しました」と返答してください。
+面談リクエストの内容と学生の過去の傾向から、明らかに承認すべきリクエストがあれば自動承認ルールの提案もできます。`;
   }
 
   // 学生ロールの場合: 相談分岐のsystemInstructionを追加
@@ -1049,14 +1224,16 @@ bot解決パスでは絶対にJSONを含めないでください。`;
 
     type SlotAction =
       | { action: 'add_slot'; startTime: string; endTime: string }
-      | { action: 'delete_slot'; date: string; startHour: number };
+      | { action: 'delete_slot'; date: string; startHour: number }
+      | { action: 'set_auto_rule'; studentName: string };
 
     let parsedAction: SlotAction | null = null;
     try {
       const parsed = JSON.parse(firstLine) as SlotAction;
       if (
         parsed.action === 'add_slot' ||
-        parsed.action === 'delete_slot'
+        parsed.action === 'delete_slot' ||
+        parsed.action === 'set_auto_rule'
       ) {
         parsedAction = parsed;
       }
@@ -1082,19 +1259,61 @@ bot解決パスでは絶対にJSONを含めないでください。`;
         }
       } else if (parsedAction.action === 'delete_slot') {
         const targetDate = new Date(parsedAction.date);
-        const existing = await db
+        const existingSlots = await db
           .select()
           .from(schema.slots)
           .where(eq(schema.slots.teacherId, userId));
-        const toDelete = existing.filter((s) => {
+        const toDelete = existingSlots.filter((s) => {
           const d = new Date(s.startTime.getTime());
           return (
             d.toDateString() === targetDate.toDateString() &&
-            d.getHours() === parsedAction.startHour
+            d.getHours() === (parsedAction as { action: 'delete_slot'; date: string; startHour: number }).startHour
           );
         });
         for (const s of toDelete) {
           await db.delete(schema.slots).where(eq(schema.slots.id, s.id));
+        }
+      } else if (parsedAction.action === 'set_auto_rule') {
+        // 先生のmemoryのauto_rulesに学生名を追加
+        try {
+          const teacherMemory = await db
+            .select()
+            .from(schema.memory)
+            .where(eq(schema.memory.userId, userId))
+            .get();
+
+          const studentName = (parsedAction as { action: 'set_auto_rule'; studentName: string }).studentName;
+          const now = new Date();
+
+          if (teacherMemory) {
+            let memData: Record<string, unknown>;
+            try {
+              memData = JSON.parse(teacherMemory.data) as Record<string, unknown>;
+            } catch {
+              memData = { summary: teacherMemory.data };
+            }
+            const existingRules = Array.isArray(memData.auto_rules) ? (memData.auto_rules as string[]) : [];
+            if (!existingRules.includes(studentName)) {
+              existingRules.push(studentName);
+            }
+            memData.auto_rules = existingRules;
+            const newData = JSON.stringify(memData);
+            await db
+              .update(schema.memory)
+              .set({ data: newData, updatedAt: now })
+              .where(eq(schema.memory.userId, userId));
+          } else {
+            const newData = JSON.stringify({ auto_rules: [studentName] });
+            await db.insert(schema.memory).values({
+              id: crypto.randomUUID(),
+              userId,
+              data: newData,
+              updatedAt: now,
+            });
+          }
+        } catch (e) {
+          console.error('set_auto_rule memory update error:', e);
+          // エラー時はスキップ
         }
       }
     }
