@@ -1076,11 +1076,11 @@ bot解決パスでは絶対にJSONを含めないでください。`;
           // JSON行を除いた本文をdisplayReplyとする
           const withoutJson = [...lines.slice(0, i), ...lines.slice(i + 1)].join('\n').trim();
           displayReply = withoutJson;
+          break;
         }
       } catch {
         // JSONでなければスキップ
       }
-      break;
     }
   }
 
