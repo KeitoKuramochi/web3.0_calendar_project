@@ -905,6 +905,20 @@ app.post('/chat', async (c) => {
     ? `研究室の進捗管理ボットです。以下はこのユーザーについての記録です:\n${memoryRecord.data}\n\n日本語で簡潔に回答してください。`
     : '研究室の進捗管理ボットです。先生と学生のコミュニケーションをサポートします。日本語で簡潔に回答してください。';
 
+  // userメッセージをGemini呼び出し前にchatLogへ保存
+  const lastUserMessage = body.messages[body.messages.length - 1];
+  const userLogId = crypto.randomUUID();
+  const userLogTime = new Date();
+  if (lastUserMessage && lastUserMessage.role === 'user') {
+    await db.insert(schema.chatLog).values({
+      id: userLogId,
+      userId,
+      role: 'user',
+      content: lastUserMessage.content,
+      createdAt: userLogTime,
+    });
+  }
+
   const apiKey = c.env.GEMINI_API_KEY;
   const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
@@ -943,26 +957,15 @@ app.post('/chat', async (c) => {
   const reply =
     data.candidates?.[0]?.content?.parts?.[0]?.text ?? '返答を取得できませんでした';
 
-  // ユーザーメッセージとアシスタントの返答をchatLogに保存
-  const lastUserMessage = body.messages[body.messages.length - 1];
+  // Gemini成功時: assistantの返答もchatLogに保存
   if (lastUserMessage && lastUserMessage.role === 'user') {
-    const now = new Date();
-    await db.insert(schema.chatLog).values([
-      {
-        id: crypto.randomUUID(),
-        userId,
-        role: 'user',
-        content: lastUserMessage.content,
-        createdAt: now,
-      },
-      {
-        id: crypto.randomUUID(),
-        userId,
-        role: 'assistant',
-        content: reply,
-        createdAt: new Date(now.getTime() + 1),
-      },
-    ]);
+    await db.insert(schema.chatLog).values({
+      id: crypto.randomUUID(),
+      userId,
+      role: 'assistant',
+      content: reply,
+      createdAt: new Date(userLogTime.getTime() + 1),
+    });
   }
 
   return c.json({ reply });
@@ -1059,7 +1062,22 @@ app.post('/chat/end-session', async (c) => {
   });
 
   if (!summaryRes.ok) {
-    return c.json({ error: 'summary_failed' }, 500);
+    // フォールバック: chatLogのテキストをそのままmemory.dataに保存（2000文字まで）
+    const fallbackData = JSON.stringify({ summary: historyText.slice(0, 2000) });
+    const fallbackNow = new Date();
+    await db
+      .insert(schema.memory)
+      .values({
+        id: crypto.randomUUID(),
+        userId,
+        data: fallbackData,
+        updatedAt: fallbackNow,
+      })
+      .onConflictDoUpdate({
+        target: schema.memory.userId,
+        set: { data: fallbackData, updatedAt: fallbackNow },
+      });
+    return c.json({ ok: true });
   }
 
   const summaryData = await summaryRes.json<{
