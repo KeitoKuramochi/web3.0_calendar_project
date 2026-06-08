@@ -396,6 +396,13 @@
   - [ ] 田中さんが面談リクエストを送ると、先生の承認待ちリストを経由せずに自動で「確定済み」になる
   - [ ] 学生が面談リクエストを複数回送ると、memoryの好みの時間帯・完遂率が更新される
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[ ]`
-- **commit**: —
+- **ステータス**: `[?]` 完了（Evaluator確認待ち）
+- **commit**: 037f30f
+- **自己評価**:
+  - SPRINT_CONTRACT の完了条件との照合:
+    - [x] 条件1（自動承認発言）: 先生チャットsystemInstructionにset_auto_ruleアクションのJSONフォーマットを追加。Geminiが「承知しました。〇〇さんのリクエストを自動承認するよう設定しました」と応答するよう指示
+    - [x] 条件2（auto_rules追加）: POST /chatでset_auto_ruleをパースし、先生のmemory.auto_rulesに学生名を追記。memoryが存在しない場合は新規作成
+    - [x] 条件3（自動承認）: POST /meeting-requestsで先生のmemoryのauto_rulesを参照し、学生名が部分一致する場合はstatus='approved'で直接作成
+    - [x] 条件4（好みの時間帯・完遂率）: POST /meeting-requestsで学生のmemoryにpreferred_slots（曜日・時間）とrequest_countを記録。PATCH approveで学生のmemoryにapproved_meetingsとapproval_rate（承認数/リクエスト数）を追記
+    - [x] 条件5（npm run build）: 確認済み（frontend + api 両方通過）
 - **Evaluator確認**: 未

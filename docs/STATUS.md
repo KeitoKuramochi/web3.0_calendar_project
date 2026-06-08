@@ -2,15 +2,15 @@
 
 > GeneratorがTASK完了ごとに更新する。
 
-最終更新: 2026-06-08 10:38 (Generator)
+最終更新: 2026-06-08 10:52 (Generator)
 
 ## 全体進捗
 
 - 総TASK数: 20
 - 完了: 8
-- Evaluator確認待ち: 11
+- Evaluator確認待ち: 12
 - 不合格/修正中: 0
-- 未着手: 1
+- 未着手: 0
 
 ## TASK別ステータス
 
@@ -35,10 +35,11 @@
 | TASK-017 | 学生チャット — 相談分岐 | [?] Evaluator確認待ち | 9ab6953 | breakバグ修正・再評価待ち 2026-06-08 |
 | TASK-018 | Cron通知（Cloudflare Cron + Resend メール） | [?] Evaluator確認待ち | d580a8f | Generator実装完了 2026-06-08 |
 | TASK-019 | Workers AI 埋め込み + Cloudflare Vectorize RAG | [?] Evaluator確認待ち | 26f25c4 | Generator実装完了 2026-06-08 |
-| TASK-020 | bot学習（自動承認ルール・学生傾向のmemory蓄積） | [ ] 未着手 | — | — |
+| TASK-020 | bot学習（自動承認ルール・学生傾向のmemory蓄積） | [?] Evaluator確認待ち | 037f30f | Generator実装完了 2026-06-08 |
 
 ## 直近のアクティビティ
 
+- 2026-06-08: TASK-020 完了。先生チャットのsystemInstructionにset_auto_ruleアクションを追加。POST /chatでset_auto_ruleをパースし先生のmemory.auto_rulesに学生名追記。POST /meeting-requestsで先生のmemoryのauto_rulesを参照し自動承認（status='approved'直接設定）。POST /meeting-requestsで学生のmemoryにpreferred_slots・request_countを記録。PATCH /meeting-requests/:id/approveで学生のmemoryにapproved_meetings・approval_rateを追記。npm run build 通過確認。commit: 037f30f
 - 2026-06-08: TASK-019 完了。Bindings型にAI?・VECTORIZE_INDEX?を追加。POST /chatでGemini呼び出し前にVectorize検索（AI+Vectorize利用可能時）でRAGコンテキストを取得してsystemInstructionに追加。chatLog保存後にWorkers AI(@cf/baai/bge-base-en-v1.5)でベクトル化しVectorizeにupsert（AI+Vectorize利用可能時のみ）。AI/Vectorize未設定時は既存D1 memoryからのRAGフォールバックで動作継続。wrangler.tomlにAI・Vectorize bindingをコメントアウトで記載。npm run build 通過確認。commit: 26f25c4
 - 2026-06-08: TASK-018 完了。wrangler.toml に [triggers] crons = ["0 23 * * *"] 追加。Bindings型に RESEND_API_KEY?追加。export default を { fetch, scheduled } 形式に変更。runDailyReminder（翌日approved面談を取得してリマインド）・sendReminder（コンソール出力・RESEND_API_KEY未設定時スキップ・設定時Resend API呼び出し）関数を追加。npm run build 通過確認。commit: d580a8f
 - 2026-06-08: TASK-017 bugfix。ready_for_meeting パース処理の break 位置バグ修正。breakをtry-catchの外からif(parsed.action === 'ready_for_meeting')ブロック内に移動し、JSONの後にテキストが続く形式でも正しくJSONを検出できるよう修正。npm run build 通過確認。commit: 9ab6953
