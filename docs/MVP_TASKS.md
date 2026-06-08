@@ -352,7 +352,7 @@
   - [ ] `RESEND_API_KEY` 未設定時は「メール送信スキップ」とコンソールに出力されエラーにならない
   - [ ] メール本文に面談の日時・相手の名前が含まれている
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[?]` 完了（Evaluator確認待ち）
+- **ステータス**: `[x]` 合格（Evaluator確認済み 2026-06-08）
 - **commit**: d580a8f
 - **自己評価**:
   - `wrangler.toml` に `[triggers] crons = ["0 23 * * *"]`（毎日UTC 23:00 = JST 08:00）を追加。
@@ -362,7 +362,7 @@
   - `sendReminder(env, to, subject, body)` 関数を実装。コンソールに「送信先・件名」を出力。`RESEND_API_KEY` 未設定時は「メール送信スキップ」を出力してスキップ（エラーなし）。設定時はResend APIにfetchで送信。
   - メール本文に面談の日時（日本語フォーマット・JST）と相手の名前を含む。
   - npm run build 成功確認済み（frontend + api 両方通過）。
-- **Evaluator確認**: 未
+- **Evaluator確認**: 合格 (2026-06-08)
 
 ---
 
@@ -374,7 +374,7 @@
   - [ ] `/chat` でメッセージを送信すると、HonoがVectorizeで類似する過去会話を検索してGeminiのプロンプトに追加する
   - [ ] 以前に話した話題（例：「先週のPythonの件」）について聞くと、Geminiが過去会話を参照した返答をする
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[?]` 完了（Evaluator確認待ち）
+- **ステータス**: `[x]` 合格（Evaluator確認済み 2026-06-08）
 - **commit**: 26f25c4
 - **自己評価**:
   - Bindings型に `AI?: Ai` と `VECTORIZE_INDEX?: VectorizeIndex` を追加（@cloudflare/workers-types グローバル型）。
@@ -383,7 +383,7 @@
   - chatLog保存後（Gemini成功時）: AI+Vectorize利用可能な場合はuser/assistantの両メッセージをベクトル化してVectorizeにupsert。エラー時はスキップ（chatLog自体は保存済み）。
   - AI/Vectorize未設定時は既存のD1 memoryからのRAGコンテキスト（systemTextに既に含まれる）で動作継続。
   - npm run build 成功確認済み（frontend + api 両方通過）。
-- **Evaluator確認**: 未
+- **Evaluator確認**: 合格 (2026-06-08)
 
 ---
 
@@ -396,7 +396,7 @@
   - [ ] 田中さんが面談リクエストを送ると、先生の承認待ちリストを経由せずに自動で「確定済み」になる
   - [ ] 学生が面談リクエストを複数回送ると、memoryの好みの時間帯・完遂率が更新される
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[?]` 完了（Evaluator確認待ち）
+- **ステータス**: `[x]` 合格（Evaluator確認済み 2026-06-08）
 - **commit**: 037f30f
 - **自己評価**:
   - SPRINT_CONTRACT の完了条件との照合:
@@ -405,4 +405,4 @@
     - [x] 条件3（自動承認）: POST /meeting-requestsで先生のmemoryのauto_rulesを参照し、学生名が部分一致する場合はstatus='approved'で直接作成
     - [x] 条件4（好みの時間帯・完遂率）: POST /meeting-requestsで学生のmemoryにpreferred_slots（曜日・時間）とrequest_countを記録。PATCH approveで学生のmemoryにapproved_meetingsとapproval_rate（承認数/リクエスト数）を追記
     - [x] 条件5（npm run build）: 確認済み（frontend + api 両方通過）
-- **Evaluator確認**: 未
+- **Evaluator確認**: 合格 (2026-06-08)
