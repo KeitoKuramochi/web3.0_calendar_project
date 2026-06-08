@@ -44,7 +44,8 @@ app.get('/db-check', async (c) => {
 
 // GET /auth/login → Google OAuth にリダイレクト
 app.get('/auth/login', (c) => {
-  const redirectUri = c.env.REDIRECT_URI ?? 'http://localhost:4321/api/auth/callback';
+  const origin = new URL(c.req.url).origin;
+  const redirectUri = c.env.REDIRECT_URI ?? `${origin}/auth/callback`;
   const params = new URLSearchParams({
     client_id: c.env.GOOGLE_CLIENT_ID,
     redirect_uri: redirectUri,
@@ -68,7 +69,7 @@ app.get('/auth/callback', async (c) => {
       code,
       client_id: c.env.GOOGLE_CLIENT_ID,
       client_secret: c.env.GOOGLE_CLIENT_SECRET,
-      redirect_uri: c.env.REDIRECT_URI ?? 'http://localhost:4321/api/auth/callback',
+      redirect_uri: c.env.REDIRECT_URI ?? `${new URL(c.req.url).origin}/auth/callback`,
       grant_type: 'authorization_code',
     }),
   });
