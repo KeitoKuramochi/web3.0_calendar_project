@@ -330,7 +330,7 @@
   - [ ] 準備会話終了後にGeminiが「準備が整いました。希望の日時を先生のカレンダーから選んでください」という旨の案内と、カレンダーへのリンクまたはボタンを表示する
   - [ ] `npm run build` がエラーなく完了する
 - **ステータス**: `[?]` 完了（Evaluator確認待ち）
-- **commit**: e878352
+- **commit**: 9ab6953（bugfix: break位置修正）
 - **自己評価**:
   - SPRINT_CONTRACT の完了条件との照合:
     - [x] 条件1（bot解決パス）: 学生ロール向けsystemInstructionで技術的問題はbot解決パスと明示し、JSONを含めない指示を追加
@@ -338,6 +338,7 @@
     - [x] 条件3（準備質問2〜3問）: systemInstructionで準備質問を1問ずつ出す（計2〜3問）・状況/困っていること/相談したいことを確認するよう指示
     - [x] 条件4（カレンダーリンク表示）: Geminiが{"action":"ready_for_meeting"}を返答末尾に含めた場合、APIがactionフィールドをレスポンスに含め、Chat.tsxがshowCalendarLinkをtrueにして「先生のカレンダーを見る」ボタン（href="/student"）を表示
     - [x] 条件5（npm run build通過）: 確認済み
+  - Evaluator指摘対応: ready_for_meeting パース処理のbreakバグを修正（breakをif(parsed.action === 'ready_for_meeting')内に移動し、JSONの後にテキストが続く形式でも正しく検出されるよう修正）
 - **Evaluator確認**: 未
 
 ---

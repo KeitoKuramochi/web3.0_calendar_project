@@ -32,11 +32,12 @@
 | TASK-014 | Gemini Flash 2.0 チャット接続 | [?] Evaluator確認待ち | 485c041 | Generator実装完了 2026-06-08 |
 | TASK-015 | chatLog永久保存 + memory自動更新 | [x] 合格 | 0cc2d75 | Evaluator合格 2026-06-08 |
 | TASK-016 | 先生チャット — 自然言語で空き枠設定 | [?] Evaluator確認待ち | b29bdc5 | Generator実装完了 2026-06-08 |
-| TASK-017 | 学生チャット — 相談分岐 | [?] Evaluator確認待ち | e878352 | Generator実装完了 2026-06-08 |
+| TASK-017 | 学生チャット — 相談分岐 | [?] Evaluator確認待ち | 9ab6953 | breakバグ修正・再評価待ち 2026-06-08 |
 | TASK-018〜020 | Phase 3（残り） | [ ] 未着手 | — | — |
 
 ## 直近のアクティビティ
 
+- 2026-06-08: TASK-017 bugfix。ready_for_meeting パース処理の break 位置バグ修正。breakをtry-catchの外からif(parsed.action === 'ready_for_meeting')ブロック内に移動し、JSONの後にテキストが続く形式でも正しくJSONを検出できるよう修正。npm run build 通過確認。commit: 9ab6953
 - 2026-06-08: TASK-017 完了。POST /chat に学生ロール向けsystemInstruction追加（bot解決パス / 面談準備パス分岐）。面談準備完了時の {"action":"ready_for_meeting"} JSONパース処理を追加してフロントにactionフィールドを返す。Chat.tsx に showCalendarLink state 追加。action === 'ready_for_meeting' 時にチャット画面下部に「先生のカレンダーを見る」ボタン（href="/student"）を表示。npm run build 通過確認。commit: e878352
 - 2026-06-08: TASK-016 完了。POST /chat に先生ロール判定追加。先生の場合のみ今日の日付・空き枠操作JSONフォーマットをsystemInstructionに付加。Gemini返答の先頭行をJSONパースして add_slot（D1 INSERT）/delete_slot（D1 DELETE）を実行。曖昧表現はGeminiがテキストのみ返し確認動作。レスポンスに action フィールド追加。既存chatLog保存・memory参照を維持。npm run build 通過確認。commit: b29bdc5
 - 2026-06-08: TASK-015 修正対応（Evaluator不合格対応）。POST /chat でuserメッセージをGemini呼び出し前にchatLogへ先に保存するよう変更（Gemini失敗時でもuserログが残る）。POST /chat/end-session でGemini要約失敗時のフォールバック追加（chatLogテキスト2000文字をmemory.dataに保存し ok:true を返す）。npm run build 通過確認。commit: 0cc2d75
