@@ -282,7 +282,7 @@
   - [ ] チャット終了から一定時間後（または「会話を終了する」ボタン押下後）、D1のmemoryテーブルにそのユーザーのmemoryレコードが更新される
   - [ ] 次の会話開始時に、前回のmemoryの内容をGeminiが参照した発言（「前回は〜でしたね」など）をすることがある
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[?]` 完了（Evaluator確認待ち）
+- **ステータス**: `[x]` 完了（Evaluator合格）
 - **commit**: 0cc2d75
 - **自己評価**:
   - POST /chat に chatLog保存（user/assistantペアをINSERT）とmemoryRecord参照（systemInstruction差し替え）を追加。
@@ -292,7 +292,7 @@
   - [修正] userメッセージをGemini呼び出し前にchatLogへ先に保存するよう変更。Gemini成功後にassistantの返答もchatLogに保存。
   - [修正] POST /chat/end-session でGemini要約失敗時にフォールバックとしてchatLogテキスト（2000文字まで）をmemory.dataに保存し `{"ok":true}` を返すよう変更。
   - npm run build 成功確認済み（frontend + api 両方通過）。
-- **Evaluator確認**: 未
+- **Evaluator確認**: 合格 (2026-06-08)
 
 ---
 
@@ -305,8 +305,17 @@
   - [ ] 「月曜の空き枠を削除して」と入力すると、該当する空き枠がカレンダーから消える
   - [ ] 曖昧な表現（「来週後半のどこか」）に対してGeminiが「具体的な日時を教えてください」と聞き返す
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[ ]`
-- **commit**: —
+- **ステータス**: `[?]` 完了（Evaluator確認待ち）
+- **commit**: b29bdc5
+- **自己評価**:
+  - POST /chat に userRole 判定を追加。先生ロールの場合のみ今日の日付・空き枠操作JSONフォーマットをsystemInstructionに追加。
+  - Gemini返答の先頭行をJSONパース（add_slot/delete_slot）。
+  - add_slot: startTime/endTimeをDate変換してD1のslotsテーブルにINSERT。
+  - delete_slot: 指定日付・startHourでマッチするスロットをD1から削除。
+  - 曖昧表現ではGeminiがJSONなしのテキストのみを返す（確認動作）。
+  - displayReply（JSON行除いた本文）をreplyとして返し、action フィールドも追加。
+  - 既存のchatLog保存・memory参照の動作は維持。
+  - npm run build 成功確認済み。
 - **Evaluator確認**: 未
 
 ---

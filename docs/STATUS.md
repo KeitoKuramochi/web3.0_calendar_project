@@ -2,15 +2,15 @@
 
 > GeneratorがTASK完了ごとに更新する。
 
-最終更新: 2026-06-08 10:00 (Generator)
+最終更新: 2026-06-08 10:20 (Generator)
 
 ## 全体進捗
 
 - 総TASK数: 20
-- 完了: 7
+- 完了: 8
 - Evaluator確認待ち: 8
 - 不合格/修正中: 0
-- 未着手: 5
+- 未着手: 4
 
 ## TASK別ステータス
 
@@ -30,11 +30,13 @@
 | TASK-012 | 面談リクエスト承認・差し戻しフロー | [?] Evaluator確認待ち | 47057a5 | Generator実装完了 2026-06-08 |
 | TASK-013 | 課題管理（割り当て・完了報告） | [x] 合格 | 9ac2b1a | Evaluator確認済み 2026-06-08 |
 | TASK-014 | Gemini Flash 2.0 チャット接続 | [?] Evaluator確認待ち | 485c041 | Generator実装完了 2026-06-08 |
-| TASK-015 | chatLog永久保存 + memory自動更新 | [?] Evaluator確認待ち | 0cc2d75 | Evaluator修正対応 2026-06-08 |
-| TASK-016〜020 | Phase 3（残り） | [ ] 未着手 | — | — |
+| TASK-015 | chatLog永久保存 + memory自動更新 | [x] 合格 | 0cc2d75 | Evaluator合格 2026-06-08 |
+| TASK-016 | 先生チャット — 自然言語で空き枠設定 | [?] Evaluator確認待ち | b29bdc5 | Generator実装完了 2026-06-08 |
+| TASK-017〜020 | Phase 3（残り） | [ ] 未着手 | — | — |
 
 ## 直近のアクティビティ
 
+- 2026-06-08: TASK-016 完了。POST /chat に先生ロール判定追加。先生の場合のみ今日の日付・空き枠操作JSONフォーマットをsystemInstructionに付加。Gemini返答の先頭行をJSONパースして add_slot（D1 INSERT）/delete_slot（D1 DELETE）を実行。曖昧表現はGeminiがテキストのみ返し確認動作。レスポンスに action フィールド追加。既存chatLog保存・memory参照を維持。npm run build 通過確認。commit: b29bdc5
 - 2026-06-08: TASK-015 修正対応（Evaluator不合格対応）。POST /chat でuserメッセージをGemini呼び出し前にchatLogへ先に保存するよう変更（Gemini失敗時でもuserログが残る）。POST /chat/end-session でGemini要約失敗時のフォールバック追加（chatLogテキスト2000文字をmemory.dataに保存し ok:true を返す）。npm run build 通過確認。commit: 0cc2d75
 - 2026-06-08: TASK-015 完了。POST /chat にchatLog保存（user/assistantペアINSERT）・memory参照（systemInstruction動的切り替え）を追加。GET /chat/history エンドポイント追加（直近20件古い順）。POST /chat/end-session エンドポイント追加（Gemini要約→memoryテーブルupsert）。Chat.tsx に履歴初期ロード・「会話を終了する」ボタン・保存完了通知を追加。npm run build 通過確認。commit: 7f4a078
 - 2026-06-08: TASK-014 完了。Bindings型にGEMINI_API_KEY追加。POST /chat エンドポイント追加（認証必須・Gemini 2.0 Flash fetch直呼び・systemInstruction付き）。Chat.tsx をエコーbotからAPI呼び出しに変更（会話履歴送信・ローディング表示・エラーハンドリング）。npm run build 通過確認。commit: 485c041
