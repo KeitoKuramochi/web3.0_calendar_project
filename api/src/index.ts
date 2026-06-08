@@ -16,6 +16,7 @@ type Bindings = {
   GOOGLE_CLIENT_SECRET: string;
   SESSION_SECRET: string;
   GEMINI_API_KEY: string;
+  GROQ_API_KEY?: string;
   RESEND_API_KEY?: string;
   AI?: Ai;
   VECTORIZE_INDEX?: VectorizeIndex;
@@ -1308,13 +1309,42 @@ ${labContextText}`;
 
   let rawReply = '返答を取得できませんでした';
 
-  if (c.env.AI) {
+  if (c.env.GROQ_API_KEY) {
+    // Groq API (llama-3.3-70b-versatile) — Cloudflareより高精度
+    try {
+      const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${c.env.GROQ_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages,
+          max_tokens: 1024,
+          temperature: 0.3,
+        }),
+      });
+      if (!groqRes.ok) {
+        const errText = await groqRes.text();
+        console.error('Groq API error:', groqRes.status, errText);
+        return c.json({ error: 'ai_error', detail: errText }, 500);
+      }
+      const groqData = await groqRes.json() as { choices?: { message?: { content?: string } }[] };
+      rawReply = groqData.choices?.[0]?.message?.content || '返答を取得できませんでした';
+      console.log('Groq response:', rawReply.slice(0, 200));
+    } catch (e) {
+      console.error('Groq fetch error:', e);
+      return c.json({ error: 'ai_error', detail: String(e) }, 500);
+    }
+  } else if (c.env.AI) {
+    // Cloudflare Workers AI フォールバック
     try {
       const aiRes = await (c.env.AI.run as (model: string, opts: object) => Promise<{ response?: string }>)(
         '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
         { messages, max_tokens: 1024, stream: false }
       );
-      console.log('AI response:', JSON.stringify(aiRes));
+      console.log('Workers AI response:', JSON.stringify(aiRes));
       rawReply = aiRes.response || '返答を取得できませんでした';
     } catch (e) {
       console.error('Workers AI error:', e);
