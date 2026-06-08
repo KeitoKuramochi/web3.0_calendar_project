@@ -42,6 +42,19 @@ app.get('/debug-oauth', (c) => {
   return c.json({ origin, redirectUri, hasRedirectUriEnv: !!c.env.REDIRECT_URI });
 });
 
+app.get('/debug-ai', async (c) => {
+  if (!c.env.AI) return c.json({ error: 'AI binding not available' });
+  try {
+    const res = await (c.env.AI.run as (model: string, opts: object) => Promise<unknown>)(
+      '@cf/meta/llama-3.1-8b-instruct',
+      { messages: [{ role: 'user', content: 'hello' }], max_tokens: 50, stream: false }
+    );
+    return c.json({ ok: true, res });
+  } catch (e) {
+    return c.json({ error: String(e) });
+  }
+});
+
 app.get('/db-check', async (c) => {
   const db = drizzle(c.env.DB, { schema });
   const result = await db.select().from(schema.users);
