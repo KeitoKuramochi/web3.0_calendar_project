@@ -2,15 +2,15 @@
 
 > GeneratorがTASK完了ごとに更新する。
 
-最終更新: 2026-06-08 10:20 (Generator)
+最終更新: 2026-06-08 10:25 (Generator)
 
 ## 全体進捗
 
 - 総TASK数: 20
 - 完了: 8
-- Evaluator確認待ち: 9
+- Evaluator確認待ち: 10
 - 不合格/修正中: 0
-- 未着手: 3
+- 未着手: 2
 
 ## TASK別ステータス
 
@@ -33,10 +33,13 @@
 | TASK-015 | chatLog永久保存 + memory自動更新 | [x] 合格 | 0cc2d75 | Evaluator合格 2026-06-08 |
 | TASK-016 | 先生チャット — 自然言語で空き枠設定 | [?] Evaluator確認待ち | b29bdc5 | Generator実装完了 2026-06-08 |
 | TASK-017 | 学生チャット — 相談分岐 | [?] Evaluator確認待ち | 9ab6953 | breakバグ修正・再評価待ち 2026-06-08 |
-| TASK-018〜020 | Phase 3（残り） | [ ] 未着手 | — | — |
+| TASK-018 | Cron通知（Cloudflare Cron + Resend メール） | [?] Evaluator確認待ち | d580a8f | Generator実装完了 2026-06-08 |
+| TASK-019 | Workers AI 埋め込み + Cloudflare Vectorize RAG | [ ] 未着手 | — | — |
+| TASK-020 | bot学習（自動承認ルール・学生傾向のmemory蓄積） | [ ] 未着手 | — | — |
 
 ## 直近のアクティビティ
 
+- 2026-06-08: TASK-018 完了。wrangler.toml に [triggers] crons = ["0 23 * * *"] 追加。Bindings型に RESEND_API_KEY?追加。export default を { fetch, scheduled } 形式に変更。runDailyReminder（翌日approved面談を取得してリマインド）・sendReminder（コンソール出力・RESEND_API_KEY未設定時スキップ・設定時Resend API呼び出し）関数を追加。npm run build 通過確認。commit: d580a8f
 - 2026-06-08: TASK-017 bugfix。ready_for_meeting パース処理の break 位置バグ修正。breakをtry-catchの外からif(parsed.action === 'ready_for_meeting')ブロック内に移動し、JSONの後にテキストが続く形式でも正しくJSONを検出できるよう修正。npm run build 通過確認。commit: 9ab6953
 - 2026-06-08: TASK-017 完了。POST /chat に学生ロール向けsystemInstruction追加（bot解決パス / 面談準備パス分岐）。面談準備完了時の {"action":"ready_for_meeting"} JSONパース処理を追加してフロントにactionフィールドを返す。Chat.tsx に showCalendarLink state 追加。action === 'ready_for_meeting' 時にチャット画面下部に「先生のカレンダーを見る」ボタン（href="/student"）を表示。npm run build 通過確認。commit: e878352
 - 2026-06-08: TASK-016 完了。POST /chat に先生ロール判定追加。先生の場合のみ今日の日付・空き枠操作JSONフォーマットをsystemInstructionに付加。Gemini返答の先頭行をJSONパースして add_slot（D1 INSERT）/delete_slot（D1 DELETE）を実行。曖昧表現はGeminiがテキストのみ返し確認動作。レスポンスに action フィールド追加。既存chatLog保存・memory参照を維持。npm run build 通過確認。commit: b29bdc5

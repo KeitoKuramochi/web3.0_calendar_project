@@ -352,8 +352,16 @@
   - [ ] `RESEND_API_KEY` 未設定時は「メール送信スキップ」とコンソールに出力されエラーにならない
   - [ ] メール本文に面談の日時・相手の名前が含まれている
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[ ]`
-- **commit**: —
+- **ステータス**: `[?]` 完了（Evaluator確認待ち）
+- **commit**: d580a8f
+- **自己評価**:
+  - `wrangler.toml` に `[triggers] crons = ["0 23 * * *"]`（毎日UTC 23:00 = JST 08:00）を追加。
+  - `Bindings` 型に `RESEND_API_KEY?: string`（任意）を追加。
+  - `export default app;` を `export default { fetch: app.fetch, scheduled }` 形式に変更。既存Honoルートは `app.fetch` 経由で引き続き動作。
+  - `runDailyReminder(env)` 関数を実装。翌日UTC範囲を計算し、status='approved' の面談リクエストからスロット日時をフィルタして学生・先生それぞれに通知。
+  - `sendReminder(env, to, subject, body)` 関数を実装。コンソールに「送信先・件名」を出力。`RESEND_API_KEY` 未設定時は「メール送信スキップ」を出力してスキップ（エラーなし）。設定時はResend APIにfetchで送信。
+  - メール本文に面談の日時（日本語フォーマット・JST）と相手の名前を含む。
+  - npm run build 成功確認済み（frontend + api 両方通過）。
 - **Evaluator確認**: 未
 
 ---
