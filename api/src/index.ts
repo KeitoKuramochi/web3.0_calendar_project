@@ -1095,33 +1095,57 @@ app.post('/chat', async (c) => {
     .where(eq(schema.memory.userId, userId))
     .get();
 
-  const today = new Date().toLocaleDateString('ja-JP', {
+  const now = new Date();
+  const today = now.toLocaleDateString('ja-JP', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     weekday: 'long',
   });
+  // ISO date string in JST (UTC+9)
+  const jstOffset = 9 * 60 * 60 * 1000;
+  const jstNow = new Date(now.getTime() + jstOffset);
+  const todayISO = jstNow.toISOString().slice(0, 10); // "YYYY-MM-DD"
+
+  // Calculate this week's Mon-Sun (Mon=start) in JST
+  const dayOfWeek = jstNow.getUTCDay(); // 0=Sun,1=Mon,...6=Sat
+  const diffToMon = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const weekDates = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(jstNow.getTime() + (diffToMon + i) * 24 * 60 * 60 * 1000);
+    return d.toISOString().slice(0, 10);
+  });
+  const [mon, tue, wed, thu, fri, sat, sun] = weekDates;
 
   let systemText = memoryRecord
-    ? `研究室の進捗管理ボットです。以下はこのユーザーについての記録です:\n${memoryRecord.data}\n\n今日は${today}です。日本語で簡潔に回答してください。`
-    : `研究室の進捗管理ボットです。先生と学生のコミュニケーションをサポートします。今日は${today}です。日本語で簡潔に回答してください。`;
+    ? `研究室の進捗管理ボットです。以下はこのユーザーについての記録です:\n${memoryRecord.data}\n\n今日は${today}（${todayISO}）です。日本語で簡潔に回答してください。`
+    : `研究室の進捗管理ボットです。先生と学生のコミュニケーションをサポートします。今日は${today}（${todayISO}）です。日本語で簡潔に回答してください。`;
 
   // 先生ロールの場合: 空き枠操作のsystemInstructionを追加
   if (userRole === 'teacher') {
     systemText += `
 
-あなたは先生の空き枠管理アシスタントです。日本語で会話してください。
+あなたは先生の空き枠管理アシスタントです。日本語で返答してください。
 
-ユーザーが具体的な日時で空き枠の追加を求めた場合のみ、返答の最初の行にこの形式で出力してください：
-{"action":"add_slot","startTime":"${today.slice(0,4)}-MM-DDTHH:mm","endTime":"${today.slice(0,4)}-MM-DDTHH:mm"}
+今週の日付（月〜日）: 月曜${mon}, 火曜${tue}, 水曜${wed}, 木曜${thu}, 金曜${fri}, 土曜${sat}, 日曜${sun}
 
-ユーザーが空き枠の削除を求めた場合のみ、返答の最初の行にこの形式で出力してください：
-{"action":"delete_slot","date":"${today.slice(0,4)}-MM-DD","startHour":数字}
+【重要】ユーザーが空き枠の追加を求めたら、必ず返答の最初の行にJSONを出力してください。
+複数日の場合は1行に1つのJSONを出力してください。
 
-JSONを出力した後は必ず改行して、日本語の返答を続けてください。
-日時が曖昧な場合はJSONを出力せず、具体的な日時を確認してください。
-自動承認ルール設定を求められた場合は返答の最初の行に {"action":"set_auto_rule","studentName":"名前"} を出力してください。
-それ以外の通常の会話ではJSONを出力しないでください。`;
+空き枠追加の例（月曜と火曜が空いている場合）:
+{"action":"add_slot","startTime":"${mon}T09:00","endTime":"${mon}T17:00"}
+{"action":"add_slot","startTime":"${tue}T09:00","endTime":"${tue}T17:00"}
+月曜日と火曜日の空き枠を登録しました。
+
+空き枠削除の例:
+{"action":"delete_slot","date":"${mon}","startHour":9}
+月曜日9時の空き枠を削除しました。
+
+【ルール】
+- 「月曜」「来週の火曜」など曜日で言われたら今週の日付を使ってJSONを出力すること
+- 時間が指定されない場合は09:00〜17:00を使うこと
+- 自動承認設定: {"action":"set_auto_rule","studentName":"名前"}
+- 通常会話（質問・雑談）にはJSONを出力しないこと
+- JSONの後に必ず日本語の返答を書くこと`;
   }
 
   // 学生ロールの場合: 相談分岐のsystemInstructionを追加
@@ -1202,7 +1226,7 @@ JSONを出力した後は必ず改行して、日本語の返答を続けてく�
   if (c.env.AI) {
     try {
       const aiRes = await (c.env.AI.run as (model: string, opts: object) => Promise<{ response?: string }>)(
-        '@cf/meta/llama-3.1-8b-instruct',
+        '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
         { messages, max_tokens: 512, stream: false }
       );
       console.log('AI response:', JSON.stringify(aiRes));
