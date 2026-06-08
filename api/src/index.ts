@@ -1212,7 +1212,7 @@ bot解決パスでは絶対にJSONを含めないでください。`;
   if (!res.ok) {
     const errText = await res.text();
     console.error('Gemini API error:', errText);
-    return c.json({ error: 'gemini_api_error' }, 500);
+    return c.json({ error: 'gemini_api_error', detail: errText }, 500);
   }
 
   const data = await res.json<{
