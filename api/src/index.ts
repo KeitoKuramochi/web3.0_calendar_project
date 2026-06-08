@@ -1095,6 +1095,94 @@ app.post('/chat', async (c) => {
     .where(eq(schema.memory.userId, userId))
     .get();
 
+  // 先生の場合: ラボの学生・課題・面談状況を取得してチャットコンテキストに追加
+  let labContextText = '';
+  if (userRole === 'teacher') {
+    const teacherGroups = await db
+      .select()
+      .from(schema.groupMembers)
+      .where(eq(schema.groupMembers.userId, userId));
+    const groupIds = teacherGroups.map((g) => g.groupId);
+
+    if (groupIds.length > 0) {
+      // 学生一覧
+      const studentMembers = await db
+        .select()
+        .from(schema.groupMembers)
+        .where(and(
+          inArray(schema.groupMembers.groupId, groupIds),
+          eq(schema.groupMembers.role, 'student')
+        ));
+      const studentIds = studentMembers.map((s) => s.userId);
+
+      if (studentIds.length > 0) {
+        // 学生名を取得
+        const studentUsers = await db
+          .select()
+          .from(schema.users)
+          .where(inArray(schema.users.id, studentIds));
+        const studentNameMap = new Map(studentUsers.map((u) => [u.id, u.name ?? u.email]));
+
+        // 課題一覧（先生が作成したもの）
+        const assignments = await db
+          .select()
+          .from(schema.assignments)
+          .where(eq(schema.assignments.teacherId, userId));
+
+        // 面談リクエスト（直近30件）
+        const meetingReqs = await db
+          .select()
+          .from(schema.meetingRequests)
+          .where(eq(schema.meetingRequests.teacherId, userId))
+          .orderBy(desc(schema.meetingRequests.createdAt))
+          .limit(30);
+
+        // 学生メモリ
+        const studentMemories = await db
+          .select()
+          .from(schema.memory)
+          .where(inArray(schema.memory.userId, studentIds));
+        const memoryMap = new Map(studentMemories.map((m) => [m.userId, m.data]));
+
+        // 学生ごとにサマリーを作る
+        const studentSummaries = studentIds.map((sid) => {
+          const name = studentNameMap.get(sid) ?? sid;
+          const myAssignments = assignments.filter((a) => a.studentId === sid);
+          const pending = myAssignments.filter((a) => a.status === 'pending');
+          const done = myAssignments.filter((a) => a.status === 'done');
+          const myMeetings = meetingReqs.filter((r) => r.studentId === sid);
+          const pendingMeetings = myMeetings.filter((r) => r.status === 'pending');
+          const mem = memoryMap.get(sid);
+          let memSummary = '';
+          if (mem) {
+            try {
+              const parsed = JSON.parse(mem) as Record<string, unknown>;
+              if (typeof parsed.summary === 'string') memSummary = parsed.summary.slice(0, 200);
+            } catch {
+              memSummary = mem.slice(0, 200);
+            }
+          }
+          const lines = [`【${name}】`];
+          if (myAssignments.length > 0) {
+            lines.push(`  課題: 完了${done.length}件 / 未完了${pending.length}件`);
+            if (pending.length > 0) {
+              lines.push(`  未完了: ${pending.map((a) => a.title).join(', ')}`);
+            }
+          } else {
+            lines.push('  課題: なし');
+          }
+          if (pendingMeetings.length > 0) lines.push(`  面談リクエスト待ち: ${pendingMeetings.length}件`);
+          if (memSummary) lines.push(`  メモ: ${memSummary}`);
+          return lines.join('\n');
+        });
+
+        if (studentSummaries.length > 0) {
+          labContextText = `\n\n【ラボの学生状況】\n${studentSummaries.join('\n')}`;
+        }
+      }
+    }
+  }
+
   const now = new Date();
   const today = now.toLocaleDateString('ja-JP', {
     year: 'numeric',
@@ -1119,6 +1207,10 @@ app.post('/chat', async (c) => {
   let systemText = memoryRecord
     ? `研究室の進捗管理ボットです。以下はこのユーザーについての記録です:\n${memoryRecord.data}\n\n今日は${today}（${todayISO}）です。日本語で簡潔に回答してください。`
     : `研究室の進捗管理ボットです。先生と学生のコミュニケーションをサポートします。今日は${today}（${todayISO}）です。日本語で簡潔に回答してください。`;
+
+  if (labContextText) {
+    systemText += labContextText;
+  }
 
   // 先生ロールの場合: 空き枠操作のsystemInstructionを追加
   if (userRole === 'teacher') {
