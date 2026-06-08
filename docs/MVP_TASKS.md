@@ -374,8 +374,15 @@
   - [ ] `/chat` でメッセージを送信すると、HonoがVectorizeで類似する過去会話を検索してGeminiのプロンプトに追加する
   - [ ] 以前に話した話題（例：「先週のPythonの件」）について聞くと、Geminiが過去会話を参照した返答をする
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[ ]`
-- **commit**: —
+- **ステータス**: `[?]` 完了（Evaluator確認待ち）
+- **commit**: 26f25c4
+- **自己評価**:
+  - Bindings型に `AI?: Ai` と `VECTORIZE_INDEX?: VectorizeIndex` を追加（@cloudflare/workers-types グローバル型）。
+  - `wrangler.toml` にAI binding（`[ai]`）とVectorize binding（`[[vectorize]]`）をコメントアウトで記載。本番時に人間が有効化し、`wrangler vectorize create calendar-memory-index --dimensions=768 --metric=cosine` を実行する。
+  - POST /chatのGemini呼び出し前にVectorize+AI両方利用可能な場合: ユーザーメッセージをWorkers AI（`@cf/baai/bge-base-en-v1.5`）でベクトル化してVectorizeでtopK=3検索し、スコア0.7以上の結果をsystemInstructionの「関連する過去の会話」に追加。エラー時はフォールバック（D1 memoryのみ）で続行。
+  - chatLog保存後（Gemini成功時）: AI+Vectorize利用可能な場合はuser/assistantの両メッセージをベクトル化してVectorizeにupsert。エラー時はスキップ（chatLog自体は保存済み）。
+  - AI/Vectorize未設定時は既存のD1 memoryからのRAGコンテキスト（systemTextに既に含まれる）で動作継続。
+  - npm run build 成功確認済み（frontend + api 両方通過）。
 - **Evaluator確認**: 未
 
 ---

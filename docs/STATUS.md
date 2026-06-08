@@ -2,15 +2,15 @@
 
 > GeneratorがTASK完了ごとに更新する。
 
-最終更新: 2026-06-08 10:25 (Generator)
+最終更新: 2026-06-08 10:38 (Generator)
 
 ## 全体進捗
 
 - 総TASK数: 20
 - 完了: 8
-- Evaluator確認待ち: 10
+- Evaluator確認待ち: 11
 - 不合格/修正中: 0
-- 未着手: 2
+- 未着手: 1
 
 ## TASK別ステータス
 
@@ -34,11 +34,12 @@
 | TASK-016 | 先生チャット — 自然言語で空き枠設定 | [?] Evaluator確認待ち | b29bdc5 | Generator実装完了 2026-06-08 |
 | TASK-017 | 学生チャット — 相談分岐 | [?] Evaluator確認待ち | 9ab6953 | breakバグ修正・再評価待ち 2026-06-08 |
 | TASK-018 | Cron通知（Cloudflare Cron + Resend メール） | [?] Evaluator確認待ち | d580a8f | Generator実装完了 2026-06-08 |
-| TASK-019 | Workers AI 埋め込み + Cloudflare Vectorize RAG | [ ] 未着手 | — | — |
+| TASK-019 | Workers AI 埋め込み + Cloudflare Vectorize RAG | [?] Evaluator確認待ち | 26f25c4 | Generator実装完了 2026-06-08 |
 | TASK-020 | bot学習（自動承認ルール・学生傾向のmemory蓄積） | [ ] 未着手 | — | — |
 
 ## 直近のアクティビティ
 
+- 2026-06-08: TASK-019 完了。Bindings型にAI?・VECTORIZE_INDEX?を追加。POST /chatでGemini呼び出し前にVectorize検索（AI+Vectorize利用可能時）でRAGコンテキストを取得してsystemInstructionに追加。chatLog保存後にWorkers AI(@cf/baai/bge-base-en-v1.5)でベクトル化しVectorizeにupsert（AI+Vectorize利用可能時のみ）。AI/Vectorize未設定時は既存D1 memoryからのRAGフォールバックで動作継続。wrangler.tomlにAI・Vectorize bindingをコメントアウトで記載。npm run build 通過確認。commit: 26f25c4
 - 2026-06-08: TASK-018 完了。wrangler.toml に [triggers] crons = ["0 23 * * *"] 追加。Bindings型に RESEND_API_KEY?追加。export default を { fetch, scheduled } 形式に変更。runDailyReminder（翌日approved面談を取得してリマインド）・sendReminder（コンソール出力・RESEND_API_KEY未設定時スキップ・設定時Resend API呼び出し）関数を追加。npm run build 通過確認。commit: d580a8f
 - 2026-06-08: TASK-017 bugfix。ready_for_meeting パース処理の break 位置バグ修正。breakをtry-catchの外からif(parsed.action === 'ready_for_meeting')ブロック内に移動し、JSONの後にテキストが続く形式でも正しくJSONを検出できるよう修正。npm run build 通過確認。commit: 9ab6953
 - 2026-06-08: TASK-017 完了。POST /chat に学生ロール向けsystemInstruction追加（bot解決パス / 面談準備パス分岐）。面談準備完了時の {"action":"ready_for_meeting"} JSONパース処理を追加してフロントにactionフィールドを返す。Chat.tsx に showCalendarLink state 追加。action === 'ready_for_meeting' 時にチャット画面下部に「先生のカレンダーを見る」ボタン（href="/student"）を表示。npm run build 通過確認。commit: e878352
