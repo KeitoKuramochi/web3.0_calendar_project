@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://calendar-api.keito0215667.workers.dev/:path*"
+    }
+  ]
+}
