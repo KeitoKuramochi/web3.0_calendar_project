@@ -1191,7 +1191,10 @@ JSONを出力した後は必ず改行して、日本語の返答を続けてく�
 
   const messages = [
     { role: 'system' as const, content: trimmedSystem },
-    ...body.messages.slice(-6).map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+    ...body.messages.slice(-4).map((m) => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content.slice(0, 300),
+    })),
   ];
 
   let rawReply = '返答を取得できませんでした';
