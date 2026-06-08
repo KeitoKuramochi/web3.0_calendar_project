@@ -1186,9 +1186,12 @@ JSONを出力した後は必ず改行して、日本語の返答を続けてく�
     });
   }
 
+  // systemTextを2000文字以内に制限
+  const trimmedSystem = systemText.slice(0, 2000);
+
   const messages = [
-    { role: 'system' as const, content: systemText },
-    ...body.messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+    { role: 'system' as const, content: trimmedSystem },
+    ...body.messages.slice(-6).map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
   ];
 
   let rawReply = '返答を取得できませんでした';
@@ -1197,9 +1200,10 @@ JSONを出力した後は必ず改行して、日本語の返答を続けてく�
     try {
       const aiRes = await (c.env.AI.run as (model: string, opts: object) => Promise<{ response?: string }>)(
         '@cf/meta/llama-3.1-8b-instruct',
-        { messages, max_tokens: 1024, stream: false }
+        { messages, max_tokens: 512, stream: false }
       );
-      rawReply = aiRes.response ?? '返答を取得できませんでした';
+      console.log('AI response:', JSON.stringify(aiRes));
+      rawReply = aiRes.response || '返答を取得できませんでした';
     } catch (e) {
       console.error('Workers AI error:', e);
       return c.json({ error: 'ai_error', detail: String(e) }, 500);
