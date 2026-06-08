@@ -282,8 +282,14 @@
   - [ ] チャット終了から一定時間後（または「会話を終了する」ボタン押下後）、D1のmemoryテーブルにそのユーザーのmemoryレコードが更新される
   - [ ] 次の会話開始時に、前回のmemoryの内容をGeminiが参照した発言（「前回は〜でしたね」など）をすることがある
   - [ ] `npm run build` がエラーなく完了する
-- **ステータス**: `[ ]`
-- **commit**: —
+- **ステータス**: `[?]` 完了（Evaluator確認待ち）
+- **commit**: 7f4a078
+- **自己評価**:
+  - POST /chat に chatLog保存（user/assistantペアをINSERT）とmemoryRecord参照（systemInstruction差し替え）を追加。
+  - GET /chat/history エンドポイントを追加（直近20件をDESC取得→reverse()で古い順に返す）。
+  - POST /chat/end-session エンドポイントを追加（直近30件取得→Geminiで要約→memoryテーブルにonConflictDoUpdateでupsert）。
+  - Chat.tsx: useEffect マウント時に GET /api/chat/history を呼び過去履歴を表示。「会話を終了する」ボタンを追加し POST /api/chat/end-session を呼び「会話履歴を保存しました」メッセージを表示。sessionEnded状態で入力を無効化。
+  - npm run build 成功確認済み（frontend + api 両方通過）。
 - **Evaluator確認**: 未
 
 ---
