@@ -1186,43 +1186,22 @@ bot解決パスでは絶対にJSONを含めないでください。`;
     });
   }
 
-  const apiKey = c.env.GEMINI_API_KEY;
-  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  const messages = [
+    { role: 'system' as const, content: systemText },
+    ...body.messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+  ];
 
-  const geminiBody = {
-    contents: body.messages.map((m) => ({
-      role: m.role,
-      parts: [{ text: m.content }],
-    })),
-    systemInstruction: {
-      parts: [{ text: systemText }],
-    },
-    generationConfig: {
-      maxOutputTokens: 1024,
-      temperature: 0.7,
-    },
-  };
+  let rawReply = '返答を取得できませんでした';
 
-  const res = await fetch(GEMINI_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(geminiBody),
-  });
-
-  if (!res.ok) {
-    const errText = await res.text();
-    console.error('Gemini API error:', errText);
-    return c.json({ error: 'gemini_api_error', detail: errText }, 500);
+  if (c.env.AI) {
+    const aiRes = await c.env.AI.run('@cf/meta/llama-3.1-8b-instruct' as Parameters<typeof c.env.AI.run>[0], {
+      messages,
+      max_tokens: 1024,
+    }) as { response?: string };
+    rawReply = aiRes.response ?? '返答を取得できませんでした';
+  } else {
+    return c.json({ error: 'ai_not_configured' }, 500);
   }
-
-  const data = await res.json<{
-    candidates?: {
-      content?: { parts?: { text?: string }[] };
-    }[];
-  }>();
-
-  const rawReply =
-    data.candidates?.[0]?.content?.parts?.[0]?.text ?? '返答を取得できませんでした';
 
   // 先生ロールの場合: 返答の先頭からJSONアクションをパースして空き枠操作を実行
   let actionName: string | null = null;
@@ -1467,66 +1446,25 @@ app.post('/chat/end-session', async (c) => {
     .map((r) => `${r.role === 'user' ? 'ユーザー' : 'アシスタント'}: ${r.content}`)
     .join('\n');
 
-  const apiKey = c.env.GEMINI_API_KEY;
-  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  let summaryText = '';
 
-  const summaryBody = {
-    contents: [
-      {
-        role: 'user',
-        parts: [
-          {
-            text: `以下の会話履歴を要約してください。ユーザーの特徴・相談パターン・重要事項をJSON形式のテキストで返してください。\n\n会話履歴:\n${historyText}`,
-          },
-        ],
-      },
-    ],
-    systemInstruction: {
-      parts: [
-        {
-          text: '会話履歴を分析してユーザーの特徴をJSONで要約するアシスタントです。',
-        },
+  if (c.env.AI) {
+    const summaryRes = await c.env.AI.run('@cf/meta/llama-3.1-8b-instruct' as Parameters<typeof c.env.AI.run>[0], {
+      messages: [
+        { role: 'system' as const, content: '会話履歴を分析してユーザーの特徴をJSONで要約するアシスタントです。' },
+        { role: 'user' as const, content: `以下の会話履歴を要約してください。ユーザーの特徴・相談パターン・重要事項をJSON形式のテキストで返してください。\n\n会話履歴:\n${historyText}` },
       ],
-    },
-    generationConfig: {
-      maxOutputTokens: 512,
-      temperature: 0.3,
-    },
-  };
-
-  const summaryRes = await fetch(GEMINI_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(summaryBody),
-  });
-
-  if (!summaryRes.ok) {
-    // フォールバック: chatLogのテキストをそのままmemory.dataに保存（2000文字まで）
+      max_tokens: 512,
+    }) as { response?: string };
+    summaryText = summaryRes.response ?? '';
+  } else {
+    // フォールバック: chatLogのテキストをそのままmemory.dataに保存
     const fallbackData = JSON.stringify({ summary: historyText.slice(0, 2000) });
     const fallbackNow = new Date();
-    await db
-      .insert(schema.memory)
-      .values({
-        id: crypto.randomUUID(),
-        userId,
-        data: fallbackData,
-        updatedAt: fallbackNow,
-      })
-      .onConflictDoUpdate({
-        target: schema.memory.userId,
-        set: { data: fallbackData, updatedAt: fallbackNow },
-      });
+    await db.insert(schema.memory).values({ id: crypto.randomUUID(), userId, data: fallbackData, updatedAt: fallbackNow })
+      .onConflictDoUpdate({ target: schema.memory.userId, set: { data: fallbackData, updatedAt: fallbackNow } });
     return c.json({ ok: true });
   }
-
-  const summaryData = await summaryRes.json<{
-    candidates?: {
-      content?: { parts?: { text?: string }[] };
-    }[];
-  }>();
-
-  const summaryText =
-    summaryData.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 
   if (!summaryText) {
     return c.json({ ok: true });
